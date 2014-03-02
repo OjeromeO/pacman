@@ -28,56 +28,66 @@ var MAZE_LINES = [
 var Map = function(mazelines)
 {
     //XXX should we clone the "mazelines" object instead of just referencing it ?
-    this.mazelines = mazelines; // lines on which the pacman center can move
-    this.mazerects = [];        // rectangles that perfectly wrap the pacman on lines
+    this._mazelines = mazelines; // lines on which the pacman center can move
+    this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
     
-    for(var i=0; i<this.mazelines.length; i++)
+    for(var i=0; i<this._mazelines.length; i++)
     {
         var rect = {x: 0, y: 0, w: 0, h: 0};
         
-        if (this.mazelines[i].direction === Direction.DOWN)
+        if (this._mazelines[i].direction === Direction.DOWN)
         {
-            rect.x = this.mazelines[i].xstart - PACMAN_RADIUS;
-            rect.y = this.mazelines[i].ystart - PACMAN_RADIUS;
+            rect.x = this._mazelines[i].xstart - PACMAN_RADIUS;
+            rect.y = this._mazelines[i].ystart - PACMAN_RADIUS;
             rect.w = 2 * PACMAN_RADIUS;
-            rect.h = this.mazelines[i].len + 2 * PACMAN_RADIUS;
+            rect.h = this._mazelines[i].len + 2 * PACMAN_RADIUS;
         }
-        if (this.mazelines[i].direction === Direction.RIGHT)
+        if (this._mazelines[i].direction === Direction.RIGHT)
         {
-            rect.x = this.mazelines[i].xstart - PACMAN_RADIUS;
-            rect.y = this.mazelines[i].ystart - PACMAN_RADIUS;
-            rect.w = this.mazelines[i].len + 2 * PACMAN_RADIUS;
+            rect.x = this._mazelines[i].xstart - PACMAN_RADIUS;
+            rect.y = this._mazelines[i].ystart - PACMAN_RADIUS;
+            rect.w = this._mazelines[i].len + 2 * PACMAN_RADIUS;
             rect.h = 2 * PACMAN_RADIUS;
         }
-        if (this.mazelines[i].direction === Direction.UP)
+        if (this._mazelines[i].direction === Direction.UP)
         {
-            rect.x = this.mazelines[i].xstart - PACMAN_RADIUS;
-            rect.y = this.mazelines[i].ystart - this.mazelines[i].len - PACMAN_RADIUS;
+            rect.x = this._mazelines[i].xstart - PACMAN_RADIUS;
+            rect.y = this._mazelines[i].ystart - this._mazelines[i].len - PACMAN_RADIUS;
             rect.w = 2 * PACMAN_RADIUS;
-            rect.h = this.mazelines[i].len + 2 * PACMAN_RADIUS;
+            rect.h = this._mazelines[i].len + 2 * PACMAN_RADIUS;
         }
-        if (this.mazelines[i].direction === Direction.LEFT)
+        if (this._mazelines[i].direction === Direction.LEFT)
         {
-            rect.x = this.mazelines[i].xstart - this.mazelines[i].len - PACMAN_RADIUS;
-            rect.y = this.mazelines[i].ystart - PACMAN_RADIUS;
-            rect.w = this.mazelines[i].len + 2 * PACMAN_RADIUS;
+            rect.x = this._mazelines[i].xstart - this._mazelines[i].len - PACMAN_RADIUS;
+            rect.y = this._mazelines[i].ystart - PACMAN_RADIUS;
+            rect.w = this._mazelines[i].len + 2 * PACMAN_RADIUS;
             rect.h = 2 * PACMAN_RADIUS;
         }
         
-        this.mazerects[i] = rect;
+        this._mazerects[i] = rect;
     }
 };
 
-Map.prototype.drawMazeRects = function()
+Map.prototype.getMazeLine = function(index)
+{
+    return this._mazelines[index];
+};
+
+Map.prototype.mazeLinesCount = function()
+{
+    return this._mazelines.length;
+};
+
+Map.prototype._drawMazeRects = function()
 {
     context.fillStyle = "red";
     
-    for(var i=0;i<this.mazerects.length;i++)
+    for(var i=0;i<this._mazerects.length;i++)
     {
-        context.fillRect(this.mazerects[i].x,
-                         this.mazerects[i].y,
-                         this.mazerects[i].w,
-                         this.mazerects[i].h);
+        context.fillRect(this._mazerects[i].x,
+                         this._mazerects[i].y,
+                         this._mazerects[i].w,
+                         this._mazerects[i].h);
     }
 };
 
@@ -85,7 +95,7 @@ Map.prototype.draw = function()
 {
     context.fillStyle = "black";
     context.fillRect(0, 0, context.canvas.width, context.canvas.height);
-    this.drawMazeRects();
+    this._drawMazeRects();
     /* TODO
         dessine aussi le reste de la map, qui est statique (donc pas les pacman, ghost, bouboules...) ; utiliser le pre-render du coup ? vu que ce sera toujours la même chose, inutile de refaire tous les dessins de la map
     */
@@ -95,26 +105,31 @@ Map.prototype.draw = function()
 
 var Pacman = function(xpos, ypos, direction)
 {
-    this.x = xpos;
-    this.y = ypos;
-    this.direction = direction;
-    this.nextdirection = null;
-    this.animtime = 0;
-    this.mouthstartangle = 0;
-    this.mouthendangle = 2 * Math.PI;
+    this._x = xpos;
+    this._y = ypos;
+    this._direction = direction;
+    this._nextdirection = null;
+    this._animtime = 0;
+    this._mouthstartangle = 0;
+    this._mouthendangle = 2 * Math.PI;
+};
+
+Pacman.prototype.setDirection = function(direction)
+{
+    this._direction = direction;
 };
 
 Pacman.prototype.draw = function()
 {
     context.fillStyle = "yellow";
     context.beginPath();
-    context.moveTo(this.x, this.y);
+    context.moveTo(this._x, this._y);
     /*
         if arc() has the same start and end angles (mouth shutted), nothing is
         done ; a little trick to have a circle in this case is to use the fact
         that angles are modulo(2*PI)
     */
-    context.arc(this.x, this.y, PACMAN_RADIUS, this.mouthstartangle, this.mouthendangle);
+    context.arc(this._x, this._y, PACMAN_RADIUS, this._mouthstartangle, this._mouthendangle);
     context.fill();
 };
 
@@ -128,36 +143,36 @@ Pacman.prototype.animate = function(elapsed)
     var mouthhalfangle = 0;
     var baseangle = 0;
     
-    this.animtime = (this.animtime + elapsed) % (1000);
+    this._animtime = (this._animtime + elapsed) % (1000);
     
-    if (this.direction === Direction.UP)
+    if (this._direction === Direction.UP)
     {
         baseangle = 3*Math.PI/2;
     }
-    if (this.direction === Direction.DOWN)
+    if (this._direction === Direction.DOWN)
     {
         baseangle = Math.PI/2;
     }
-    if (this.direction === Direction.LEFT)
+    if (this._direction === Direction.LEFT)
     {
         baseangle = Math.PI;
     }
-    if (this.direction === Direction.RIGHT)
+    if (this._direction === Direction.RIGHT)
     {
         baseangle = 0;
     }
     
-    if (this.animtime < 500)
+    if (this._animtime < 500)
     {
-        mouthhalfangle = 6/10 * this.animtime/500;
+        mouthhalfangle = 6/10 * this._animtime/500;
     }
     else
     {
-        mouthhalfangle = 6/10 * (1000-this.animtime)/500;
+        mouthhalfangle = 6/10 * (1000-this._animtime)/500;
     }
     
-    this.mouthstartangle = baseangle + mouthhalfangle;
-    this.mouthendangle = baseangle - mouthhalfangle;
+    this._mouthstartangle = baseangle + mouthhalfangle;
+    this._mouthendangle = baseangle - mouthhalfangle;
 };
 
 Pacman.prototype.move = function(elapsed)
@@ -166,96 +181,102 @@ Pacman.prototype.move = function(elapsed)
         fixed speed : 100 px/s
     */
     var movement = Math.round(100 * elapsed/1000);
-    var xmax = this.x;
-    var ymax = this.y;
     
-    if (this.direction === Direction.UP)
+    var xmax = 0;
+    var ymax = 0;
+    var line = null;
+    
+    if (this._direction === Direction.UP)
     {
-        for(var i=0; i<map.mazelines.length; i++)
+        for(var i=0; i<map.mazeLinesCount(); i++)
         {
-            if ((map.mazelines[i].direction == Direction.UP
-              || map.mazelines[i].direction == Direction.DOWN)
-             && map.mazelines[i].xstart === this.x)
+            line = map.getMazeLine(i);
+            
+            if ((line.direction == Direction.UP || line.direction == Direction.DOWN)
+             && line.xstart === this._x)
             {
-                if (map.mazelines[i].direction == Direction.UP)
+                if (line.direction == Direction.UP)
                 {
-                    ymax = map.mazelines[i].ystart - map.mazelines[i].len;
+                    ymax = line.ystart - line.len;
                 }
                 else
                 {
-                    ymax = map.mazelines[i].ystart;
+                    ymax = line.ystart;
                 }
                 
-                this.y = (this.y-movement > ymax) ? this.y-movement : ymax ;
+                this._y = (this._y-movement > ymax) ? this._y-movement : ymax ;
                 
                 break;
             }
         }
     }
-    if (this.direction === Direction.DOWN)
+    if (this._direction === Direction.DOWN)
     {
-        for(var i=0; i<map.mazelines.length; i++)
+        for(var i=0; i<map.mazeLinesCount(); i++)
         {
-            if ((map.mazelines[i].direction == Direction.UP
-              || map.mazelines[i].direction == Direction.DOWN)
-             && map.mazelines[i].xstart === this.x)
+            line = map.getMazeLine(i);
+            
+            if ((line.direction == Direction.UP || line.direction == Direction.DOWN)
+             && line.xstart === this._x)
             {
-                if (map.mazelines[i].direction == Direction.UP)
+                if (line.direction == Direction.UP)
                 {
-                    ymax = map.mazelines[i].ystart;
+                    ymax = line.ystart;
                 }
                 else
                 {
-                    ymax = map.mazelines[i].ystart + map.mazelines[i].len;
+                    ymax = line.ystart + line.len;
                 }
                 
-                this.y = (this.y+movement < ymax) ? this.y+movement : ymax ;
+                this._y = (this._y+movement < ymax) ? this._y+movement : ymax ;
                 
                 break;
             }
         }
     }
-    if (this.direction === Direction.LEFT)
+    if (this._direction === Direction.LEFT)
     {
-        for(var i=0; i<map.mazelines.length; i++)
+        for(var i=0; i<map.mazeLinesCount(); i++)
         {
-            if ((map.mazelines[i].direction == Direction.LEFT
-              || map.mazelines[i].direction == Direction.RIGHT)
-             && map.mazelines[i].ystart === this.y)
+            line = map.getMazeLine(i);
+            
+            if ((line.direction == Direction.LEFT || line.direction == Direction.RIGHT)
+             && line.ystart === this._y)
             {
-                if (map.mazelines[i].direction == Direction.LEFT)
+                if (line.direction == Direction.LEFT)
                 {
-                    xmax = map.mazelines[i].xstart - map.mazelines[i].len;
+                    xmax = line.xstart - line.len;
                 }
                 else
                 {
-                    xmax = map.mazelines[i].xstart;
+                    xmax = line.xstart;
                 }
                 
-                this.x = (this.x-movement > xmax) ? this.x-movement : xmax ;
+                this._x = (this._x-movement > xmax) ? this._x-movement : xmax ;
                 
                 break;
             }
         }
     }
-    if (this.direction === Direction.RIGHT)
+    if (this._direction === Direction.RIGHT)
     {
-        for(var i=0; i<map.mazelines.length; i++)
+        for(var i=0; i<map.mazeLinesCount(); i++)
         {
-            if ((map.mazelines[i].direction == Direction.LEFT
-              || map.mazelines[i].direction == Direction.RIGHT)
-             && map.mazelines[i].ystart === this.y)
+            line = map.getMazeLine(i);
+            
+            if ((line.direction == Direction.LEFT || line.direction == Direction.RIGHT)
+             && line.ystart === this._y)
             {
-                if (map.mazelines[i].direction == Direction.LEFT)
+                if (line.direction == Direction.LEFT)
                 {
-                    xmax = map.mazelines[i].xstart;
+                    xmax = line.xstart;
                 }
                 else
                 {
-                    xmax = map.mazelines[i].xstart + map.mazelines[i].len;
+                    xmax = line.xstart + line.len;
                 }
                 
-                this.x = (this.x+movement < xmax) ? this.x+movement : xmax ;
+                this._x = (this._x+movement < xmax) ? this._x+movement : xmax ;
                 
                 break;
             }
@@ -287,11 +308,11 @@ var updateLogic = function()
     
         if (performance.now() > 7000)
         {
-            pacman.direction = Direction.LEFT;
+            pacman.setDirection(Direction.LEFT);
         }
         else if (performance.now() > 2500)
         {
-            pacman.direction = Direction.RIGHT;
+            pacman.setDirection(Direction.RIGHT);
         }
     
     pacman.animate(elapsed);
@@ -326,7 +347,6 @@ var updateLogic = function()
         if no one, then continue like that, but if there is one, then
         this.direction = this.nextdirection; and this.nextdirection = null; and
         the pacman is positionned in the good place with the covered distance
-    - use the '_' convention for private methods/properties
     - a Game class
 */
 
