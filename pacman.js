@@ -4,10 +4,10 @@
 var Direction = {};
 Object.defineProperties(Direction,
 {
-    "UP":  {value: 0, writable: false, configurable: false, enumerable: true},
-    "DOWN":  {value: 1, writable: false, configurable: false, enumerable: true},
-    "LEFT":  {value: 2, writable: false, configurable: false, enumerable: true},
-    "RIGHT":  {value: 3, writable: false, configurable: false, enumerable: true}
+    "UP":  {value: 1, writable: false, configurable: false, enumerable: true},
+    "DOWN":  {value: 2, writable: false, configurable: false, enumerable: true},
+    "LEFT":  {value: 3, writable: false, configurable: false, enumerable: true},
+    "RIGHT":  {value: 4, writable: false, configurable: false, enumerable: true}
 });
 
 var context = null;
@@ -27,7 +27,9 @@ var MAZE_LINES = [
 
 var Map = function(mazelines)
 {
-    //XXX should we clone the "mazelines" object instead of just referencing it ?
+    //XXX   should we clone the "mazelines" object instead of just referencing it ?
+    //TODO  check if lines don't overlap with one another => if overlap, create
+    //      a new one containing the two lines overlapping
     this._mazelines = mazelines; // lines on which the pacman center can move
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
     
@@ -70,7 +72,10 @@ var Map = function(mazelines)
 
 Map.prototype.getMazeLine = function(index)
 {
-    return this._mazelines[index];
+    if (index >= 0 && index < this._mazelines.length)
+    {
+        return this._mazelines[index];
+    }
 };
 
 Map.prototype.mazeLinesCount = function()
@@ -105,9 +110,21 @@ Map.prototype.draw = function()
 
 var Pacman = function(xpos, ypos, direction)
 {
-    this._x = xpos;
-    this._y = ypos;
-    this._direction = direction;
+    this._x = (typeof xpos === "number") ? Math.round(xpos) : 42 ;
+    this._y = (typeof ypos === "number") ? Math.round(ypos) : 42 ;
+    
+    if (direction === Direction.UP
+     || direction === Direction.DOWN
+     || direction === Direction.RIGHT
+     || direction === Direction.LEFT)
+    {
+        this._direction = direction;
+    }
+    else
+    {
+        this._direction = Direction.UP;
+    }
+    
     this._nextdirection = null;
     this._animtime = 0;
     this._mouthstartangle = 0;
@@ -116,7 +133,13 @@ var Pacman = function(xpos, ypos, direction)
 
 Pacman.prototype.setDirection = function(direction)
 {
-    this._direction = direction;
+    if (direction === Direction.UP
+     || direction === Direction.DOWN
+     || direction === Direction.RIGHT
+     || direction === Direction.LEFT)
+    {
+        this._direction = direction;
+    }
 };
 
 Pacman.prototype.draw = function()
@@ -135,6 +158,11 @@ Pacman.prototype.draw = function()
 
 Pacman.prototype.animate = function(elapsed)
 {
+    if (!(elapsed > 0))
+    {
+        return;
+    }
+    
     /*
         max half angle : 6/10 rad
         mouth animation speed : 2 * MAX_HALF_ANGLE rad/s
@@ -177,6 +205,11 @@ Pacman.prototype.animate = function(elapsed)
 
 Pacman.prototype.move = function(elapsed)
 {
+    if (!(elapsed > 0))
+    {
+        return;
+    }
+    
     /*
         fixed speed : 100 px/s
     */
@@ -290,15 +323,15 @@ Pacman.prototype.move = function(elapsed)
 
 /**************************** game loop functions *****************************/
 
-var updateGraphics = function()
+var graphicsLoop = function()
 {
     map.draw();
     pacman.draw();
     
-    requestAnimationFrame(updateGraphics);
+    requestAnimationFrame(graphicsLoop);
 };
 
-var updateLogic = function()
+var logicLoop = function()
 {
     var newupdate = performance.now();
     var elapsed = newupdate - lastupdate;
@@ -318,7 +351,7 @@ var updateLogic = function()
     pacman.animate(elapsed);
     pacman.move(elapsed);
     
-    setTimeout(updateLogic, 1000/60);
+    setTimeout(logicLoop, 1000/60);
 };
 
 
@@ -360,17 +393,12 @@ context = canvas.getContext("2d");
 
 pacman = new Pacman(60, 80, Direction.UP);
 map = new Map(MAZE_LINES);
-
-/* draw the world */
-
 lastupdate = performance.now();
-updateGraphics();
 
 /* start the game */
 
-setTimeout(updateLogic, 1000/60);
-requestAnimationFrame(updateGraphics);
-
+graphicsLoop();
+logicLoop();
 
 
 
