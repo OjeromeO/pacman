@@ -44,21 +44,21 @@ var Map = function(mazelines)
             rect.w = 2 * PACMAN_RADIUS;
             rect.h = this._mazelines[i].len + 2 * PACMAN_RADIUS;
         }
-        if (this._mazelines[i].direction === Direction.RIGHT)
+        else if (this._mazelines[i].direction === Direction.RIGHT)
         {
             rect.x = this._mazelines[i].xstart - PACMAN_RADIUS;
             rect.y = this._mazelines[i].ystart - PACMAN_RADIUS;
             rect.w = this._mazelines[i].len + 2 * PACMAN_RADIUS;
             rect.h = 2 * PACMAN_RADIUS;
         }
-        if (this._mazelines[i].direction === Direction.UP)
+        else if (this._mazelines[i].direction === Direction.UP)
         {
             rect.x = this._mazelines[i].xstart - PACMAN_RADIUS;
             rect.y = this._mazelines[i].ystart - this._mazelines[i].len - PACMAN_RADIUS;
             rect.w = 2 * PACMAN_RADIUS;
             rect.h = this._mazelines[i].len + 2 * PACMAN_RADIUS;
         }
-        if (this._mazelines[i].direction === Direction.LEFT)
+        else if (this._mazelines[i].direction === Direction.LEFT)
         {
             rect.x = this._mazelines[i].xstart - this._mazelines[i].len - PACMAN_RADIUS;
             rect.y = this._mazelines[i].ystart - PACMAN_RADIUS;
@@ -81,6 +81,57 @@ Map.prototype.getMazeLine = function(index)
 Map.prototype.mazeLinesCount = function()
 {
     return this._mazelines.length;
+};
+
+Map.prototype.mazeCurrentLine = function(x, y, direction)
+{
+    var line = null;
+    var min = 0;
+    var max = 0;
+    
+    if (direction === Direction.UP
+     || direction === Direction.DOWN)
+    {
+        for(var i=0; i<this._mazelines.length; i++)
+        {
+            line = this._mazelines[i];
+            
+            if ((line.direction === Direction.UP
+              || line.direction === Direction.DOWN)
+             && line.xstart === x)
+            {
+                min = (line.direction === Direction.UP) ? line.ystart - line.len : line.ystart ;
+                max = (line.direction === Direction.UP) ? line.ystart : line.ystart + line.len ;
+                
+                if (y >= min && y <= max)
+                {
+                    return line;
+                }
+            }
+        }
+    }
+    
+    if (direction === Direction.RIGHT
+     || direction === Direction.LEFT)
+    {
+        for(var i=0; i<this._mazelines.length; i++)
+        {
+            line = this._mazelines[i];
+            
+            if ((line.direction === Direction.RIGHT
+              || line.direction === Direction.LEFT)
+             && line.ystart === y)
+            {
+                min = (line.direction === Direction.RIGHT) ? line.xstart : line.xstart - line.len ;
+                max = (line.direction === Direction.RIGHT) ? line.xstart + line.len : line.xstart ;
+                
+                if (x >= min && x <= max)
+                {
+                    return line;
+                }
+            }
+        }
+    }
 };
 
 Map.prototype._drawMazeRects = function()
@@ -177,15 +228,15 @@ Pacman.prototype.animate = function(elapsed)
     {
         baseangle = 3*Math.PI/2;
     }
-    if (this._direction === Direction.DOWN)
+    else if (this._direction === Direction.DOWN)
     {
         baseangle = Math.PI/2;
     }
-    if (this._direction === Direction.LEFT)
+    else if (this._direction === Direction.LEFT)
     {
         baseangle = Math.PI;
     }
-    if (this._direction === Direction.RIGHT)
+    else if (this._direction === Direction.RIGHT)
     {
         baseangle = 0;
     }
@@ -210,110 +261,41 @@ Pacman.prototype.move = function(elapsed)
         return;
     }
     
+    var xlimit = 0;
+    var ylimit = 0;
+    
     /*
         fixed speed : 100 px/s
     */
     var movement = Math.round(100 * elapsed/1000);
-    
-    var xmax = 0;
-    var ymax = 0;
-    var line = null;
+    var line = map.mazeCurrentLine(this._x, this._y, this._direction);
     
     if (this._direction === Direction.UP)
     {
-        for(var i=0; i<map.mazeLinesCount(); i++)
-        {
-            line = map.getMazeLine(i);
-            
-            if ((line.direction == Direction.UP || line.direction == Direction.DOWN)
-             && line.xstart === this._x)
-            {
-                if (line.direction == Direction.UP)
-                {
-                    ymax = line.ystart - line.len;
-                }
-                else
-                {
-                    ymax = line.ystart;
-                }
-                
-                this._y = (this._y-movement > ymax) ? this._y-movement : ymax ;
-                
-                break;
-            }
-        }
+        /*
+            here, the current line direction will always be UP or DOWN
+        */
+        ylimit = (line.direction === Direction.UP) ? line.ystart - line.len : line.ystart ;
+        this._y = (this._y-movement > ylimit) ? this._y-movement : ylimit ;
+        
     }
-    if (this._direction === Direction.DOWN)
+    else if (this._direction === Direction.DOWN)
     {
-        for(var i=0; i<map.mazeLinesCount(); i++)
-        {
-            line = map.getMazeLine(i);
-            
-            if ((line.direction == Direction.UP || line.direction == Direction.DOWN)
-             && line.xstart === this._x)
-            {
-                if (line.direction == Direction.UP)
-                {
-                    ymax = line.ystart;
-                }
-                else
-                {
-                    ymax = line.ystart + line.len;
-                }
-                
-                this._y = (this._y+movement < ymax) ? this._y+movement : ymax ;
-                
-                break;
-            }
-        }
+        ylimit = (line.direction === Direction.UP) ? line.ystart : line.ystart + line.len ;
+        this._y = (this._y+movement < ylimit) ? this._y+movement : ylimit ;
     }
-    if (this._direction === Direction.LEFT)
+    else if (this._direction === Direction.LEFT)
     {
-        for(var i=0; i<map.mazeLinesCount(); i++)
-        {
-            line = map.getMazeLine(i);
-            
-            if ((line.direction == Direction.LEFT || line.direction == Direction.RIGHT)
-             && line.ystart === this._y)
-            {
-                if (line.direction == Direction.LEFT)
-                {
-                    xmax = line.xstart - line.len;
-                }
-                else
-                {
-                    xmax = line.xstart;
-                }
-                
-                this._x = (this._x-movement > xmax) ? this._x-movement : xmax ;
-                
-                break;
-            }
-        }
+        /*
+            here, the current line direction will always be LEFT or RIGHT
+        */
+        xlimit = (line.direction === Direction.LEFT) ? line.xstart - line.len : line.xstart ;
+        this._x = (this._x-movement > xlimit) ? this._x-movement : xlimit ;
     }
-    if (this._direction === Direction.RIGHT)
+    else if (this._direction === Direction.RIGHT)
     {
-        for(var i=0; i<map.mazeLinesCount(); i++)
-        {
-            line = map.getMazeLine(i);
-            
-            if ((line.direction == Direction.LEFT || line.direction == Direction.RIGHT)
-             && line.ystart === this._y)
-            {
-                if (line.direction == Direction.LEFT)
-                {
-                    xmax = line.xstart;
-                }
-                else
-                {
-                    xmax = line.xstart + line.len;
-                }
-                
-                this._x = (this._x+movement < xmax) ? this._x+movement : xmax ;
-                
-                break;
-            }
-        }
+        xlimit = (line.direction === Direction.LEFT) ? line.xstart : line.xstart + line.len ;
+        this._x = (this._x+movement < xlimit) ? this._x+movement : xlimit ;
     }
 };
 
@@ -341,11 +323,11 @@ var logicLoop = function()
     
         if (performance.now() > 7000)
         {
-            pacman.setDirection(Direction.LEFT);
+            pacman.setDirection(Direction.UP);
         }
         else if (performance.now() > 2500)
         {
-            pacman.setDirection(Direction.RIGHT);
+            pacman.setDirection(Direction.DOWN);
         }
     
     pacman.animate(elapsed);
