@@ -14,6 +14,10 @@ var context = null;
 var pacman = null;
 var lastupdate = null;
 var map = null;
+var pressedkeys = [];
+var pause = false;
+
+var LOGIC_REFRESH_RATE = 60;
 
 var PACMAN_RADIUS = 30;
 var LINE_WIDTH = 1.2 * 2 * PACMAN_RADIUS;
@@ -85,6 +89,16 @@ Map.prototype.mazeLinesCount = function()
 
 Map.prototype.mazeCurrentLine = function(x, y, direction)
 {
+    if (direction !== Direction.UP
+     && direction !== Direction.DOWN
+     && direction !== Direction.RIGHT
+     && direction !== Direction.LEFT
+     && typeof x !== "number"
+     && typeof y !== "number")
+    {
+        return;
+    }
+    
     var line = null;
     var min = 0;
     var max = 0;
@@ -161,8 +175,8 @@ Map.prototype.draw = function()
 
 var Pacman = function(xpos, ypos, direction)
 {
-    this._x = (typeof xpos === "number") ? Math.round(xpos) : 42 ;
-    this._y = (typeof ypos === "number") ? Math.round(ypos) : 42 ;
+    this._x = (typeof xpos === "number") ? xpos : 42 ;
+    this._y = (typeof ypos === "number") ? ypos : 42 ;
     
     if (direction === Direction.UP
      || direction === Direction.DOWN
@@ -190,6 +204,47 @@ Pacman.prototype.setDirection = function(direction)
      || direction === Direction.LEFT)
     {
         this._direction = direction;
+    }
+};
+
+Pacman.prototype.setNextDirection = function(nextdirection)
+{
+    if (nextdirection === Direction.UP
+     || nextdirection === Direction.DOWN
+     || nextdirection === Direction.RIGHT
+     || nextdirection === Direction.LEFT)
+    {
+        this._nextdirection = nextdirection;
+    }
+};
+
+Pacman.prototype.changeDirection = function(direction)
+{
+    if (direction === Direction.UP
+     || direction === Direction.DOWN)
+    {
+        if (this._direction === Direction.UP
+         || this._direction === Direction.DOWN)
+        {
+            this._direction = direction;
+        }
+        else
+        {
+            this._nextdirection = direction;
+        }
+    }
+    else if (direction === Direction.RIGHT
+          || direction === Direction.LEFT)
+    {
+        if (this._direction === Direction.RIGHT
+         || this._direction === Direction.LEFT)
+        {
+            this._direction = direction;
+        }
+        else
+        {
+            this._nextdirection = direction;
+        }
     }
 };
 
@@ -270,6 +325,10 @@ Pacman.prototype.move = function(elapsed)
     var movement = Math.round(100 * elapsed/1000);
     var line = map.mazeCurrentLine(this._x, this._y, this._direction);
     
+    //TODO besoin d'une methode dans Map : crossLine() ou un truc du genre,
+    // pour trouver si la ligne correspondant au mouvement traverse (au bord ou
+    // au mileu, peu importe) une autre ligne, et si oui alors renvoyer cette ligne
+    
     if (this._direction === Direction.UP)
     {
         /*
@@ -277,6 +336,9 @@ Pacman.prototype.move = function(elapsed)
         */
         ylimit = (line.direction === Direction.UP) ? line.ystart - line.len : line.ystart ;
         this._y = (this._y-movement > ylimit) ? this._y-movement : ylimit ;
+        // this._y ...
+        // getcrossLine()...
+        // 
         
     }
     else if (this._direction === Direction.DOWN)
@@ -303,13 +365,23 @@ Pacman.prototype.move = function(elapsed)
 
 
 
+/**************************** game event listeners ****************************/
+
+var keyEventListener= function(e)
+{
+    e.preventDefault();         // prevent up and down arrows of moving the page
+    pressedkeys.push(e.keyCode);
+};
+
 /**************************** game loop functions *****************************/
 
 var graphicsLoop = function()
 {
+    /*if (!pause)
+    {*/
     map.draw();
     pacman.draw();
-    
+    /*}*/
     requestAnimationFrame(graphicsLoop);
 };
 
@@ -319,24 +391,53 @@ var logicLoop = function()
     var elapsed = newupdate - lastupdate;
     lastupdate = newupdate;
     
-    /*XXX some tests */
+    /* input management */
     
-        if (performance.now() > 7000)
+    for(var i=0;i<pressedkeys.length;i++)
+    {
+        var key = pressedkeys.shift()
+        
+        if (key === 80)
         {
-            pacman.setDirection(Direction.UP);
+            pause = !pause;
         }
-        else if (performance.now() > 2500)
+        else
         {
-            pacman.setDirection(Direction.DOWN);
+            if (pause)
+            {
+                /*setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
+                return;*/
+            }
+            else
+            {
+                if (key === 37) {pacman.changeDirection(Direction.LEFT);}
+                else if (key === 38) {pacman.changeDirection(Direction.UP);}
+                else if (key === 39) {pacman.changeDirection(Direction.RIGHT);}
+                else if (key === 40) {pacman.changeDirection(Direction.DOWN);}
+            }
         }
+    }
+    /*if (pause)
+            {
+                setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
+                return;
+            }*/
+    /* movement management */
     
-    pacman.animate(elapsed);
     pacman.move(elapsed);
     
-    setTimeout(logicLoop, 1000/60);
+    /* animation management */
+    
+    pacman.animate(elapsed);
+    
+    //TODO if (performance.now()-newupdate) > 1000/LOGIC_REFRESH_RATE,
+    //     then settimeout(logicLoop, k*1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate))
+    // then test that and simulate a logicLoop() taking too much time
+    // => it could allow to auto-downgrade graphics settings if bad performances
+    setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
 };
 
-
+/********************************* game main **********************************/
 
 /* TODO
     - utiliser getImageData() et putImageData() pour les boutons ingame et les
@@ -363,6 +464,8 @@ var logicLoop = function()
         this.direction = this.nextdirection; and this.nextdirection = null; and
         the pacman is positionned in the good place with the covered distance
     - a Game class
+    - ajouter des methodes isVertical() et isHorizontal() ?
+    - use lines with 2 (x;y) points instead of my system with len and direction ; create a class for that, that ensures the first point is the smallest, the second point the biggest
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -375,6 +478,10 @@ context = canvas.getContext("2d");
 
 pacman = new Pacman(60, 80, Direction.UP);
 map = new Map(MAZE_LINES);
+
+canvas.addEventListener("keydown", keyEventListener);
+canvas.focus();
+
 lastupdate = performance.now();
 
 /* start the game */
