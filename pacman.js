@@ -21,11 +21,91 @@ var LOGIC_REFRESH_RATE = 60;
 
 var PACMAN_RADIUS = 30;
 var LINE_WIDTH = 1.2 * 2 * PACMAN_RADIUS;
+
 var MAZE_LINES = [
-                 {xstart: 60, ystart: 80, direction: Direction.RIGHT, len: 420},
-                 {xstart: 60, ystart: 80, direction: Direction.DOWN, len: 220},
-                 {xstart: 60, ystart: 200, direction: Direction.RIGHT, len: 140}
+                 {x1: 60, y1: 80, x2: 480, y2: 80},
+                 {x1: 60, y1: 80, x2: 60, y2: 300},
+                 {x1: 60, y1: 200, x2: 200, y2: 200}
                  ];
+
+/***************************** utilities functions ****************************/
+
+var isDirection = function(direction)
+{
+    if (direction === Direction.UP
+     || direction === Direction.DOWN
+     || direction === Direction.RIGHT
+     || direction === Direction.LEFT)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+var isVertical = function(arg)      /* overloading powaaa ^^ */
+{
+    if (arg instanceof LineHV2D)
+    {
+        if (arg.getX1() === arg.getX2())
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else if (isDirection(arg))
+    {
+        if (arg === Direction.UP
+         || arg === Direction.DOWN)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        throw new TypeError("Argument is not a Direction nor a LineHV2D");
+    }
+};
+
+var isHorizontal = function(arg)
+{
+    if (arg instanceof LineHV2D)
+    {
+        if (arg.getY1() === arg.getY2())
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else if (isDirection(arg))
+    {
+        if (arg === Direction.LEFT
+         || arg === Direction.RIGHT)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else
+    {
+        throw new TypeError("Argument is not a Direction nor a LineHV2D");
+    }
+};
 
 /********************************* Point class ********************************/
 
@@ -44,6 +124,103 @@ var Point2D = function(x, y)
     this._y = y;
 };
 
+/********************************* Line class *********************************/
+
+/*
+    - HV stands for "Horizontal or Vertical"
+    - the instances first point will be the nearest of the origin (the way the
+      constructor ensures that is only valid for H or V lines)
+*/
+var LineHV2D = function(x1, y1, x2, y2)
+{
+    if (typeof x1 !== "number")
+    {
+        throw new TypeError("x1 is not a number");
+    }
+    if (typeof y1 !== "number")
+    {
+        throw new TypeError("y1 is not a number");
+    }
+    if (typeof x2 !== "number")
+    {
+        throw new TypeError("x2 is not a number");
+    }
+    if (typeof y2 !== "number")
+    {
+        throw new TypeError("y2 is not a number");
+    }
+    if (x1 === y1
+     && x1 === x2
+     && x1 === y2)
+    {
+        throw new RangeError("Coordinates values will not create a line");
+    }
+    if (x1 !== x2
+     && y1 !== y2)
+    {
+        throw new RangeError("Coordinates values will not create a horizontal nor a vertical line");
+    }
+    
+    if (x1 <= x2 && y1 <= y2)
+    {
+        this._x1 = x1;
+        this._y1 = y1;
+        this._x2 = x2;
+        this._y2 = y2;
+    }
+    else
+    {
+        this._x1 = x2;
+        this._y1 = y2;
+        this._x2 = x1;
+        this._y2 = y1;
+    }
+};
+
+LineHV2D.prototype.getX1 = function()
+{
+    return this._x1;
+};
+
+LineHV2D.prototype.getY1 = function()
+{
+    return this._y1;
+};
+
+LineHV2D.prototype.getX2 = function()
+{
+    return this._x2;
+};
+
+LineHV2D.prototype.getY2 = function()
+{
+    return this._y2;
+};
+
+LineHV2D.isCrossing = function(line1, line2)
+{
+    if (!(line1 instanceof LineHV2D))
+    {
+        throw new TypeError("line1 is not a LineHV2D");
+    }
+    if (!(line2 instanceof LineHV2D))
+    {
+        throw new TypeError("line2 is not a LineHV2D");
+    }
+    
+    if ((isHorizontal(line1)
+      && line1.getY1() >= line2.getY1() && line1.getY1() <= line2.getY2()
+      && line2.getX1() >= line1.getX1() && line2.getX1() <= line1.getX2())
+     || (isVertical(line1)
+      && line1.getX1() >= line2.getX1() && line1.getX1() <= line2.getX2()
+      && line2.getY1() >= line1.getY1() && line2.getY1() <= line1.getY2()))
+    {
+        return true;
+    }
+    
+    return false;
+};
+
 /********************************** Map class *********************************/
 
 var Map = function(mazelines)
@@ -51,43 +228,29 @@ var Map = function(mazelines)
     //XXX   should we clone the "mazelines" object instead of just referencing it ?
     //TODO  check if lines don't overlap with one another => if overlap, create
     //      a new one containing the two lines overlapping
+    
     this._mazelines = mazelines; // lines on which the pacman center can move
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
     
     for(var i=0; i<this._mazelines.length; i++)
     {
-        var rect = {x: 0, y: 0, w: 0, h: 0};
+        var rect = {};
         
-        if (this._mazelines[i].direction === Direction.DOWN)
+        rect.x = this._mazelines[i].getX1() - PACMAN_RADIUS;
+        rect.y = this._mazelines[i].getY1() - PACMAN_RADIUS;
+        
+        if (isVertical(this._mazelines[i]))
         {
-            rect.x = this._mazelines[i].xstart - PACMAN_RADIUS;
-            rect.y = this._mazelines[i].ystart - PACMAN_RADIUS;
             rect.w = 2 * PACMAN_RADIUS;
-            rect.h = this._mazelines[i].len + 2 * PACMAN_RADIUS;
+            rect.h = this._mazelines[i].getY2() - this._mazelines[i].getY1() + 2 * PACMAN_RADIUS;
         }
-        else if (this._mazelines[i].direction === Direction.RIGHT)
+        else
         {
-            rect.x = this._mazelines[i].xstart - PACMAN_RADIUS;
-            rect.y = this._mazelines[i].ystart - PACMAN_RADIUS;
-            rect.w = this._mazelines[i].len + 2 * PACMAN_RADIUS;
-            rect.h = 2 * PACMAN_RADIUS;
-        }
-        else if (this._mazelines[i].direction === Direction.UP)
-        {
-            rect.x = this._mazelines[i].xstart - PACMAN_RADIUS;
-            rect.y = this._mazelines[i].ystart - this._mazelines[i].len - PACMAN_RADIUS;
-            rect.w = 2 * PACMAN_RADIUS;
-            rect.h = this._mazelines[i].len + 2 * PACMAN_RADIUS;
-        }
-        else if (this._mazelines[i].direction === Direction.LEFT)
-        {
-            rect.x = this._mazelines[i].xstart - this._mazelines[i].len - PACMAN_RADIUS;
-            rect.y = this._mazelines[i].ystart - PACMAN_RADIUS;
-            rect.w = this._mazelines[i].len + 2 * PACMAN_RADIUS;
+            rect.w = this._mazelines[i].getX2() - this._mazelines[i].getX1() + 2 * PACMAN_RADIUS;
             rect.h = 2 * PACMAN_RADIUS;
         }
         
-        this._mazerects[i] = rect;
+        this._mazerects.push(rect);
     }
 };
 
@@ -116,63 +279,76 @@ Map.prototype.mazeCurrentLine = function(x, y, direction)
     {
         throw new TypeError("y is not a number");
     }
-    if (direction !== Direction.UP
-     && direction !== Direction.DOWN
-     && direction !== Direction.RIGHT
-     && direction !== Direction.LEFT)
+    if (!isDirection(direction))
     {
         throw new RangeError("direction value is not valid");
     }
     
     var line = null;
-    var min = 0;
-    var max = 0;
     
-    if (direction === Direction.UP
-     || direction === Direction.DOWN)
+    for(var i=0; i<this._mazelines.length; i++)
     {
-        for(var i=0; i<this._mazelines.length; i++)
+        line = this._mazelines[i];
+        
+        if ((isVertical(direction)
+          && isVertical(line)
+          && line.getX1() === x
+          && y >= line.getY1() && y <= line.getY2())
+         || (isHorizontal(direction)
+          && isHorizontal(line)
+          && line.getY1() === y
+          && x >= line.getX1() && x <= line.getX2()))
         {
-            line = this._mazelines[i];
-            
-            if ((line.direction === Direction.UP
-              || line.direction === Direction.DOWN)
-             && line.xstart === x)
-            {
-                min = (line.direction === Direction.UP) ? line.ystart - line.len : line.ystart ;
-                max = (line.direction === Direction.UP) ? line.ystart : line.ystart + line.len ;
-                
-                if (y >= min && y <= max)
-                {
-                    return line;
-                }
-            }
+            return line;
         }
     }
     
-    if (direction === Direction.RIGHT
-     || direction === Direction.LEFT)
+    return undefined;
+};
+
+Map.prototype.mazeNextTurn = function(line, x, y, direction, nextdirection)
+{
+    var lines = [];
+    
+    if (((direction === Direction.UP || direction === Direction.DOWN)
+      && (nextdirection === Direction.UP || nextdirection === Direction.DOWN))
+     || ((direction === Direction.LEFT || direction === Direction.RIGHT)
+      && (nextdirection === Direction.LEFT || nextdirection === Direction.RIGHT)))
     {
-        for(var i=0; i<this._mazelines.length; i++)
+        return undefined;
+    }
+    
+    for(var i=0;i<this._mazelines;i++)
+    {
+        if (direction === Direction.UP)
         {
-            line = this._mazelines[i];
-            
-            if ((line.direction === Direction.RIGHT
-              || line.direction === Direction.LEFT)
-             && line.ystart === y)
+            /* if this line is crossing ours */
+             if (LineHV2D.isCrossing(this._mazelines[i], new LineHV2D(x, y, x, line.getY1())))
             {
-                min = (line.direction === Direction.RIGHT) ? line.xstart : line.xstart - line.len ;
-                max = (line.direction === Direction.RIGHT) ? line.xstart + line.len : line.xstart ;
-                
-                if (x >= min && x <= max)
+                /* if there is some place to turn */
+                if ((nextdirection === Direction.LEFT && this._mazelines[i].getX1() < x)
+                 || (nextdirection === Direction.RIGHT && this._mazelines[i].getX2() > x))
                 {
-                    return line;
+                    lines.push(this._mazelines[i]);
                 }
             }
         }
+        else if (direction === Direction.DOWN)
+        {
+            // TODO
+        }
+        else if (direction === Direction.LEFT)
+        {
+            // TODO
+        }
+        else if (direction === Direction.RIGHT)
+        {
+            // TODO
+        }
     }
     
-    return null;
+    // TODO trier ensuite les lignes pour prendre la plus proche du (x,y),
+    // et prendre l'intersection des 2
 };
 
 Map.prototype._drawMazeRects = function()
@@ -210,10 +386,7 @@ var Pacman = function(x, y, direction)
     {
         throw new TypeError("y is not a number");
     }
-    if (direction !== Direction.UP
-     && direction !== Direction.DOWN
-     && direction !== Direction.RIGHT
-     && direction !== Direction.LEFT)
+    if (!isDirection(direction))
     {
         throw new RangeError("direction value is not valid");
     }
@@ -222,9 +395,8 @@ var Pacman = function(x, y, direction)
     this._y = y;
     this._direction = direction;
     
-    this._nextdirection = null;
-    this._nextturnx = null;
-    this._nextturny = null;
+    this._nextdirection = null;     // direction requested
+    this._nextturn = null;          // intersection that allows movement in the requested direction
     
     this._animtime = 0;
     this._mouthstartangle = 0;
@@ -233,10 +405,7 @@ var Pacman = function(x, y, direction)
 
 Pacman.prototype.setDirection = function(direction)
 {
-    if (direction !== Direction.UP
-     && direction !== Direction.DOWN
-     && direction !== Direction.RIGHT
-     && direction !== Direction.LEFT)
+    if (!isDirection(direction))
     {
         throw new RangeError("direction value is not valid");
     }
@@ -246,10 +415,7 @@ Pacman.prototype.setDirection = function(direction)
 
 Pacman.prototype.setNextDirection = function(nextdirection)
 {
-    if (nextdirection !== Direction.UP
-     && nextdirection !== Direction.DOWN
-     && nextdirection !== Direction.RIGHT
-     && nextdirection !== Direction.LEFT)
+    if (!isDirection(direction))
     {
         throw new RangeError("nextdirection value is not valid");
     }
@@ -259,19 +425,20 @@ Pacman.prototype.setNextDirection = function(nextdirection)
 
 Pacman.prototype.changeDirection = function(direction)
 {
-    if (direction !== Direction.UP
-     && direction !== Direction.DOWN
-     && direction !== Direction.RIGHT
-     && direction !== Direction.LEFT)
+    if (!isDirection(direction))
     {
         throw new RangeError("direction value is not valid");
     }
     
-    if (direction === Direction.UP
-     || direction === Direction.DOWN)
+    if (direction === this._direction
+     || direction === this._nextdirection)
     {
-        if (this._direction === Direction.UP
-         || this._direction === Direction.DOWN)
+        return;
+    }
+    
+    if (isVertical(direction))
+    {
+        if (isVertical(this._direction))
         {
             this._direction = direction;
         }
@@ -284,11 +451,9 @@ Pacman.prototype.changeDirection = function(direction)
             */
         }
     }
-    else if (direction === Direction.RIGHT
-          || direction === Direction.LEFT)
+    else if (isHorizontal(direction))
     {
-        if (this._direction === Direction.RIGHT
-         || this._direction === Direction.LEFT)
+        if (isHorizontal(this._direction))
         {
             this._direction = direction;
         }
@@ -376,7 +541,7 @@ Pacman.prototype.move = function(elapsed)
     var movement = Math.round(100 * elapsed/1000);
     
     var line = map.mazeCurrentLine(this._x, this._y, this._direction);
-    if (line === null)
+    if (line === undefined)
     {
         return;
     }
@@ -420,28 +585,23 @@ Pacman.prototype.move = function(elapsed)
     
     if (this._direction === Direction.UP)
     {
-        /*
-            here, the current line direction will always be UP or DOWN
-        */
-        ylimit = (line.direction === Direction.UP) ? line.ystart - line.len : line.ystart ;
+        ylimit = line.getY1();
         this._y = (this._y-movement > ylimit) ? this._y-movement : ylimit ;
+        
     }
     else if (this._direction === Direction.DOWN)
     {
-        ylimit = (line.direction === Direction.UP) ? line.ystart : line.ystart + line.len ;
+        ylimit = line.getY2();
         this._y = (this._y+movement < ylimit) ? this._y+movement : ylimit ;
     }
     else if (this._direction === Direction.LEFT)
     {
-        /*
-            here, the current line direction will always be LEFT or RIGHT
-        */
-        xlimit = (line.direction === Direction.LEFT) ? line.xstart - line.len : line.xstart ;
+        xlimit = line.getX1();
         this._x = (this._x-movement > xlimit) ? this._x-movement : xlimit ;
     }
     else if (this._direction === Direction.RIGHT)
     {
-        xlimit = (line.direction === Direction.LEFT) ? line.xstart : line.xstart + line.len ;
+        xlimit = line.getX2();
         this._x = (this._x+movement < xlimit) ? this._x+movement : xlimit ;
     }
 };
@@ -549,8 +709,7 @@ var logicLoop = function()
         this.direction = this.nextdirection; and this.nextdirection = null; and
         the pacman is positionned in the good place with the covered distance
     - a Game class
-    - ajouter des methodes isVertical() et isHorizontal() ?
-    - use lines with 2 (x;y) points instead of my system with len and direction ; create a class for that, that ensures the first point is the smallest, the second point the biggest
+    - use lines with 2 (x;y) points instead of my system with len and direction ; create a class for that, that ensures the first point is the smallest (= the nearest of the origin), the second point the biggest
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -562,7 +721,13 @@ context = canvas.getContext("2d");
 /* init the game */
 
 pacman = new Pacman(60, 80, Direction.UP);
-map = new Map(MAZE_LINES);
+
+var lines = [];
+for(var i=0; i<MAZE_LINES.length; i++)
+{
+    lines.push(new LineHV2D(MAZE_LINES[i].x1, MAZE_LINES[i].y1, MAZE_LINES[i].x2, MAZE_LINES[i].y2));
+}
+map = new Map(lines);
 
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
