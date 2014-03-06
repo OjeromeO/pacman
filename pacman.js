@@ -20,6 +20,7 @@ var pause = false;
 var LOGIC_REFRESH_RATE = 60;
 
 var PACMAN_RADIUS = 30;
+var PACMAN_SPEED = 200;
 var LINE_WIDTH = 1.2 * 2 * PACMAN_RADIUS;
 
 var MAZE_LINES = [
@@ -122,6 +123,30 @@ var Point2D = function(x, y)
     
     this._x = x;
     this._y = y;
+};
+
+Point2D.prototype.getX = function()
+{
+    return this._x;
+};
+
+Point2D.prototype.getY = function()
+{
+    return this._y;
+};
+
+Point2D.distance = function(point1, point2)
+{
+    if (!(point1 instanceof Point2D))
+    {
+        throw new TypeError("point1 is not a Point2D");
+    }
+    if (!(point2 instanceof Point2D))
+    {
+        throw new TypeError("point2 is not a Point2D");
+    }
+    
+    return Math.sqrt(Math.pow(point2.getX()-point1.getX(), 2) + Math.pow(point2.getY()-point1.getY(), 2));
 };
 
 /********************************* Line class *********************************/
@@ -308,22 +333,50 @@ Map.prototype.mazeCurrentLine = function(x, y, direction)
 
 Map.prototype.mazeNextTurn = function(line, x, y, direction, nextdirection)
 {
-    var lines = [];
+    if (!(line instanceof LineHV2D))
+    {
+        throw new TypeError("line is not a LineHV2D");
+    }
+    if (typeof x !== "number")
+    {
+        throw new TypeError("x is not a number");
+    }
+    if (typeof y !== "number")
+    {
+        throw new TypeError("y is not a number");
+    }
+    if (!isDirection(direction))
+    {
+        throw new RangeError("direction value is not valid");
+    }
+    if (!isDirection(nextdirection))
+    {
+        throw new RangeError("nextdirection value is not valid");
+    }
     
-    if (((direction === Direction.UP || direction === Direction.DOWN)
-      && (nextdirection === Direction.UP || nextdirection === Direction.DOWN))
-     || ((direction === Direction.LEFT || direction === Direction.RIGHT)
-      && (nextdirection === Direction.LEFT || nextdirection === Direction.RIGHT)))
+    if ((isVertical(direction) && isVertical(nextdirection))
+     || (isHorizontal(direction) && isHorizontal(nextdirection)))
     {
         return undefined;
     }
     
-    for(var i=0;i<this._mazelines;i++)
+    var lines = [];
+    var xlimit = null;
+    var ylimit = null;
+    
+    if (direction === Direction.UP)         {xlimit = x; ylimit = line.getY1();}
+    else if (direction === Direction.DOWN)  {xlimit = x; ylimit = line.getY2();}
+    else if (direction === Direction.LEFT)  {xlimit = line.getX1(); ylimit = y;}
+    else if (direction === Direction.RIGHT) {xlimit = line.getX2(); ylimit = y;}
+    
+    /* find all the lines on which we could turn */
+    
+    for(var i=0;i<this._mazelines.length;i++)
     {
-        if (direction === Direction.UP)
+        /* if this line is crossing ours */
+        if (LineHV2D.isCrossing(this._mazelines[i], new LineHV2D(x, y, xlimit, ylimit)))
         {
-            /* if this line is crossing ours */
-             if (LineHV2D.isCrossing(this._mazelines[i], new LineHV2D(x, y, x, line.getY1())))
+            if (isVertical(direction))
             {
                 /* if there is some place to turn */
                 if ((nextdirection === Direction.LEFT && this._mazelines[i].getX1() < x)
@@ -332,23 +385,67 @@ Map.prototype.mazeNextTurn = function(line, x, y, direction, nextdirection)
                     lines.push(this._mazelines[i]);
                 }
             }
-        }
-        else if (direction === Direction.DOWN)
-        {
-            // TODO
-        }
-        else if (direction === Direction.LEFT)
-        {
-            // TODO
-        }
-        else if (direction === Direction.RIGHT)
-        {
-            // TODO
+            else
+            {
+                if ((nextdirection === Direction.UP && this._mazelines[i].getY1() < y)
+                 || (nextdirection === Direction.DOWN && this._mazelines[i].getY2() > y))
+                {
+                    lines.push(this._mazelines[i]);
+                }
+            }
         }
     }
     
-    // TODO trier ensuite les lignes pour prendre la plus proche du (x,y),
-    // et prendre l'intersection des 2
+    if (lines.length === 0)
+    {
+        return undefined;
+    }
+    else
+    {
+        /* find the nearest line */
+        
+        var line = null;
+        var nearestvalue = (isVertical(nextdirection)) ? lines[0].getX1() : lines[0].getY1() ;
+        var nearestindex = 0;
+        
+        if (isVertical(nextdirection))
+        {
+            for(var i=1;i<lines.length;i++)
+            {
+                if ((direction === Direction.LEFT && lines[i].getX1() > nearestvalue)
+                 || (direction === Direction.RIGHT && lines[i].getX1() < nearestvalue))
+                {
+                    nearestvalue = lines[i].getX1();
+                    nearestindex = i;
+                }
+            }
+        }
+        else
+        {
+            for(var i=1;i<lines.length;i++)
+            {
+                if ((direction === Direction.UP && lines[i].getY1() > nearestvalue)
+                 || (direction === Direction.DOWN && lines[i].getY1() < nearestvalue))
+                {
+                    nearestvalue = lines[i].getY1();
+                    nearestindex = i;
+                }
+            }
+        }
+        
+        line = lines[nearestindex];
+        
+        /* return the intersection */
+        
+        if (isVertical(nextdirection))
+        {
+            return new Point2D(nearestvalue, y);
+        }
+        else
+        {
+            return new Point2D(x, nearestvalue);
+        }
+    }
 };
 
 Map.prototype._drawMazeRects = function()
@@ -441,14 +538,28 @@ Pacman.prototype.changeDirection = function(direction)
         if (isVertical(this._direction))
         {
             this._direction = direction;
+            this._nextdirection = null;
+            this._nextturn = null;
         }
         else
         {
             this._nextdirection = direction;
-            /* TODO
-                var nextturn = map.prochaintournant(line, direction, x, y, nextdirection)
-                nextturnx/y...
-            */
+            
+            var line = map.mazeCurrentLine(this._x, this._y, this._direction);
+            if (line === undefined)
+            {
+                this._nextturn = null;
+                return;
+            }
+            
+            var point = map.mazeNextTurn(line, this._x, this._y, this._direction, this._nextdirection);
+            if (point === undefined)
+            {
+                this._nextturn = null;
+                return;
+            }
+            
+            this._nextturn = point;
         }
     }
     else if (isHorizontal(direction))
@@ -456,10 +567,28 @@ Pacman.prototype.changeDirection = function(direction)
         if (isHorizontal(this._direction))
         {
             this._direction = direction;
+            this._nextdirection = null;
+            this._nextturn = null;
         }
         else
         {
             this._nextdirection = direction;
+            
+            var line = map.mazeCurrentLine(this._x, this._y, this._direction);
+            if (line === undefined)
+            {
+                this._nextturn = null;
+                return;
+            }
+            
+            var point = map.mazeNextTurn(line, this._x, this._y, this._direction, this._nextdirection);
+            if (point === undefined)
+            {
+                this._nextturn = null;
+                return;
+            }
+            
+            this._nextturn = point;
         }
     }
 };
@@ -507,7 +636,7 @@ Pacman.prototype.animate = function(elapsed)
     {
         baseangle = Math.PI;
     }
-    else if (this._direction === Direction.RIGHT)
+    else
     {
         baseangle = 0;
     }
@@ -538,7 +667,7 @@ Pacman.prototype.move = function(elapsed)
     /*
         fixed speed : 100 px/s
     */
-    var movement = Math.round(100 * elapsed/1000);
+    var movement = Math.round(PACMAN_SPEED * elapsed/1000);
     
     var line = map.mazeCurrentLine(this._x, this._y, this._direction);
     if (line === undefined)
@@ -546,63 +675,61 @@ Pacman.prototype.move = function(elapsed)
         return;
     }
     
-    /* TODO
-    ===> ptetre pas une bonne idée, mieux vaut faire autrement : la il faut a chaque fois reverifier a chaque avancée si on a traversé une ligne, mieux vaut le faire une seule fois quand on sait qu'on devra tourner, et on enregistre le tournant dans nextturnx et nextturny ?
-    changeDirection() cherche nextturnx et nextturny et les enregistre ; encore besoin de nextdirection pour ensuite, car move() verifiera a chaque avancée si le nextturnx et nextturny sont dans notre mouvement d'avancée : si oui on va dans la direction de nextdirection en avançant le max possible, sinon on avance au max possible
-    
-    
-    => creer map.crossedLine(line, x1, y1, x2, y2, direction)
-    
-    var crossedline = null;
-    
-    si nextdirection !== null
-        truc = crossedLine()
-    
-    si nextdirection === null ou (nextdirection !== null et crossedline === null)
-        trouver le x ou y max pour la ligne courante
-        avancer selon
-    sinon
-            trouver le x ou y max correspondant au croisement entre la ligne
-            courante et la ligne qu'on traverse
-            avancer selon
-            mettre a jour direction et nextdirection
-    
-
-    
-    si nextdirection === null
-        trouver le x ou y max pour la ligne courante
-        avancer selon
-    sinon
-        crossedLine() => verifier si entre la position actuelle et la position actuelle + mouvement on traverse ou touche une ligne sur laquelle on pourrait entrer ET AVANCER (donc pas avancer contre le mur si notre ligne ne fait que toucher une autre, faut pouvoir aller du bon coté)
-        s'il n'y a pas de telle ligne
-            trouver le x ou y max pour la ligne courante
-            avancer selon
-        sinon
-            trouver le x ou y max correspondant au croisement entre la ligne courante et la ligne qu'on traverse
-            avancer selon
-            mettre a jour direction et nextdirection
-    */
-    
-    if (this._direction === Direction.UP)
+    /* if we don't have to turn for now */
+    if (this._nextdirection === null
+     || this._nextturn === null
+     || (this._nextdirection !== null && this._nextturn !== null && Point2D.distance(new Point2D(this._x, this._y), this._nextturn) > movement))
     {
-        ylimit = line.getY1();
-        this._y = (this._y-movement > ylimit) ? this._y-movement : ylimit ;
+        if (this._direction === Direction.UP)
+        {
+            ylimit = line.getY1();
+            this._y = (this._y-movement > ylimit) ? this._y-movement : ylimit ;
+            
+        }
+        else if (this._direction === Direction.DOWN)
+        {
+            ylimit = line.getY2();
+            this._y = (this._y+movement < ylimit) ? this._y+movement : ylimit ;
+        }
+        else if (this._direction === Direction.LEFT)
+        {
+            xlimit = line.getX1();
+            this._x = (this._x-movement > xlimit) ? this._x-movement : xlimit ;
+        }
+        else
+        {
+            xlimit = line.getX2();
+            this._x = (this._x+movement < xlimit) ? this._x+movement : xlimit ;
+        }
+    }
+    else
+    {
+        var distance = Point2D.distance(new Point2D(this._x, this._y), this._nextturn);
         
-    }
-    else if (this._direction === Direction.DOWN)
-    {
-        ylimit = line.getY2();
-        this._y = (this._y+movement < ylimit) ? this._y+movement : ylimit ;
-    }
-    else if (this._direction === Direction.LEFT)
-    {
-        xlimit = line.getX1();
-        this._x = (this._x-movement > xlimit) ? this._x-movement : xlimit ;
-    }
-    else if (this._direction === Direction.RIGHT)
-    {
-        xlimit = line.getX2();
-        this._x = (this._x+movement < xlimit) ? this._x+movement : xlimit ;
+        if (this._nextdirection === Direction.UP)
+        {
+            this._x = this._nextturn.getX();
+            this._y = this._nextturn.getY() - (movement - distance);
+        }
+        else if (this._nextdirection === Direction.DOWN)
+        {
+            this._x = this._nextturn.getX();
+            this._y = this._nextturn.getY() + (movement - distance);
+        }
+        else if (this._nextdirection === Direction.LEFT)
+        {
+            this._x = this._nextturn.getX() - (movement - distance);
+            this._y = this._nextturn.getY();
+        }
+        else
+        {
+            this._x = this._nextturn.getX() + (movement - distance);
+            this._y = this._nextturn.getY();
+        }
+        
+        this._direction = this._nextdirection;
+        this._nextdirection = null;
+        this._nextturn = null;
     }
 };
 
@@ -698,18 +825,7 @@ var logicLoop = function()
     the position and the animation state), and x/y properties, ... and something
     to animate, like passing the timestamp ? or an other solution ?=> the static
     method update())
-    - if we pressed a key for an other direction, change the nextdirection value,
-    and then move() will later do :
-        => if it's the opposite of the current direction, then this.direction =
-        this.nextdirection; and this.nextdirection = null;
-        => if it's a perpendicular direction, then move() will each time look if
-        the distance (= the line), that has been covered during elapsed time,
-        crossed an intersection with an other line in the requested direction :
-        if no one, then continue like that, but if there is one, then
-        this.direction = this.nextdirection; and this.nextdirection = null; and
-        the pacman is positionned in the good place with the covered distance
     - a Game class
-    - use lines with 2 (x;y) points instead of my system with len and direction ; create a class for that, that ensures the first point is the smallest (= the nearest of the origin), the second point the biggest
 */
 
 var canvas = document.getElementById("gamecanvas");
