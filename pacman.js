@@ -50,26 +50,11 @@ var isVertical = function(arg)      /* overloading powaaa ^^ */
 {
     if (arg instanceof LineHV2D)
     {
-        if (arg.getX1() === arg.getX2())
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return (arg.getX1() === arg.getX2()) ? true : false ;
     }
     else if (isDirection(arg))
     {
-        if (arg === Direction.UP
-         || arg === Direction.DOWN)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return (arg === Direction.UP || arg === Direction.DOWN) ? true : false ;
     }
     else
     {
@@ -81,26 +66,11 @@ var isHorizontal = function(arg)
 {
     if (arg instanceof LineHV2D)
     {
-        if (arg.getY1() === arg.getY2())
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return (arg.getY1() === arg.getY2()) ? true : false ;
     }
     else if (isDirection(arg))
     {
-        if (arg === Direction.LEFT
-         || arg === Direction.RIGHT)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return (arg === Direction.LEFT || arg === Direction.RIGHT) ? true : false ;
     }
     else
     {
@@ -135,18 +105,14 @@ Point2D.prototype.getY = function()
     return this._y;
 };
 
-Point2D.distance = function(point1, point2)
+Point2D.prototype.distance = function(point)
 {
-    if (!(point1 instanceof Point2D))
+    if (!(point instanceof Point2D))
     {
-        throw new TypeError("point1 is not a Point2D");
-    }
-    if (!(point2 instanceof Point2D))
-    {
-        throw new TypeError("point2 is not a Point2D");
+        throw new TypeError("point is not a Point2D");
     }
     
-    return Math.sqrt(Math.pow(point2.getX()-point1.getX(), 2) + Math.pow(point2.getY()-point1.getY(), 2));
+    return Math.sqrt(Math.pow(point.getX()-this.getX(), 2) + Math.pow(point.getY()-this.getY(), 2));
 };
 
 /********************************* Line class *********************************/
@@ -222,28 +188,157 @@ LineHV2D.prototype.getY2 = function()
     return this._y2;
 };
 
-LineHV2D.isCrossing = function(line1, line2)
+LineHV2D.prototype.size = function()
 {
-    if (!(line1 instanceof LineHV2D))
+    return (isVertical(this)) ? this._y2 - this._y1 : this._x2 - this._x1 ;
+};
+
+LineHV2D.prototype.XAxis = function()
+{
+    return (isVertical(this)) ? this._x1 : undefined ;
+};
+
+LineHV2D.prototype.YAxis = function()
+{
+    return (isHorizontal(this)) ? this._y1 : undefined ;
+};
+
+LineHV2D.prototype.isInXIntervalOf = function(line)
+{
+    if (!(line instanceof LineHV2D))
     {
-        throw new TypeError("line1 is not a LineHV2D");
-    }
-    if (!(line2 instanceof LineHV2D))
-    {
-        throw new TypeError("line2 is not a LineHV2D");
+        throw new TypeError("line is not a LineHV2D");
     }
     
-    if ((isHorizontal(line1)
-      && line1.getY1() >= line2.getY1() && line1.getY1() <= line2.getY2()
-      && line2.getX1() >= line1.getX1() && line2.getX1() <= line1.getX2())
-     || (isVertical(line1)
-      && line1.getX1() >= line2.getX1() && line1.getX1() <= line2.getX2()
-      && line2.getY1() >= line1.getY1() && line2.getY1() <= line1.getY2()))
+    if (this._x1 >= line.getX1() && this._x2 <= line.getX2())
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+LineHV2D.prototype.isInYIntervalOf = function(line)
+{
+    if (!(line instanceof LineHV2D))
+    {
+        throw new TypeError("line is not a LineHV2D");
+    }
+    
+    if (this._y1 >= line.getY1() && this._y2 <= line.getY2())
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+LineHV2D.prototype.isCrossing = function(line)
+{
+    if (!(line instanceof LineHV2D))
+    {
+        throw new TypeError("line is not a LineHV2D");
+    }
+    
+    if ((this.isInYIntervalOf(line) && line.isInXIntervalOf(this))
+     || (this.isInXIntervalOf(line) && line.isInYIntervalOf(this)))
     {
         return true;
     }
     
     return false;
+};
+
+LineHV2D.prototype.containsPoint = function(point)
+{
+    if (!(point instanceof Point2D))
+    {
+        throw new TypeError("point is not a Point2D");
+    }
+    
+    if (point.getY() >= this._y1 && point.getY() <= this._y2
+     && point.getX() >= this._x1 && point.getX() <= this._x2)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+LineHV2D.prototype.containsX = function(x)
+{
+    if (typeof x !== "number")
+    {
+        throw new TypeError("x is not a number");
+    }
+    
+    if ((isVertical(this) && x === this._x1)
+     || (isHorizontal(this) && x >= this._x1 && x <= this._x2))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+LineHV2D.prototype.containsY = function(y)
+{
+    if (typeof y !== "number")
+    {
+        throw new TypeError("y is not a number");
+    }
+    
+    if ((isHorizontal(this) && y === this._y1)
+     || (isVertical(this) && y >= this._y1 && y <= this._y2))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+LineHV2D.prototype.containsXStrictly = function(x)
+{
+    if (typeof x !== "number")
+    {
+        throw new TypeError("x is not a number");
+    }
+    
+    if (isHorizontal(this) && x > this._x1 && x < this._x2)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+LineHV2D.prototype.containsYStrictly = function(y)
+{
+    if (typeof y !== "number")
+    {
+        throw new TypeError("y is not a number");
+    }
+    
+    if (isVertical(this) && y > this._y1 && y < this._y2)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 };
 
 /********************************** Map class *********************************/
@@ -259,19 +354,20 @@ var Map = function(mazelines)
     
     for(var i=0; i<this._mazelines.length; i++)
     {
+        var line = this._mazelines[i];
         var rect = {};
         
-        rect.x = this._mazelines[i].getX1() - PACMAN_RADIUS;
-        rect.y = this._mazelines[i].getY1() - PACMAN_RADIUS;
+        rect.x = line.getX1() - PACMAN_RADIUS;
+        rect.y = line.getY1() - PACMAN_RADIUS;
         
-        if (isVertical(this._mazelines[i]))
+        if (isVertical(line))
         {
             rect.w = 2 * PACMAN_RADIUS;
-            rect.h = this._mazelines[i].getY2() - this._mazelines[i].getY1() + 2 * PACMAN_RADIUS;
+            rect.h = line.size() + 2 * PACMAN_RADIUS;
         }
         else
         {
-            rect.w = this._mazelines[i].getX2() - this._mazelines[i].getX1() + 2 * PACMAN_RADIUS;
+            rect.w = line.size() + 2 * PACMAN_RADIUS;
             rect.h = 2 * PACMAN_RADIUS;
         }
         
@@ -315,14 +411,9 @@ Map.prototype.mazeCurrentLine = function(x, y, direction)
     {
         line = this._mazelines[i];
         
-        if ((isVertical(direction)
-          && isVertical(line)
-          && line.getX1() === x
-          && y >= line.getY1() && y <= line.getY2())
-         || (isHorizontal(direction)
-          && isHorizontal(line)
-          && line.getY1() === y
-          && x >= line.getX1() && x <= line.getX2()))
+        if (((isVertical(direction) && isVertical(line))
+          || (isHorizontal(direction) && isHorizontal(line)))
+         && line.containsPoint(new Point2D(x,y)))
         {
             return line;
         }
@@ -373,25 +464,18 @@ Map.prototype.mazeNextTurn = function(line, x, y, direction, nextdirection)
     
     for(var i=0;i<this._mazelines.length;i++)
     {
+        var line = this._mazelines[i];
+        
         /* if this line is crossing ours */
-        if (LineHV2D.isCrossing(this._mazelines[i], new LineHV2D(x, y, xlimit, ylimit)))
+        if (line.isCrossing(new LineHV2D(x, y, xlimit, ylimit)))
         {
-            if (isVertical(direction))
+            /* if there is some place to turn */
+            if ((nextdirection === Direction.LEFT && line.containsX(x-1))
+             || (nextdirection === Direction.RIGHT && line.containsX(x+1))
+             || (nextdirection === Direction.UP && line.containsY(y-1))
+             || (nextdirection === Direction.DOWN && line.containsY(y+1)))
             {
-                /* if there is some place to turn */
-                if ((nextdirection === Direction.LEFT && this._mazelines[i].getX1() < x)
-                 || (nextdirection === Direction.RIGHT && this._mazelines[i].getX2() > x))
-                {
-                    lines.push(this._mazelines[i]);
-                }
-            }
-            else
-            {
-                if ((nextdirection === Direction.UP && this._mazelines[i].getY1() < y)
-                 || (nextdirection === Direction.DOWN && this._mazelines[i].getY2() > y))
-                {
-                    lines.push(this._mazelines[i]);
-                }
+                lines.push(this._mazelines[i]);
             }
         }
     }
@@ -405,45 +489,32 @@ Map.prototype.mazeNextTurn = function(line, x, y, direction, nextdirection)
         /* find the nearest line */
         
         var line = null;
-        var nearestvalue = (isVertical(nextdirection)) ? lines[0].getX1() : lines[0].getY1() ;
-        var nearestindex = 0;
+        var nearest = (isVertical(nextdirection)) ? lines[0].XAxis() : lines[0].YAxis() ;
+        var index = 0;
         
-        if (isVertical(nextdirection))
+        for(var i=1;i<lines.length;i++)
         {
-            for(var i=1;i<lines.length;i++)
+            if ((direction === Direction.LEFT && lines[i].XAxis() > nearest)
+             || (direction === Direction.RIGHT && lines[i].XAxis() < nearest)
+             || (direction === Direction.UP && lines[i].YAxis() > nearest)
+             || (direction === Direction.DOWN && lines[i].YAxis() < nearest))
             {
-                if ((direction === Direction.LEFT && lines[i].getX1() > nearestvalue)
-                 || (direction === Direction.RIGHT && lines[i].getX1() < nearestvalue))
-                {
-                    nearestvalue = lines[i].getX1();
-                    nearestindex = i;
-                }
-            }
-        }
-        else
-        {
-            for(var i=1;i<lines.length;i++)
-            {
-                if ((direction === Direction.UP && lines[i].getY1() > nearestvalue)
-                 || (direction === Direction.DOWN && lines[i].getY1() < nearestvalue))
-                {
-                    nearestvalue = lines[i].getY1();
-                    nearestindex = i;
-                }
+                nearest = (isVertical(nextdirection)) ? lines[i].XAxis() : lines[i].YAxis() ;
+                index = i;
             }
         }
         
-        line = lines[nearestindex];
+        line = lines[index];
         
         /* return the intersection */
         
         if (isVertical(nextdirection))
         {
-            return new Point2D(nearestvalue, y);
+            return new Point2D(nearest, y);
         }
         else
         {
-            return new Point2D(x, nearestvalue);
+            return new Point2D(x, nearest);
         }
     }
 };
@@ -533,63 +604,32 @@ Pacman.prototype.changeDirection = function(direction)
         return;
     }
     
-    if (isVertical(direction))
+    if ((isVertical(direction) && isVertical(this._direction))
+     || (isHorizontal(direction) && isHorizontal(this._direction)))
     {
-        if (isVertical(this._direction))
-        {
-            this._direction = direction;
-            this._nextdirection = null;
-            this._nextturn = null;
-        }
-        else
-        {
-            this._nextdirection = direction;
-            
-            var line = map.mazeCurrentLine(this._x, this._y, this._direction);
-            if (line === undefined)
-            {
-                this._nextturn = null;
-                return;
-            }
-            
-            var point = map.mazeNextTurn(line, this._x, this._y, this._direction, this._nextdirection);
-            if (point === undefined)
-            {
-                this._nextturn = null;
-                return;
-            }
-            
-            this._nextturn = point;
-        }
+        this._direction = direction;
+        this._nextdirection = null;
+        this._nextturn = null;
     }
-    else if (isHorizontal(direction))
+    else
     {
-        if (isHorizontal(this._direction))
+        this._nextdirection = direction;
+            
+        var line = map.mazeCurrentLine(this._x, this._y, this._direction);
+        if (line === undefined)
         {
-            this._direction = direction;
-            this._nextdirection = null;
             this._nextturn = null;
+            return;
         }
-        else
+        
+        var point = map.mazeNextTurn(line, this._x, this._y, this._direction, this._nextdirection);
+        if (point === undefined)
         {
-            this._nextdirection = direction;
-            
-            var line = map.mazeCurrentLine(this._x, this._y, this._direction);
-            if (line === undefined)
-            {
-                this._nextturn = null;
-                return;
-            }
-            
-            var point = map.mazeNextTurn(line, this._x, this._y, this._direction, this._nextdirection);
-            if (point === undefined)
-            {
-                this._nextturn = null;
-                return;
-            }
-            
-            this._nextturn = point;
+            this._nextturn = null;
+            return;
         }
+        
+        this._nextturn = point;
     }
 };
 
@@ -661,12 +701,6 @@ Pacman.prototype.move = function(elapsed)
         throw new RangeError("elapsed value is not valid");
     }
     
-    var xlimit = 0;
-    var ylimit = 0;
-    
-    /*
-        fixed speed : 100 px/s
-    */
     var movement = Math.round(PACMAN_SPEED * elapsed/1000);
     
     var line = map.mazeCurrentLine(this._x, this._y, this._direction);
@@ -678,33 +712,34 @@ Pacman.prototype.move = function(elapsed)
     /* if we don't have to turn for now */
     if (this._nextdirection === null
      || this._nextturn === null
-     || (this._nextdirection !== null && this._nextturn !== null && Point2D.distance(new Point2D(this._x, this._y), this._nextturn) > movement))
+     || (this._nextdirection !== null && this._nextturn !== null && this._nextturn.distance(new Point2D(this._x, this._y)) > movement))
     {
+        var limit = 0;
+        
         if (this._direction === Direction.UP)
         {
-            ylimit = line.getY1();
-            this._y = (this._y-movement > ylimit) ? this._y-movement : ylimit ;
-            
+            limit = line.getY1();
+            this._y = (this._y-movement > limit) ? this._y-movement : limit ;
         }
         else if (this._direction === Direction.DOWN)
         {
-            ylimit = line.getY2();
-            this._y = (this._y+movement < ylimit) ? this._y+movement : ylimit ;
+            limit = line.getY2();
+            this._y = (this._y+movement < limit) ? this._y+movement : limit ;
         }
         else if (this._direction === Direction.LEFT)
         {
-            xlimit = line.getX1();
-            this._x = (this._x-movement > xlimit) ? this._x-movement : xlimit ;
+            limit = line.getX1();
+            this._x = (this._x-movement > limit) ? this._x-movement : limit ;
         }
         else
         {
-            xlimit = line.getX2();
-            this._x = (this._x+movement < xlimit) ? this._x+movement : xlimit ;
+            limit = line.getX2();
+            this._x = (this._x+movement < limit) ? this._x+movement : limit ;
         }
     }
     else
     {
-        var distance = Point2D.distance(new Point2D(this._x, this._y), this._nextturn);
+        var distance = this._nextturn.distance(new Point2D(this._x, this._y));
         
         if (this._nextdirection === Direction.UP)
         {
@@ -826,6 +861,9 @@ var logicLoop = function()
     to animate, like passing the timestamp ? or an other solution ?=> the static
     method update())
     - a Game class
+    - a Rectangle class
+    - add Point everywhere instead of raw x/y inside : Line() + Pacman() + Map.mazecurrentline() + Map.mazenextturn()
+    - create the real pacman map
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -841,7 +879,10 @@ pacman = new Pacman(60, 80, Direction.UP);
 var lines = [];
 for(var i=0; i<MAZE_LINES.length; i++)
 {
-    lines.push(new LineHV2D(MAZE_LINES[i].x1, MAZE_LINES[i].y1, MAZE_LINES[i].x2, MAZE_LINES[i].y2));
+    lines.push(new LineHV2D(MAZE_LINES[i].x1,
+                            MAZE_LINES[i].y1,
+                            MAZE_LINES[i].x2,
+                            MAZE_LINES[i].y2));
 }
 map = new Map(lines);
 
