@@ -31,6 +31,21 @@ var MAZE_LINES = [
 
 /***************************** utilities functions ****************************/
 
+var AssertError = function(message)
+{
+    this.name = "Assert";
+    this.message = message || "assertion failed";
+};
+AssertError.prototype = new Error();
+
+var assert = function(condition, message)
+{
+    if (condition === false)
+    {
+        throw new AssertError(message);
+    }
+};
+
 var isDirection = function(direction)
 {
     if (direction === Direction.UP
@@ -48,33 +63,29 @@ var isDirection = function(direction)
 
 var isVertical = function(arg)      /* overloading powaaa ^^ */
 {
+    assert((arg instanceof LineHV2D || isDirection(arg)), "argument is not a Direction nor a LineHV2D");
+    
     if (arg instanceof LineHV2D)
     {
         return (arg.getPoint1().getX() === arg.getPoint2().getX()) ? true : false ;
     }
-    else if (isDirection(arg))
-    {
-        return (arg === Direction.UP || arg === Direction.DOWN) ? true : false ;
-    }
     else
     {
-        throw new TypeError("Argument is not a Direction nor a LineHV2D");
+        return (arg === Direction.UP || arg === Direction.DOWN) ? true : false ;
     }
 };
 
 var isHorizontal = function(arg)
 {
+    assert((arg instanceof LineHV2D || isDirection(arg)), "argument is not a Direction nor a LineHV2D");
+    
     if (arg instanceof LineHV2D)
     {
         return (arg.getPoint1().getY() === arg.getPoint2().getY()) ? true : false ;
     }
-    else if (isDirection(arg))
-    {
-        return (arg === Direction.LEFT || arg === Direction.RIGHT) ? true : false ;
-    }
     else
     {
-        throw new TypeError("Argument is not a Direction nor a LineHV2D");
+        return (arg === Direction.LEFT || arg === Direction.RIGHT) ? true : false ;
     }
 };
 
@@ -82,14 +93,8 @@ var isHorizontal = function(arg)
 
 var Point2D = function(x, y)
 {
-    if (typeof x !== "number")
-    {
-        throw new TypeError("x is not a number");
-    }
-    if (typeof y !== "number")
-    {
-        throw new TypeError("y is not a number");
-    }
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
     
     this._x = x;
     this._y = y;
@@ -107,34 +112,22 @@ Point2D.prototype.getY = function()
 
 Point2D.prototype.setX = function(x)
 {
-    if (typeof x !== "number")
-    {
-        throw new TypeError("x is not a number");
-    }
+    assert((typeof x === "number"), "x is not a number");
     
     this._x = x;
 };
 
 Point2D.prototype.setY = function(y)
 {
-    if (typeof y !== "number")
-    {
-        throw new TypeError("y is not a number");
-    }
+    assert((typeof y === "number"), "y is not a number");
     
     this._y = y;
 };
 
 Point2D.prototype.set = function(x, y)
 {
-    if (typeof x !== "number")
-    {
-        throw new TypeError("x is not a number");
-    }
-    if (typeof y !== "number")
-    {
-        throw new TypeError("y is not a number");
-    }
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
     
     this._x = x;
     this._y = y;
@@ -142,20 +135,14 @@ Point2D.prototype.set = function(x, y)
 
 Point2D.prototype.equals = function(point)
 {
-    if (!(point instanceof Point2D))
-    {
-        throw new TypeError("point is not a Point2D");
-    }
+    assert((point instanceof Point2D), "point is not a Point2D");
     
     return (this._x === point.getX() && this._y === point.getY()) ? true : false ;
 };
 
 Point2D.prototype.distance = function(point)
 {
-    if (!(point instanceof Point2D))
-    {
-        throw new TypeError("point is not a Point2D");
-    }
+    assert((point instanceof Point2D), "point is not a Point2D");
     
     return Math.sqrt(Math.pow(point.getX()-this.getX(), 2) + Math.pow(point.getY()-this.getY(), 2));
 };
@@ -169,19 +156,10 @@ Point2D.prototype.distance = function(point)
 */
 var LineHV2D = function(point1, point2)
 {
-    if (!(point1 instanceof Point2D))
-    {
-        throw new TypeError("point1 is not a Point2D");
-    }
-    if (!(point2 instanceof Point2D))
-    {
-        throw new TypeError("point2 is not a Point2D");
-    }
-    if (point1.getX() !== point2.getX()
-     && point1.getY() !== point2.getY())
-    {
-        throw new RangeError("Points will not create a horizontal nor a vertical line");
-    }
+    assert((point1 instanceof Point2D), "point1 is not a Point2D");
+    assert((point2 instanceof Point2D), "point2 is not a Point2D");
+    assert((point1.getX() === point2.getX() || point1.getY() === point2.getY()),
+           "points will not create a horizontal nor a vertical line");
     
     //XXX   should we clone the "pointZ" objects instead of just referencing them ?
     if (point1.getX() <= point2.getX() && point1.getY() <= point2.getY())
@@ -230,10 +208,7 @@ LineHV2D.prototype.YAxis = function()
 
 LineHV2D.prototype.isInXIntervalOf = function(line)
 {
-    if (!(line instanceof LineHV2D))
-    {
-        throw new TypeError("line is not a LineHV2D");
-    }
+    assert((line instanceof LineHV2D), "line is not a LineHV2D");
     
     if (this._point1.getX() >= line.getPoint1().getX()
      && this._point2.getX() <= line.getPoint2().getX())
@@ -248,10 +223,7 @@ LineHV2D.prototype.isInXIntervalOf = function(line)
 
 LineHV2D.prototype.isInYIntervalOf = function(line)
 {
-    if (!(line instanceof LineHV2D))
-    {
-        throw new TypeError("line is not a LineHV2D");
-    }
+    assert((line instanceof LineHV2D), "line is not a LineHV2D");
     
     if (this._point1.getY() >= line.getPoint1().getY()
      && this._point2.getY() <= line.getPoint2().getY())
@@ -266,10 +238,7 @@ LineHV2D.prototype.isInYIntervalOf = function(line)
 
 LineHV2D.prototype.isCrossing = function(line)
 {
-    if (!(line instanceof LineHV2D))
-    {
-        throw new TypeError("line is not a LineHV2D");
-    }
+    assert((line instanceof LineHV2D), "line is not a LineHV2D");
     
     if ((this.isInYIntervalOf(line) && line.isInXIntervalOf(this))
      || (this.isInXIntervalOf(line) && line.isInYIntervalOf(this)))
@@ -282,10 +251,7 @@ LineHV2D.prototype.isCrossing = function(line)
 
 LineHV2D.prototype.containsPoint = function(point)
 {
-    if (!(point instanceof Point2D))
-    {
-        throw new TypeError("point is not a Point2D");
-    }
+    assert((point instanceof Point2D), "point is not a Point2D");
     
     if (point.getY() >= this._point1.getY() && point.getY() <= this.getPoint2().getY()
      && point.getX() >= this._point1.getX() && point.getX() <= this.getPoint2().getX())
@@ -300,10 +266,7 @@ LineHV2D.prototype.containsPoint = function(point)
 
 LineHV2D.prototype.containsX = function(x)
 {
-    if (typeof x !== "number")
-    {
-        throw new TypeError("x is not a number");
-    }
+    assert((typeof x === "number"), "x is not a number");
     
     if ((isVertical(this) && x === this._point1.getX())
      || (isHorizontal(this) && x >= this._point1.getX() && x <= this._point2.getX()))
@@ -318,10 +281,7 @@ LineHV2D.prototype.containsX = function(x)
 
 LineHV2D.prototype.containsY = function(y)
 {
-    if (typeof y !== "number")
-    {
-        throw new TypeError("y is not a number");
-    }
+    assert((typeof y === "number"), "y is not a number");
     
     if ((isHorizontal(this) && y === this._point1.getY())
      || (isVertical(this) && y >= this._point1.getY() && y <= this._point2.getY()))
@@ -336,10 +296,7 @@ LineHV2D.prototype.containsY = function(y)
 
 LineHV2D.prototype.containsXStrictly = function(x)
 {
-    if (typeof x !== "number")
-    {
-        throw new TypeError("x is not a number");
-    }
+    assert((typeof x === "number"), "x is not a number");
     
     if (isHorizontal(this) && x > this._point1.getX() && x < this._point2.getX())
     {
@@ -353,10 +310,7 @@ LineHV2D.prototype.containsXStrictly = function(x)
 
 LineHV2D.prototype.containsYStrictly = function(y)
 {
-    if (typeof y !== "number")
-    {
-        throw new TypeError("y is not a number");
-    }
+    assert((typeof y === "number"), "y is not a number");
     
     if (isVertical(this) && y > this._point1.getY() && y < this._point2.getY())
     {
@@ -404,10 +358,7 @@ var Map = function(mazelines)
 
 Map.prototype.getMazeLine = function(index)
 {
-    if (index < 0 || index >= this._mazelines.length)
-    {
-        throw new RangeError("index value is not valid");
-    }
+    assert((index >= 0 && index < this._mazelines.length), "index value is not valid");
     
     return this._mazelines[index];
 };
@@ -419,14 +370,8 @@ Map.prototype.mazeLinesCount = function()
 
 Map.prototype.mazeCurrentLine = function(point, direction)
 {
-    if (!(point instanceof Point2D))
-    {
-        throw new TypeError("point is not a Point2D");
-    }
-    if (!isDirection(direction))
-    {
-        throw new RangeError("direction value is not valid");
-    }
+    assert((point instanceof Point2D), "point is not a Point2D");
+    assert((isDirection(direction)), "direction value is not valid");
     
     var line = null;
     
@@ -447,22 +392,10 @@ Map.prototype.mazeCurrentLine = function(point, direction)
 
 Map.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
 {
-    if (!(line instanceof LineHV2D))
-    {
-        throw new TypeError("line is not a LineHV2D");
-    }
-    if (!(point instanceof Point2D))
-    {
-        throw new TypeError("point is not a Point2D");
-    }
-    if (!isDirection(direction))
-    {
-        throw new RangeError("direction value is not valid");
-    }
-    if (!isDirection(nextdirection))
-    {
-        throw new RangeError("nextdirection value is not valid");
-    }
+    assert((line instanceof LineHV2D), "line is not a LineHV2D");
+    assert((point instanceof Point2D), "point is not a Point2D");
+    assert((isDirection(direction)), "direction value is not valid");
+    assert((isDirection(nextdirection)), "nextdirection value is not valid");
     
     if ((isVertical(direction) && isVertical(nextdirection))
      || (isHorizontal(direction) && isHorizontal(nextdirection)))
@@ -565,18 +498,13 @@ Map.prototype.draw = function()
 
 var Pacman = function(x, y, direction)
 {
-    if (typeof x !== "number")
-    {
-        throw new TypeError("x is not a number");
-    }
-    if (typeof y !== "number")
-    {
-        throw new TypeError("y is not a number");
-    }
-    if (!isDirection(direction))
-    {
-        throw new RangeError("direction value is not valid");
-    }
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((isDirection(direction)), "direction value is not valid");
+    
+    
+    
+    
     
     this._position = new Point2D(x, y);
     this._direction = direction;
@@ -591,64 +519,43 @@ var Pacman = function(x, y, direction)
 
 Pacman.prototype.setDirection = function(direction)
 {
-    if (!isDirection(direction))
-    {
-        throw new RangeError("direction value is not valid");
-    }
+    assert((isDirection(direction)), "direction value is not valid");
 
     this._direction = direction;
 };
 
 Pacman.prototype.setPosition = function(x, y)
 {
-    if (typeof x !== "number")
-    {
-        throw new TypeError("x is not a number");
-    }
-    if (typeof y !== "number")
-    {
-        throw new TypeError("y is not a number");
-    }
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
 
     this._position.set(x, y);
 };
 
 Pacman.prototype.setPositionX = function(x)
 {
-    if (typeof x !== "number")
-    {
-        throw new TypeError("x is not a number");
-    }
+    assert((typeof x === "number"), "x is not a number");
 
     this._position.setX(x);
 };
 
 Pacman.prototype.setPositionY = function(y)
 {
-    if (typeof y !== "number")
-    {
-        throw new TypeError("y is not a number");
-    }
+    assert((typeof y === "number"), "y is not a number");
 
     this._position.setY(y);
 };
 
 Pacman.prototype.setNextDirection = function(nextdirection)
 {
-    if (!isDirection(direction))
-    {
-        throw new RangeError("nextdirection value is not valid");
-    }
+    assert((isDirection(nextdirection)), "nextdirection value is not valid");
     
     this._nextdirection = nextdirection;
 };
 
 Pacman.prototype.changeDirection = function(direction)
 {
-    if (!isDirection(direction))
-    {
-        throw new RangeError("direction value is not valid");
-    }
+    assert((isDirection(direction)), "direction value is not valid");
     
     var line = map.mazeCurrentLine(this._position, this._direction);
     if (line === undefined)
@@ -700,10 +607,7 @@ Pacman.prototype.draw = function()
 
 Pacman.prototype.animate = function(elapsed)
 {
-    if (elapsed <= 0)
-    {
-        throw new RangeError("elapsed value is not valid");
-    }
+    assert((elapsed > 0), "elapsed value is not valid");
     
     /*
         max half angle : 6/10 rad
@@ -747,14 +651,18 @@ Pacman.prototype.animate = function(elapsed)
 
 Pacman.prototype.move = function(elapsed)
 {
-    if (elapsed <= 0)
-    {
-        throw new RangeError("elapsed value is not valid");
-    }
+    assert((elapsed > 0), "elapsed value is not valid");
     
     var movement = Math.round(PACMAN_SPEED * elapsed/1000);
+    var distance = null;
+    var line = null;
     
-    var line = map.mazeCurrentLine(this._position, this._direction);
+    if (this._nextdirection !== null && this._nextturn !== null)
+    {
+        distance = this._nextturn.distance(this._position);
+    }
+    
+    line = map.mazeCurrentLine(this._position, this._direction);
     if (line === undefined)
     {
         return;
@@ -763,7 +671,7 @@ Pacman.prototype.move = function(elapsed)
     /* if we don't have to turn for now */
     if (this._nextdirection === null
      || this._nextturn === null
-     || (this._nextdirection !== null && this._nextturn !== null && this._nextturn.distance(this._position) > movement))
+     || (this._nextdirection !== null && this._nextturn !== null && distance > movement))
     {
         var limit = 0;
         
@@ -794,8 +702,6 @@ Pacman.prototype.move = function(elapsed)
     }
     else
     {
-        var distance = this._nextturn.distance(this._position);
-        
         if (this._nextdirection === Direction.UP)
         {
             this._position.set(this._nextturn.getX(), this._nextturn.getY() - (movement - distance));
