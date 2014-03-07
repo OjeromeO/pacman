@@ -16,6 +16,7 @@ var lastupdate = null;
 var map = null;
 var pressedkeys = [];
 var pause = false;
+var currentline = null;
 
 var LOGIC_REFRESH_RATE = 60;
 
@@ -368,10 +369,26 @@ Map.prototype.mazeLinesCount = function()
     return this._mazelines.length;
 };
 
+Map.prototype.containsPoint = function(point)
+{
+    assert((point instanceof Point2D), "point is not a Point2D");
+    
+    for(var i=0;i<this._mazelines.length;i++)
+    {
+        if (this._mazelines[i].containsPoint(point))
+        {
+            return true;
+        }
+    }
+    
+    return false;
+};
+
 Map.prototype.mazeCurrentLine = function(point, direction)
 {
     assert((point instanceof Point2D), "point is not a Point2D");
     assert((isDirection(direction)), "direction value is not valid");
+    assert((this.containsPoint(point)), "point is not inside the map");
     
     var line = null;
     
@@ -386,8 +403,6 @@ Map.prototype.mazeCurrentLine = function(point, direction)
             return line;
         }
     }
-    
-    return undefined;
 };
 
 Map.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
@@ -501,10 +516,7 @@ var Pacman = function(x, y, direction)
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
-    
-    
-    
-    
+    assert((map.containsPoint(new Point2D(x, y))), "coordinates are not inside the map");
     
     this._position = new Point2D(x, y);
     this._direction = direction;
@@ -515,6 +527,8 @@ var Pacman = function(x, y, direction)
     this._animtime = 0;
     this._mouthstartangle = 0;
     this._mouthendangle = 2 * Math.PI;
+    
+    currentline = map.mazeCurrentLine(this._position, this._direction);
 };
 
 Pacman.prototype.setDirection = function(direction)
@@ -557,12 +571,6 @@ Pacman.prototype.changeDirection = function(direction)
 {
     assert((isDirection(direction)), "direction value is not valid");
     
-    var line = map.mazeCurrentLine(this._position, this._direction);
-    if (line === undefined)
-    {
-        return;
-    }
-    
     if (direction === this._direction
      || direction === this._nextdirection)
     {
@@ -580,14 +588,9 @@ Pacman.prototype.changeDirection = function(direction)
     {
         this._nextdirection = direction;
         
-        var point = map.mazeNextTurn(line, this._position, this._direction, this._nextdirection);
-        if (point === undefined)
-        {
-            this._nextturn = null;
-            return;
-        }
+        var point = map.mazeNextTurn(currentline, this._position, this._direction, this._nextdirection);
         
-        this._nextturn = point;
+        this._nextturn = (point === undefined) ? null : point ;
     }
 };
 
@@ -596,6 +599,7 @@ Pacman.prototype.draw = function()
     context.fillStyle = "yellow";
     context.beginPath();
     context.moveTo(this._position.getX(), this._position.getY());
+    
     /*
         if arc() has the same start and end angles (mouth shutted), nothing is
         done ; a little trick to have a circle in this case is to use the fact
@@ -655,17 +659,10 @@ Pacman.prototype.move = function(elapsed)
     
     var movement = Math.round(PACMAN_SPEED * elapsed/1000);
     var distance = null;
-    var line = null;
     
     if (this._nextdirection !== null && this._nextturn !== null)
     {
         distance = this._nextturn.distance(this._position);
-    }
-    
-    line = map.mazeCurrentLine(this._position, this._direction);
-    if (line === undefined)
-    {
-        return;
     }
     
     /* if we don't have to turn for now */
@@ -677,25 +674,25 @@ Pacman.prototype.move = function(elapsed)
         
         if (this._direction === Direction.UP)
         {
-            limit = line.getPoint1().getY();
+            limit = currentline.getPoint1().getY();
             var y = (this._position.getY()-movement > limit) ? this._position.getY()-movement : limit ;
             this._position.setY(y);
         }
         else if (this._direction === Direction.DOWN)
         {
-            limit = line.getPoint2().getY();
+            limit = currentline.getPoint2().getY();
             var y = (this._position.getY()+movement < limit) ? this._position.getY()+movement : limit ;
             this._position.setY(y);
         }
         else if (this._direction === Direction.LEFT)
         {
-            limit = line.getPoint1().getX();
+            limit = currentline.getPoint1().getX();
             var x = (this._position.getX()-movement > limit) ? this._position.getX()-movement : limit ;
             this._position.setX(x);
         }
         else
         {
-            limit = line.getPoint2().getX();
+            limit = currentline.getPoint2().getX();
             var x = (this._position.getX()+movement < limit) ? this._position.getX()+movement : limit ;
             this._position.setX(x);
         }
@@ -722,6 +719,8 @@ Pacman.prototype.move = function(elapsed)
         this._direction = this._nextdirection;
         this._nextdirection = null;
         this._nextturn = null;
+        
+        currentline = map.mazeCurrentLine(this._position, this._direction);
     }
 };
 
@@ -819,7 +818,6 @@ var logicLoop = function()
     method update())
     - a Game class
     - create the real pacman map
-    - ne pas recalculer mazecurrentline() mais le faire une fois a changedirection (+ lors de la creation du pacman) puis la stocker dans pacman ?
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -830,8 +828,6 @@ context = canvas.getContext("2d");
 
 /* init the game */
 
-pacman = new Pacman(60, 80, Direction.UP);
-
 var lines = [];
 for(var i=0; i<MAZE_LINES.length; i++)
 {
@@ -839,7 +835,11 @@ for(var i=0; i<MAZE_LINES.length; i++)
                             new Point2D(MAZE_LINES[i].x2, MAZE_LINES[i].y2)));
 }
 map = new Map(lines);
+
+pacman = new Pacman(60, 80, Direction.UP);
+
 console.log("yeaaaaah 3");
+
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
 
