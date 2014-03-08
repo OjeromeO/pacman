@@ -17,12 +17,15 @@ var map = null;
 var pressedkeys = [];
 var pause = false;
 var currentline = null;
+var score = 0;
 
 var LOGIC_REFRESH_RATE = 60;
 
 var PACMAN_RADIUS = 15;
+var PACDOTS_RADIUS = 2;
 var PACMAN_SPEED = 200;
 var LINE_WIDTH = 1.2 * 2 * PACMAN_RADIUS;
+var GRID_UNIT = 20;
 
 var MAZE_LINES = [
                  /* horizontal lines */
@@ -230,6 +233,7 @@ var LineHV2D = function(point1, point2)
            "points will not create a horizontal nor a vertical line");
     
     //XXX   should we clone the "pointZ" objects instead of just referencing them ?
+    
     if (point1.getX() <= point2.getX() && point1.getY() <= point2.getY())
     {
         this._point1 = point1;
@@ -395,11 +399,73 @@ LineHV2D.prototype.containsYStrictly = function(y)
 var Map = function(mazelines)
 {
     //XXX   should we clone the "mazelines" object instead of just referencing it ?
+    
     //TODO  check if lines don't overlap with one another => if overlap, create
     //      a new one containing the two lines overlapping
     
+    for(var i=0; i<mazelines.length; i++)
+    {
+        assert((mazelines[i] instanceof LineHV2D), "line " + i +" is not a LineHV2D");
+        assert((((mazelines[i].getPoint1().getX()-50) % GRID_UNIT) === 0
+             && ((mazelines[i].getPoint1().getY()-50) % GRID_UNIT) === 0
+             && ((mazelines[i].getPoint2().getX()-50) % GRID_UNIT) === 0
+             && ((mazelines[i].getPoint2().getY()-50) % GRID_UNIT) === 0),
+             "line n°" + i +" points are not on the game grid, using " + GRID_UNIT + " pixels unit");
+    }
+    
+    //TODO for each of the pacdots : for the point i, for each point between i+1 and length, if that point is the same, then delete it
+    
     this._mazelines = mazelines; // lines on which the pacman center can move
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
+    this._pacdots = [];
+    this._powerpellets = [];
+    
+    this._generateRects();
+    this._generatePacdots();
+};
+
+Map.prototype._generatePacdots = function()
+{
+    if (!(this._mazelines.length > 0))
+    {
+        return;
+    }
+    
+    for(var i=0; i<this._mazelines.length; i++)
+    {
+        var line = this._mazelines[i];
+        var start = 0;
+        var end = 0;
+        
+        if (isVertical(line))
+        {
+            start = line.getPoint1().getY();
+            end = line.getPoint2().getY();
+            
+            for(var j=start; j<=end; j+=GRID_UNIT)
+            {
+                this._pacdots.push(new Point2D(line.XAxis(), j));
+            }
+        }
+        else
+        {
+            start = line.getPoint1().getX();
+            end = line.getPoint2().getX();
+            
+            for(var j=start; j<=end; j+=GRID_UNIT)
+            {
+                this._pacdots.push(new Point2D(j, line.YAxis()));
+            }
+        }
+    }
+};
+
+Map.prototype._generateRects = function()
+{
+    if (!(this._mazelines.length > 0))
+    {
+        return;
+    }
     
     for(var i=0; i<this._mazelines.length; i++)
     {
@@ -566,11 +632,29 @@ Map.prototype._drawMazeRects = function()
     }
 };
 
+Map.prototype._drawPacdots = function()
+{
+    context.fillStyle = "silver";
+    
+    for(var i=0;i<this._pacdots.length;i++)
+    {
+        context.beginPath();
+        context.arc(this._pacdots[i].getX(), this._pacdots[i].getY(), PACDOTS_RADIUS, 0, 2 * Math.PI);
+        context.fill();
+    }
+    
+    /* TODO
+        better performances : draw in a hidden canvas and then drawImage() or putimagedata()
+        cf: http://stackoverflow.com/questions/13916066/speed-up-the-drawing-of-many-points-on-a-html5-canvas-element
+    */
+};
+
 Map.prototype.draw = function()
 {
     context.fillStyle = "blue";
     context.fillRect(0, 0, context.canvas.width, context.canvas.height);
     this._drawMazeRects();
+    this._drawPacdots();
     /* TODO
         dessine aussi le reste de la map, qui est statique (donc pas les pacman, ghost, bouboules...) ; utiliser le pre-render du coup ? vu que ce sera toujours la même chose, inutile de refaire tous les dessins de la map
     */
@@ -917,10 +1001,9 @@ for(var i=0; i<MAZE_LINES.length; i++)
 }
 map = new Map(lines);
 
-//pacman = new Pacman(60, 80, Direction.UP);
 pacman = new Pacman(50, 50, Direction.UP);
 
-console.log("yeaaaaah 3");
+console.log("yeaaaaah 4");
 
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
