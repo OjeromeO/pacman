@@ -413,8 +413,6 @@ var Map = function(mazelines)
              "line n°" + i +" points are not on the game grid, using " + GRID_UNIT + " pixels unit");
     }
     
-    //TODO for each of the pacdots : for the point i, for each point between i+1 and length, if that point is the same, then delete it
-    
     this._mazelines = mazelines; // lines on which the pacman center can move
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
     this._pacdots = [];
@@ -455,6 +453,27 @@ Map.prototype._generatePacdots = function()
             for(var j=start; j<=end; j+=GRID_UNIT)
             {
                 this._pacdots.push(new Point2D(j, line.YAxis()));
+            }
+        }
+    }
+    
+    /* delete all pacdots duplicates */
+    
+    var p1 = null;
+    var p2 = null
+    
+    for(var i=0; i<this._pacdots.length; i++)
+    {
+        p1 = this._pacdots[i];
+        
+        for(var j=i+1; j < this._pacdots.length; j++)
+        {
+            p2 = this._pacdots[j];
+            
+            if (p1.getX() === p2.getX()
+             && p1.getY() === p2.getY())
+            {
+                this._pacdots.splice(j, 1);
             }
         }
     }
