@@ -20,16 +20,83 @@ var currentline = null;
 
 var LOGIC_REFRESH_RATE = 60;
 
-var PACMAN_RADIUS = 30;
+var PACMAN_RADIUS = 15;
 var PACMAN_SPEED = 200;
 var LINE_WIDTH = 1.2 * 2 * PACMAN_RADIUS;
 
 var MAZE_LINES = [
-                 {x1: 60, y1: 80, x2: 480, y2: 80},
-                 {x1: 60, y1: 80, x2: 60, y2: 300},
-                 {x1: 60, y1: 200, x2: 200, y2: 200}
+                 /* horizontal lines */
+                 
+                 {x1: 50, y1: 50, x2: 270, y2: 50},
+                 {x1: 330, y1: 50, x2: 550, y2: 50},
+                 
+                 {x1: 50, y1: 130, x2: 550, y2: 130},
+                 
+                 {x1: 50, y1: 190, x2: 150, y2: 190},
+                 {x1: 210, y1: 190, x2: 270, y2: 190},
+                 {x1: 330, y1: 190, x2: 390, y2: 190},
+                 {x1: 450, y1: 190, x2: 550, y2: 190},
+                 
+                 {x1: 210, y1: 250, x2: 390, y2: 250},
+                 
+                 {x1: 50, y1: 310, x2: 210, y2: 310},
+                 {x1: 390, y1: 310, x2: 550, y2: 310},
+                 
+                 {x1: 210, y1: 370, x2: 390, y2: 370},
+                 
+                 {x1: 50, y1: 430, x2: 270, y2: 430},
+                 {x1: 330, y1: 430, x2: 550, y2: 430},
+                 
+                 {x1: 50, y1: 490, x2: 90, y2: 490},
+                 {x1: 150, y1: 490, x2: 450, y2: 490},
+                 {x1: 510, y1: 490, x2: 550, y2: 490},
+                 
+                 {x1: 50, y1: 550, x2: 150, y2: 550},
+                 {x1: 210, y1: 550, x2: 270, y2: 550},
+                 {x1: 330, y1: 550, x2: 390, y2: 550},
+                 {x1: 450, y1: 550, x2: 550, y2: 550},
+                 
+                 {x1: 50, y1: 610, x2: 550, y2: 610},
+                 
+                 /* vertical lines */
+                 
+                 {x1: 50, y1: 50, x2: 50, y2: 190},
+                 {x1: 150, y1: 50, x2: 150, y2: 550},
+                 {x1: 450, y1: 50, x2: 450, y2: 550},
+                 {x1: 550, y1: 50, x2: 550, y2: 190},
+                 
+                 {x1: 270, y1: 50, x2: 270, y2: 130},
+                 {x1: 330, y1: 50, x2: 330, y2: 130},
+                 
+                 {x1: 210, y1: 130, x2: 210, y2: 190},
+                 {x1: 390, y1: 130, x2: 390, y2: 190},
+                 
+                 {x1: 270, y1: 190, x2: 270, y2: 250},
+                 {x1: 330, y1: 190, x2: 330, y2: 250},
+                 
+                 {x1: 210, y1: 250, x2: 210, y2: 430},
+                 {x1: 390, y1: 250, x2: 390, y2: 430},
+                 
+                 {x1: 50, y1: 430, x2: 50, y2: 490},
+                 {x1: 270, y1: 430, x2: 270, y2: 490},
+                 {x1: 330, y1: 430, x2: 330, y2: 490},
+                 {x1: 550, y1: 430, x2: 550, y2: 490},
+                 
+                 {x1: 90, y1: 490, x2: 90, y2: 550},
+                 {x1: 210, y1: 490, x2: 210, y2: 550},
+                 {x1: 390, y1: 490, x2: 390, y2: 550},
+                 {x1: 510, y1: 490, x2: 510, y2: 550},
+                 
+                 {x1: 50, y1: 550, x2: 50, y2: 610},
+                 {x1: 270, y1: 550, x2: 270, y2: 610},
+                 {x1: 330, y1: 550, x2: 330, y2: 610},
+                 {x1: 550, y1: 550, x2: 550, y2: 610}
                  ];
-
+/* XXX
+var count1 = 0;
+var count2 = 0;
+var firstupdate = 0;
+*/
 /***************************** utilities functions ****************************/
 
 var AssertError = function(message)
@@ -488,7 +555,7 @@ Map.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
 
 Map.prototype._drawMazeRects = function()
 {
-    context.fillStyle = "red";
+    context.fillStyle = "blue";
     
     for(var i=0;i<this._mazerects.length;i++)
     {
@@ -740,6 +807,7 @@ var keyEventListener= function(e)
 
 var graphicsLoop = function()
 {
+    //XXX count1++;
     /*if (!pause)
     {*/
     map.draw();
@@ -750,6 +818,8 @@ var graphicsLoop = function()
 
 var logicLoop = function()
 {
+    //XXX count2++;
+    //XXX if (performance.now() - firstupdate > 1000) {console.log(count1 + ", " + count2); firstupdate = performance.now(); count1 = 0; count2 = 0;}
     var newupdate = performance.now();
     var elapsed = newupdate - lastupdate;
     lastupdate = newupdate;
@@ -822,7 +892,7 @@ var logicLoop = function()
 
 var canvas = document.getElementById("gamecanvas");
 canvas.width = 600;
-canvas.height = 400;
+canvas.height = 650;
 
 context = canvas.getContext("2d");
 
@@ -836,7 +906,8 @@ for(var i=0; i<MAZE_LINES.length; i++)
 }
 map = new Map(lines);
 
-pacman = new Pacman(60, 80, Direction.UP);
+//pacman = new Pacman(60, 80, Direction.UP);
+pacman = new Pacman(50, 50, Direction.UP);
 
 console.log("yeaaaaah 3");
 
@@ -844,6 +915,7 @@ canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
 
 lastupdate = performance.now();
+firstupdate = lastupdate;
 
 /* start the game */
 
