@@ -24,8 +24,10 @@ var LOGIC_REFRESH_RATE = 60;
 var PACMAN_RADIUS = 15;
 var PACDOTS_RADIUS = 2;
 var PACMAN_SPEED = 200;
-var LINE_WIDTH = 1.2 * 2 * PACMAN_RADIUS;
+var LINE_WIDTH = 1.5 * 2 * PACMAN_RADIUS;
 var GRID_UNIT = 20;
+
+var PACDOT_POINT = 10;
 
 var MAZE_LINES = [
                  /* horizontal lines */
@@ -491,19 +493,10 @@ Map.prototype._generateRects = function()
         var line = this._mazelines[i];
         var rect = {};
         
-        rect.x = line.getPoint1().getX() - PACMAN_RADIUS;
-        rect.y = line.getPoint1().getY() - PACMAN_RADIUS;
-        
-        if (isVertical(line))
-        {
-            rect.w = 2 * PACMAN_RADIUS;
-            rect.h = line.size() + 2 * PACMAN_RADIUS;
-        }
-        else
-        {
-            rect.w = line.size() + 2 * PACMAN_RADIUS;
-            rect.h = 2 * PACMAN_RADIUS;
-        }
+        rect.x = line.getPoint1().getX() - LINE_WIDTH/2;
+        rect.y = line.getPoint1().getY() - LINE_WIDTH/2;
+        rect.w = (isVertical(line)) ? LINE_WIDTH : line.size() + LINE_WIDTH ;
+        rect.h = (isVertical(line)) ? line.size() + LINE_WIDTH : LINE_WIDTH ;
         
         this._mazerects.push(rect);
     }
@@ -516,9 +509,28 @@ Map.prototype.getMazeLine = function(index)
     return this._mazelines[index];
 };
 
+Map.prototype.getPacdot = function(index)
+{
+    assert((index >= 0 && index < this._pacdots.length), "index value is not valid");
+    
+    return this._pacdots[index];
+};
+
+Map.prototype.deletePacdot = function(index)
+{
+    assert((index >= 0 && index < this._pacdots.length), "index value is not valid");
+    
+    this._pacdots.splice(index, 1);
+};
+
 Map.prototype.mazeLinesCount = function()
 {
     return this._mazelines.length;
+};
+
+Map.prototype.pacdotsCount = function()
+{
+    return this._pacdots.length;
 };
 
 Map.prototype.containsPoint = function(point)
@@ -841,59 +853,96 @@ Pacman.prototype.move = function(elapsed)
      || this._nextturn === null
      || (this._nextdirection !== null && this._nextturn !== null && turndistance > movement))
     {
+        var newx = 0;
+        var newy = 0;
+        
         if (this._direction === Direction.UP)
         {
             limit = currentline.getPoint1().getY();
-            var y = (this._position.getY()-movement > limit) ? this._position.getY()-movement : limit ;
-            this._position.setY(y);
+            newx = this._position.getX();
+            newy = (this._position.getY()-movement > limit) ? this._position.getY()-movement : limit ;
         }
         else if (this._direction === Direction.DOWN)
         {
             limit = currentline.getPoint2().getY();
-            var y = (this._position.getY()+movement < limit) ? this._position.getY()+movement : limit ;
-            this._position.setY(y);
+            newx = this._position.getX();
+            newy = (this._position.getY()+movement < limit) ? this._position.getY()+movement : limit ;
         }
         else if (this._direction === Direction.LEFT)
         {
             limit = currentline.getPoint1().getX();
-            var x = (this._position.getX()-movement > limit) ? this._position.getX()-movement : limit ;
-            this._position.setX(x);
+            newx = (this._position.getX()-movement > limit) ? this._position.getX()-movement : limit ;
+            newy = this._position.getY();
         }
         else
         {
             limit = currentline.getPoint2().getX();
-            var x = (this._position.getX()+movement < limit) ? this._position.getX()+movement : limit ;
-            this._position.setX(x);
+            newx = (this._position.getX()+movement < limit) ? this._position.getX()+movement : limit ;
+            newy = this._position.getY();
         }
+        
+        /* check if pacman has eaten some pacdots... */
+        
+        var travelled = new LineHV2D(this._position, new Point2D(newx, newy));
+        
+        for(var i=0; i<map.pacdotsCount(); i++)
+        {
+            if (travelled.containsPoint(map.getPacdot(i)))
+            {
+                score += PACDOT_POINT;
+                map.deletePacdot(i);
+            }
+        }
+        
+        this._position.set(newx, newy);
     }
     else
     {
         var nextline = map.mazeCurrentLine(this._nextturn, this._nextdirection);
+        var newx = 0;
+        var newy = 0;
         
         if (this._nextdirection === Direction.UP)
         {
             limit = nextline.getPoint1().getY();
-            var y = (this._position.getY() - (movement - turndistance) > limit) ? this._position.getY() - (movement - turndistance) : limit ;
-            this._position.set(this._nextturn.getX(), y);
+            newx = this._nextturn.getX();
+            newy = (this._position.getY() - (movement - turndistance) > limit) ? this._position.getY() - (movement - turndistance) : limit ;
         }
         else if (this._nextdirection === Direction.DOWN)
         {
             limit = nextline.getPoint2().getY();
-            var y = (this._position.getY() + (movement - turndistance) < limit) ? this._position.getY() + (movement - turndistance) : limit ;
-            this._position.set(this._nextturn.getX(), y);
+            newx = this._nextturn.getX();
+            newy = (this._position.getY() + (movement - turndistance) < limit) ? this._position.getY() + (movement - turndistance) : limit ;
         }
         else if (this._nextdirection === Direction.LEFT)
         {
             limit = nextline.getPoint1().getX();
-            var x = (this._position.getX() - (movement - turndistance) > limit) ? this._position.getX() - (movement - turndistance) : limit ;
-            this._position.set(x, this._nextturn.getY());
+            newx = (this._position.getX() - (movement - turndistance) > limit) ? this._position.getX() - (movement - turndistance) : limit ;
+            newy = this._nextturn.getY();
         }
         else
         {
             limit = nextline.getPoint2().getX();
-            var x = (this._position.getX() + (movement - turndistance) < limit) ? this._position.getX() + (movement - turndistance) : limit ;
-            this._position.set(x, this._nextturn.getY());
+            newx = (this._position.getX() + (movement - turndistance) < limit) ? this._position.getX() + (movement - turndistance) : limit ;
+            newy = this._nextturn.getY();
         }
+        
+        /* check if pacman has eaten some pacdots... */
+        
+        var travelled1 = new LineHV2D(this._position, this._nextturn);
+        var travelled2 = new LineHV2D(this._nextturn, new Point2D(newx, newy));
+        
+        for(var i=0; i<map.pacdotsCount(); i++)
+        {
+            if (travelled1.containsPoint(map.getPacdot(i))
+             || travelled2.containsPoint(map.getPacdot(i)))
+            {
+                score += PACDOT_POINT;
+                map.deletePacdot(i);
+            }
+        }
+        
+        this._position.set(newx, newy);
         
         this._direction = this._nextdirection;
         this._nextdirection = null;
@@ -1001,7 +1050,8 @@ var logicLoop = function()
     to animate, like passing the timestamp ? or an other solution ?=> the static
     method update())
     - a Game class
-    - ajouter les mini-bouboules : parcourir au tout debut toutes les lignes et creer un tableau de ces bouboules (1 truc tous les 20 pixels), avec a chaque fois quand on en ajoute une verif de si elle est pas dja dans le tableau
+    - ajouter les fantomes
+    - ajouter les power pellets
 */
 
 var canvas = document.getElementById("gamecanvas");
