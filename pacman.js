@@ -555,7 +555,7 @@ Map.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
 
 Map.prototype._drawMazeRects = function()
 {
-    context.fillStyle = "blue";
+    context.fillStyle = "black";
     
     for(var i=0;i<this._mazerects.length;i++)
     {
@@ -568,7 +568,7 @@ Map.prototype._drawMazeRects = function()
 
 Map.prototype.draw = function()
 {
-    context.fillStyle = "black";
+    context.fillStyle = "blue";
     context.fillRect(0, 0, context.canvas.width, context.canvas.height);
     this._drawMazeRects();
     /* TODO
@@ -725,20 +725,19 @@ Pacman.prototype.move = function(elapsed)
     assert((elapsed > 0), "elapsed value is not valid");
     
     var movement = Math.round(PACMAN_SPEED * elapsed/1000);
-    var distance = null;
+    var limit = 0;
+    var turndistance = 0;
     
     if (this._nextdirection !== null && this._nextturn !== null)
     {
-        distance = this._nextturn.distance(this._position);
+        turndistance = this._nextturn.distance(this._position);
     }
     
     /* if we don't have to turn for now */
     if (this._nextdirection === null
      || this._nextturn === null
-     || (this._nextdirection !== null && this._nextturn !== null && distance > movement))
+     || (this._nextdirection !== null && this._nextturn !== null && turndistance > movement))
     {
-        var limit = 0;
-        
         if (this._direction === Direction.UP)
         {
             limit = currentline.getPoint1().getY();
@@ -766,28 +765,38 @@ Pacman.prototype.move = function(elapsed)
     }
     else
     {
+        var nextline = map.mazeCurrentLine(this._nextturn, this._nextdirection);
+        
         if (this._nextdirection === Direction.UP)
         {
-            this._position.set(this._nextturn.getX(), this._nextturn.getY() - (movement - distance));
+            limit = nextline.getPoint1().getY();
+            var y = (this._position.getY() - (movement - turndistance) > limit) ? this._position.getY() - (movement - turndistance) : limit ;
+            this._position.set(this._nextturn.getX(), y);
         }
         else if (this._nextdirection === Direction.DOWN)
         {
-            this._position.set(this._nextturn.getX(), this._nextturn.getY() + (movement - distance));
+            limit = nextline.getPoint2().getY();
+            var y = (this._position.getY() + (movement - turndistance) < limit) ? this._position.getY() + (movement - turndistance) : limit ;
+            this._position.set(this._nextturn.getX(), y);
         }
         else if (this._nextdirection === Direction.LEFT)
         {
-            this._position.set(this._nextturn.getX() - (movement - distance), this._nextturn.getY());
+            limit = nextline.getPoint1().getX();
+            var x = (this._position.getX() - (movement - turndistance) > limit) ? this._position.getX() - (movement - turndistance) : limit ;
+            this._position.set(x, this._nextturn.getY());
         }
         else
         {
-            this._position.set(this._nextturn.getX() + (movement - distance), this._nextturn.getY());
+            limit = nextline.getPoint2().getX();
+            var x = (this._position.getX() + (movement - turndistance) < limit) ? this._position.getX() + (movement - turndistance) : limit ;
+            this._position.set(x, this._nextturn.getY());
         }
         
         this._direction = this._nextdirection;
         this._nextdirection = null;
         this._nextturn = null;
         
-        currentline = map.mazeCurrentLine(this._position, this._direction);
+        currentline = nextline;
     }
 };
 
@@ -826,10 +835,12 @@ var logicLoop = function()
     
     /* input management */
     
-    for(var i=0;i<pressedkeys.length;i++)
-    {
-        var key = pressedkeys.shift()
-        
+    for(var i=0;i<pressedkeys.length;i++) /*TODO when key pressed, register also */
+    {                                     /* when it was : like that, even if the */
+        var key = pressedkeys.shift()     /* game lags, we can move the pacman to */
+                                          /* the good place (move() then look */
+                                          /* remaining pressed keys then move() */
+                                          /* then...) */
         if (key === 80)
         {
             pause = !pause;
@@ -879,7 +890,7 @@ var logicLoop = function()
     - manage focus loss (auto pause)
     - when refreshing, useless to redraw everything, just redraw what was under
     the pacman + ghosts
-    - improve pacman graphics
+    - improve pacman graphics : how to create borders automatically ? and the inside walls ?
     - one class pacman and one class ghost, the two inheriting a
     2DAnimatedObject class (containing a static method draw() called in
     updategraphics, and a static method update() called in updatelogic (update
@@ -887,7 +898,7 @@ var logicLoop = function()
     to animate, like passing the timestamp ? or an other solution ?=> the static
     method update())
     - a Game class
-    - create the real pacman map
+    - ajouter les mini-bouboules : parcourir au tout debut toutes les lignes et creer un tableau de ces bouboules (1 truc tous les 20 pixels), avec a chaque fois quand on en ajoute une verif de si elle est pas dja dans le tableau
 */
 
 var canvas = document.getElementById("gamecanvas");
