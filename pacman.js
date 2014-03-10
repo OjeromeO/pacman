@@ -10,12 +10,21 @@ Object.defineProperties(Direction,
     "RIGHT":  {value: 4, writable: false, configurable: false, enumerable: true}
 });
 
+var GameState = {};
+Object.defineProperties(GameState,
+{
+    "MAIN_MENU":  {value: 1, writable: false, configurable: false, enumerable: true},
+    "PAUSE_MENU":  {value: 2, writable: false, configurable: false, enumerable: true},
+    "GAME":  {value: 3, writable: false, configurable: false, enumerable: true}
+});
+
 var context = null;
 var pacman = null;
 var lastupdate = null;
 var map = null;
 var pressedkeys = [];
 var pause = false;
+var state = null;
 var currentline = null;
 var score = 0;
 
@@ -25,8 +34,10 @@ var PACMAN_RADIUS = 15;
 var PACDOTS_RADIUS = 2;
 var PACMAN_SPEED = 200;
 var LINE_WIDTH = 1.5 * 2 * PACMAN_RADIUS;
-var GRID_UNIT = 20;
-
+var GRID_UNIT = 20;     // useful to set pacdots on the map
+var PACMAN_STARTX = 50;
+var PACMAN_STARTY = 50;
+var PACMAN_STARTDIRECTION = Direction.UP;
 var PACDOT_POINT = 10;
 
 var MAZE_LINES = [
@@ -159,6 +170,64 @@ var isHorizontal = function(arg)
     else
     {
         return (arg === Direction.LEFT || arg === Direction.RIGHT) ? true : false ;
+    }
+};
+
+/* these function's assert() will not be removed on release */
+var checkConfiguration = function()
+{
+    assert((typeof LOGIC_REFRESH_RATE === "number" && LOGIC_REFRESH_RATE > 0), "LOGIC_REFRESH_RATE value not valid");
+    assert((typeof PACDOT_POINT === "number" && PACDOT_POINT > 0), "PACDOT_POINT value not valid");
+    assert((typeof LINE_WIDTH === "number" && LINE_WIDTH >= 2*PACMAN_RADIUS), "LINE_WIDTH value not valid");
+    assert((typeof PACMAN_SPEED === "number" && PACMAN_SPEED > 0), "PACMAN_SPEED value not valid");
+    assert((typeof PACDOTS_RADIUS === "number" && PACDOTS_RADIUS < PACMAN_RADIUS), "PACDOTS_RADIUS value not valid");
+    assert((typeof PACMAN_RADIUS === "number" && PACMAN_RADIUS > 0), "PACMAN_RADIUS value not valid");
+    assert((typeof GRID_UNIT === "number" && GRID_UNIT > 0), "GRID_UNIT value not valid");
+    assert((typeof PACMAN_STARTX === "number" && PACMAN_STARTX > 0), "PACMAN_STARTX value not valid");
+    assert((typeof PACMAN_STARTY === "number" && PACMAN_STARTY > 0), "PACMAN_STARTY value not valid");
+    assert((isDirection(PACMAN_STARTDIRECTION)), "PACMAN_STARTDIRECTION value not valid");
+    assert((MAZE_LINES instanceof Array && MAZE_LINES.length > 0), "MAZE_LINES value not valid");
+    
+    /* 
+        this will hold the X/Y "padding" for the map the user gave us,
+        and will allow us to check if the lines are on the game grid
+        (cf GRID_UNIT)
+    */
+    var xmin = MAZE_LINES[0].x1;
+    var ymin = MAZE_LINES[0].y1;
+    
+    var pacman = new Point2D(PACMAN_STARTX, PACMAN_STARTY);
+    var isPacmanInMap = false;
+
+    for(var i=0; i<MAZE_LINES.length; i++)
+    {
+        assert((typeof MAZE_LINES[i].x1 === "number"), "MAZE_LINES[" + i + "].x1 value not valid");
+        assert((typeof MAZE_LINES[i].y1 === "number"), "MAZE_LINES[" + i + "].y1 value not valid");
+        assert((typeof MAZE_LINES[i].x2 === "number"), "MAZE_LINES[" + i + "].x2 value not valid");
+        assert((typeof MAZE_LINES[i].y2 === "number"), "MAZE_LINES[" + i + "].y2 value not valid");
+        
+        var p1 = new Point2D(MAZE_LINES[i].x1, MAZE_LINES[i].y1);
+        var p2 = new Point2D(MAZE_LINES[i].x2, MAZE_LINES[i].y2);
+        
+        assert((p1.getX() === p2.getX() || p1.getY() === p2.getY()), "MAZE_LINES[" + i + "] points value will not a horizontal nor a vertical line");
+        
+        var l = new LineHV2D(p1, p2);
+        
+        if (l.containsPoint(pacman)) {isPacmanInMap = true;}
+        
+        if (l.getPoint1().getX() < xmin) {xmin = l.getPoint1().getX();}
+        if (l.getPoint1().getY() < ymin) {ymin = l.getPoint1().getY();}
+    }
+    
+    assert((isPacmanInMap === true), "PACMAN_START coordinates are not inside the map");
+    
+    for(var i=0; i<MAZE_LINES.length; i++)
+    {
+        assert((((MAZE_LINES[i].x1-xmin) % GRID_UNIT) === 0
+             && ((MAZE_LINES[i].y1-ymin) % GRID_UNIT) === 0
+             && ((MAZE_LINES[i].x2-xmin) % GRID_UNIT) === 0
+             && ((MAZE_LINES[i].y2-ymin) % GRID_UNIT) === 0),
+             "MAZE_LINES[" + i +"] points are not on the game grid, using " + GRID_UNIT + " pixels unit");
     }
 };
 
@@ -404,7 +473,7 @@ var Map = function(mazelines)
     
     //TODO  check if lines don't overlap with one another => if overlap, create
     //      a new one containing the two lines overlapping
-    
+    assert((mazelines instanceof Array && mazelines.length > 0), "mazelines is not an array");
     for(var i=0; i<mazelines.length; i++)
     {
         assert((mazelines[i] instanceof LineHV2D), "line " + i +" is not a LineHV2D");
@@ -501,6 +570,12 @@ Map.prototype._generateRects = function()
         this._mazerects.push(rect);
     }
 };
+
+/*Map.prototype.XminBorder = function()
+{
+    
+    return this._mazelines[index];
+};*/
 
 Map.prototype.getMazeLine = function(index)
 {
@@ -969,11 +1044,21 @@ var keyEventListener= function(e)
 var graphicsLoop = function()
 {
     //XXX count1++;
-    /*if (!pause)
-    {*/
-    map.draw();
-    pacman.draw();
-    /*}*/
+    
+    if (state === GameState.GAME)
+    {
+        map.draw();
+        pacman.draw();
+    }
+    else if (state === GameState.PAUSE_MENU)
+    {
+        //TODO pausemenu.draw() ?
+    }
+    else    /* state === GameState.MAIN_MENU */
+    {
+        
+    }
+    
     requestAnimationFrame(graphicsLoop);
 };
 
@@ -1013,11 +1098,13 @@ var logicLoop = function()
             }
         }
     }
+    
     /*if (pause)
             {
                 setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
                 return;
             }*/
+    
     /* movement management */
     
     pacman.move(elapsed);
@@ -1052,6 +1139,8 @@ var logicLoop = function()
     - a Game class
     - ajouter les fantomes
     - ajouter les power pellets
+    - dans checkConfiguration(), verifier si pr le menu la taille specifiée et la police et sa taille peuvent rentrer dedans, ...
+    - implement pause
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -1060,22 +1149,74 @@ canvas.height = 650;
 
 context = canvas.getContext("2d");
 
+checkConfiguration();
+
 /* init the game */
 
+//TODO save the game size, and use it for the canvas (or the opposite) ?
+//     like that we have good size and measures for the map lines ? or define the lines first and then find the game map and then the game size (with a minimal game size) ?
+
 var lines = [];
+
 for(var i=0; i<MAZE_LINES.length; i++)
 {
     lines.push(new LineHV2D(new Point2D(MAZE_LINES[i].x1, MAZE_LINES[i].y1),
                             new Point2D(MAZE_LINES[i].x2, MAZE_LINES[i].y2)));
 }
+/*
+var xmin = lines[0].getPoint1().getX();
+var ymin = lines[0].getPoint1().getY();
+var xmax = lines[0].getPoint2().getX();
+var ymax = lines[0].getPoint2().getY();
+
+for(var i=1; i<lines.length; i++)
+{
+    if (lines[i].getPoint1().getX() < xmin) {xmin = lines[i].getPoint1().getX();}
+    if (lines[i].getPoint1().getY() < ymin) {ymin = lines[i].getPoint1().getY();}
+    if (lines[i].getPoint2().getX() > xmax) {xmax = lines[i].getPoint2().getX();}
+    if (lines[i].getPoint2().getY() > ymax) {ymax = lines[i].getPoint2().getY();}
+}
+
+xmin -= LINE_WIDTH/2;
+ymin -= LINE_WIDTH/2;
+xmax += LINE_WIDTH/2;
+ymax += LINE_WIDTH/2;
+*/
+/* TODO
+- faire le truc avec les x/y min/max ci-dessus dans Map, sans faire avec line_width pour l'instant
+- mettre a jour les x/y min/max avec les LINE_WIDTH/2 (+/- des MAP_MARGIN ou xxx_MARGIN eventuellement differents selon si on veut mettre des trucs a gauche/droite/haut/bas)
+- enregistrer la largeur et la hauteur de toute la map dans des propriétés width/height
+- "normaliser" les coordonnées des lignes pour que (xmin,ymin) soit à (0,0) (que la map soit dans le systeme de coordonnees normal du canvas)
+=> penser que le pacman_startx/y est aussi a mettre a jour par rapport a ça
+
+
+
+- enfin, ici, on fait donc le new Map()
+- puis on crée les menus (avant ou après) : avec des MENU_HEIGHT, MENU_FONT, ... et on centre les elements du menu
+- puis on met la taille du canvas automatiquement : on appelle les getHeight()/Width() des menus et de la map : on obtiendra un genre de PPCM => on prend la hauteur et la largeur max de ce qu'on obtient, puis on appelle pour chacun (menus+map) un setPadding() qui mettra dans une propriété perso le padding necessaire pour etre centré dans le canvas qui sera trop grand pour certains
+*/
+
+/*FIXME
+- prob quand on met xstart a 51 par exemple ! typerror currentline undefined !!!
+*/
+
+/*
+console.log(xmin + ", " + ymin + " / " + xmax + ", " + ymax);
+context.strokeStyle = "red";
+context.strokeRect(xmin,ymin,xmax-xmin,ymax-ymin);
+*/
+
+
 map = new Map(lines);
 
-pacman = new Pacman(50, 50, Direction.UP);
+pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION);
 
 console.log("yeaaaaah 4");
 
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
+
+state = GameState.GAME;
 
 lastupdate = performance.now();
 firstupdate = lastupdate;
