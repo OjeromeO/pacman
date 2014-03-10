@@ -13,15 +13,16 @@ Object.defineProperties(Direction,
 var GameState = {};
 Object.defineProperties(GameState,
 {
-    "MAIN_MENU":  {value: 1, writable: false, configurable: false, enumerable: true},
-    "PAUSE_MENU":  {value: 2, writable: false, configurable: false, enumerable: true},
-    "GAME":  {value: 3, writable: false, configurable: false, enumerable: true}
+    "MAINMENU":  {value: 1, writable: false, configurable: false, enumerable: true},
+    "PAUSE":  {value: 2, writable: false, configurable: false, enumerable: true},
+    "PLAYING":  {value: 3, writable: false, configurable: false, enumerable: true}
 });
 
 var context = null;
 var pacman = null;
 var lastupdate = null;
-var map = null;
+var maze = null;
+var mazeview = null;
 var pressedkeys = [];
 var pause = false;
 var state = null;
@@ -34,7 +35,7 @@ var PACMAN_RADIUS = 15;
 var PACDOTS_RADIUS = 2;
 var PACMAN_SPEED = 200;
 var LINE_WIDTH = 1.5 * 2 * PACMAN_RADIUS;
-var GRID_UNIT = 20;     // useful to set pacdots on the map
+var GRID_UNIT = 20;     // useful to set pacdots on the maze
 var PACMAN_STARTX = 50;
 var PACMAN_STARTY = 50;
 var PACMAN_STARTDIRECTION = Direction.UP;
@@ -189,7 +190,7 @@ var checkConfiguration = function()
     assert((MAZE_LINES instanceof Array && MAZE_LINES.length > 0), "MAZE_LINES value not valid");
     
     /* 
-        this will hold the X/Y "padding" for the map the user gave us,
+        this will hold the X/Y "padding" for the maze the user gave us,
         and will allow us to check if the lines are on the game grid
         (cf GRID_UNIT)
     */
@@ -197,7 +198,7 @@ var checkConfiguration = function()
     var ymin = MAZE_LINES[0].y1;
     
     var pacman = new Point2D(PACMAN_STARTX, PACMAN_STARTY);
-    var isPacmanInMap = false;
+    var isPacmanInMaze = false;
 
     for(var i=0; i<MAZE_LINES.length; i++)
     {
@@ -213,13 +214,13 @@ var checkConfiguration = function()
         
         var l = new LineHV2D(p1, p2);
         
-        if (l.containsPoint(pacman)) {isPacmanInMap = true;}
+        if (l.containsPoint(pacman)) {isPacmanInMaze = true;}
         
         if (l.getPoint1().getX() < xmin) {xmin = l.getPoint1().getX();}
         if (l.getPoint1().getY() < ymin) {ymin = l.getPoint1().getY();}
     }
     
-    assert((isPacmanInMap === true), "PACMAN_START coordinates are not inside the map");
+    assert((isPacmanInMaze === true), "PACMAN_START coordinates are not inside the maze");
     
     for(var i=0; i<MAZE_LINES.length; i++)
     {
@@ -465,9 +466,80 @@ LineHV2D.prototype.containsYStrictly = function(y)
     }
 };
 
-/********************************** Map class *********************************/
+/******************************* MazeView class *******************************/
 
-var Map = function(mazelines)
+var MazeView = function()
+{
+    this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
+    
+    this._generateRects();
+};
+
+MazeView.prototype._generateRects = function()
+{
+    var mazelines = maze.getMazeLines();
+    
+    for(var i=0; i<mazelines.length; i++)
+    {
+        var line = mazelines[i];
+        var rect = {};
+        
+        rect.x = line.getPoint1().getX() - LINE_WIDTH/2;
+        rect.y = line.getPoint1().getY() - LINE_WIDTH/2;
+        rect.w = (isVertical(line)) ? LINE_WIDTH : line.size() + LINE_WIDTH ;
+        rect.h = (isVertical(line)) ? line.size() + LINE_WIDTH : LINE_WIDTH ;
+        
+        this._mazerects.push(rect);
+    }
+};
+
+MazeView.prototype._drawMazeRects = function()
+{
+    context.fillStyle = "black";
+    
+    for(var i=0;i<this._mazerects.length;i++)
+    {
+        context.fillRect(this._mazerects[i].x,
+                         this._mazerects[i].y,
+                         this._mazerects[i].w,
+                         this._mazerects[i].h);
+    }
+};
+
+MazeView.prototype._drawPacdots = function()
+{
+    var pacdots = maze.getPacdots();
+    
+    context.fillStyle = "silver";
+    
+    for(var i=0;i<pacdots.length;i++)
+    {
+        context.beginPath();
+        context.arc(pacdots[i].getX(), pacdots[i].getY(), PACDOTS_RADIUS, 0, 2 * Math.PI);
+        context.fill();
+    }
+    
+    /* TODO
+        better performances : draw in a hidden canvas and then drawImage() or putimagedata()
+        cf: http://stackoverflow.com/questions/13916066/speed-up-the-drawing-of-many-points-on-a-html5-canvas-element
+    */
+};
+
+MazeView.prototype.draw = function()
+{
+    context.fillStyle = "blue";
+    context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+    this._drawMazeRects();
+    this._drawPacdots();
+    
+    /* TODO
+        dessine aussi le reste de la map, qui est statique (donc pas les pacman, ghost, bouboules...) ; utiliser le pre-render du coup ? vu que ce sera toujours la même chose, inutile de refaire tous les dessins de la map
+    */
+};
+
+/********************************* Maze class *********************************/
+
+var Maze = function(mazelines)
 {
     //XXX   should we clone the "mazelines" object instead of just referencing it ?
     
@@ -485,15 +557,49 @@ var Map = function(mazelines)
     }
     
     this._mazelines = mazelines; // lines on which the pacman center can move
-    this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
+    /*this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines*/
     this._pacdots = [];
     this._powerpellets = [];
     
-    this._generateRects();
+    var xmin = this._mazelines[0].getPoint1().getX();
+    var ymin = this._mazelines[0].getPoint1().getY();
+    var xmax = this._mazelines[0].getPoint2().getX();
+    var ymax = this._mazelines[0].getPoint2().getY();
+
+    for(var i=1; i<this._mazelines.length; i++)
+    {
+        if (this._mazelines[i].getPoint1().getX() < xmin) {xmin = this._mazelines[i].getPoint1().getX();}
+        if (this._mazelines[i].getPoint1().getY() < ymin) {ymin = this._mazelines[i].getPoint1().getY();}
+        if (this._mazelines[i].getPoint2().getX() > xmax) {xmax = this._mazelines[i].getPoint2().getX();}
+        if (this._mazelines[i].getPoint2().getY() > ymax) {ymax = this._mazelines[i].getPoint2().getY();}
+    }
+
+    this._width = xmax - xmin;
+    this._height = ymax - ymin;
+    
     this._generatePacdots();
+    
+    
+    
+    
+//TODO autre idée : PlayingScreen contient 2 objets : MazeView et ScoreView (ou autre), MazeView contenant lui-même un objet Maze, et c'est mazeview qui contient rects et generaterects() et draw(padding) (qui dessinera en faisant des get sur l'objet maze
+// ptetre pas utile que mazeview contienne un objet maze, on pourrait laisser le maze au meme "niveau" que mazeview, genre en propriété de Game (le truc le plus global)
+// propriétés width et size pour chaque XXXView
+
+/*
+xmin -= LINE_WIDTH/2;
+ymin -= LINE_WIDTH/2;
+xmax += LINE_WIDTH/2;
+ymax += LINE_WIDTH/2;
+*/
+/*
+- mettre a jour les x/y min/max avec les LINE_WIDTH/2 (+/- des MAP_MARGIN ou xxx_MARGIN eventuellement differents selon si on veut mettre des trucs a gauche/droite/haut/bas)
+- "normaliser" les coordonnées des lignes pour que (xmin,ymin) soit à (0,0) (que la map soit dans le systeme de coordonnees normal du canvas)
+=> penser que le pacman_startx/y est aussi a mettre a jour par rapport a ça
+*/
 };
 
-Map.prototype._generatePacdots = function()
+Maze.prototype._generatePacdots = function()
 {
     if (!(this._mazelines.length > 0))
     {
@@ -550,65 +656,54 @@ Map.prototype._generatePacdots = function()
     }
 };
 
-Map.prototype._generateRects = function()
-{
-    if (!(this._mazelines.length > 0))
-    {
-        return;
-    }
-    
-    for(var i=0; i<this._mazelines.length; i++)
-    {
-        var line = this._mazelines[i];
-        var rect = {};
-        
-        rect.x = line.getPoint1().getX() - LINE_WIDTH/2;
-        rect.y = line.getPoint1().getY() - LINE_WIDTH/2;
-        rect.w = (isVertical(line)) ? LINE_WIDTH : line.size() + LINE_WIDTH ;
-        rect.h = (isVertical(line)) ? line.size() + LINE_WIDTH : LINE_WIDTH ;
-        
-        this._mazerects.push(rect);
-    }
-};
-
-/*Map.prototype.XminBorder = function()
+/*Maze.prototype.XminBorder = function()
 {
     
     return this._mazelines[index];
 };*/
 
-Map.prototype.getMazeLine = function(index)
+Maze.prototype.getMazeLines = function()
+{
+    return this._mazelines;
+};
+
+Maze.prototype.getMazeLine = function(index)
 {
     assert((index >= 0 && index < this._mazelines.length), "index value is not valid");
     
     return this._mazelines[index];
 };
 
-Map.prototype.getPacdot = function(index)
+Maze.prototype.getPacdots = function()
+{
+    return this._pacdots;
+};
+
+Maze.prototype.getPacdot = function(index)
 {
     assert((index >= 0 && index < this._pacdots.length), "index value is not valid");
     
     return this._pacdots[index];
 };
 
-Map.prototype.deletePacdot = function(index)
+Maze.prototype.deletePacdot = function(index)
 {
     assert((index >= 0 && index < this._pacdots.length), "index value is not valid");
     
     this._pacdots.splice(index, 1);
 };
 
-Map.prototype.mazeLinesCount = function()
+Maze.prototype.mazeLinesCount = function()
 {
     return this._mazelines.length;
 };
 
-Map.prototype.pacdotsCount = function()
+Maze.prototype.pacdotsCount = function()
 {
     return this._pacdots.length;
 };
 
-Map.prototype.containsPoint = function(point)
+Maze.prototype.containsPoint = function(point)
 {
     assert((point instanceof Point2D), "point is not a Point2D");
     
@@ -623,11 +718,11 @@ Map.prototype.containsPoint = function(point)
     return false;
 };
 
-Map.prototype.mazeCurrentLine = function(point, direction)
+Maze.prototype.mazeCurrentLine = function(point, direction)
 {
     assert((point instanceof Point2D), "point is not a Point2D");
     assert((isDirection(direction)), "direction value is not valid");
-    assert((this.containsPoint(point)), "point is not inside the map");
+    assert((this.containsPoint(point)), "point is not inside the maze");
     
     var line = null;
     
@@ -644,7 +739,7 @@ Map.prototype.mazeCurrentLine = function(point, direction)
     }
 };
 
-Map.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
+Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
 {
     assert((line instanceof LineHV2D), "line is not a LineHV2D");
     assert((point instanceof Point2D), "point is not a Point2D");
@@ -725,47 +820,6 @@ Map.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
     }
 };
 
-Map.prototype._drawMazeRects = function()
-{
-    context.fillStyle = "black";
-    
-    for(var i=0;i<this._mazerects.length;i++)
-    {
-        context.fillRect(this._mazerects[i].x,
-                         this._mazerects[i].y,
-                         this._mazerects[i].w,
-                         this._mazerects[i].h);
-    }
-};
-
-Map.prototype._drawPacdots = function()
-{
-    context.fillStyle = "silver";
-    
-    for(var i=0;i<this._pacdots.length;i++)
-    {
-        context.beginPath();
-        context.arc(this._pacdots[i].getX(), this._pacdots[i].getY(), PACDOTS_RADIUS, 0, 2 * Math.PI);
-        context.fill();
-    }
-    
-    /* TODO
-        better performances : draw in a hidden canvas and then drawImage() or putimagedata()
-        cf: http://stackoverflow.com/questions/13916066/speed-up-the-drawing-of-many-points-on-a-html5-canvas-element
-    */
-};
-
-Map.prototype.draw = function()
-{
-    context.fillStyle = "blue";
-    context.fillRect(0, 0, context.canvas.width, context.canvas.height);
-    this._drawMazeRects();
-    this._drawPacdots();
-    /* TODO
-        dessine aussi le reste de la map, qui est statique (donc pas les pacman, ghost, bouboules...) ; utiliser le pre-render du coup ? vu que ce sera toujours la même chose, inutile de refaire tous les dessins de la map
-    */
-};
-
 /******************************** Pacman class ********************************/
 
 var Pacman = function(x, y, direction)
@@ -773,7 +827,7 @@ var Pacman = function(x, y, direction)
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
-    assert((map.containsPoint(new Point2D(x, y))), "coordinates are not inside the map");
+    assert((maze.containsPoint(new Point2D(x, y))), "coordinates are not inside the maze");
     
     this._position = new Point2D(x, y);
     this._direction = direction;
@@ -785,7 +839,7 @@ var Pacman = function(x, y, direction)
     this._mouthstartangle = 0;
     this._mouthendangle = 2 * Math.PI;
     
-    currentline = map.mazeCurrentLine(this._position, this._direction);
+    currentline = maze.mazeCurrentLine(this._position, this._direction);
 };
 
 Pacman.prototype.setDirection = function(direction)
@@ -845,7 +899,7 @@ Pacman.prototype.changeDirection = function(direction)
     {
         this._nextdirection = direction;
         
-        var point = map.mazeNextTurn(currentline, this._position, this._direction, this._nextdirection);
+        var point = maze.mazeNextTurn(currentline, this._position, this._direction, this._nextdirection);
         
         this._nextturn = (point === undefined) ? null : point ;
     }
@@ -960,12 +1014,12 @@ Pacman.prototype.move = function(elapsed)
         
         var travelled = new LineHV2D(this._position, new Point2D(newx, newy));
         
-        for(var i=0; i<map.pacdotsCount(); i++)
+        for(var i=0; i<maze.pacdotsCount(); i++)
         {
-            if (travelled.containsPoint(map.getPacdot(i)))
+            if (travelled.containsPoint(maze.getPacdot(i)))
             {
                 score += PACDOT_POINT;
-                map.deletePacdot(i);
+                maze.deletePacdot(i);
             }
         }
         
@@ -973,7 +1027,7 @@ Pacman.prototype.move = function(elapsed)
     }
     else
     {
-        var nextline = map.mazeCurrentLine(this._nextturn, this._nextdirection);
+        var nextline = maze.mazeCurrentLine(this._nextturn, this._nextdirection);
         var newx = 0;
         var newy = 0;
         
@@ -1007,13 +1061,13 @@ Pacman.prototype.move = function(elapsed)
         var travelled1 = new LineHV2D(this._position, this._nextturn);
         var travelled2 = new LineHV2D(this._nextturn, new Point2D(newx, newy));
         
-        for(var i=0; i<map.pacdotsCount(); i++)
+        for(var i=0; i<maze.pacdotsCount(); i++)
         {
-            if (travelled1.containsPoint(map.getPacdot(i))
-             || travelled2.containsPoint(map.getPacdot(i)))
+            if (travelled1.containsPoint(maze.getPacdot(i))
+             || travelled2.containsPoint(maze.getPacdot(i)))
             {
                 score += PACDOT_POINT;
-                map.deletePacdot(i);
+                maze.deletePacdot(i);
             }
         }
         
@@ -1045,16 +1099,16 @@ var graphicsLoop = function()
 {
     //XXX count1++;
     
-    if (state === GameState.GAME)
+    if (state === GameState.PLAYING)
     {
-        map.draw();
+        mazeview.draw();
         pacman.draw();
     }
-    else if (state === GameState.PAUSE_MENU)
+    else if (state === GameState.PAUSE)
     {
         //TODO pausemenu.draw() ?
     }
-    else    /* state === GameState.MAIN_MENU */
+    else    /* state === GameState.MAINMENU */
     {
         
     }
@@ -1197,7 +1251,7 @@ ymax += LINE_WIDTH/2;
 */
 
 /*FIXME
-- prob quand on met xstart a 51 par exemple ! typerror currentline undefined !!!
+- prob quand on met xstart a 51 par exemple => typerror currentline undefined !!!
 */
 
 /*
@@ -1207,7 +1261,8 @@ context.strokeRect(xmin,ymin,xmax-xmin,ymax-ymin);
 */
 
 
-map = new Map(lines);
+maze = new Maze(lines);
+mazeview = new MazeView();
 
 pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION);
 
@@ -1216,7 +1271,7 @@ console.log("yeaaaaah 4");
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
 
-state = GameState.GAME;
+state = GameState.PLAYING;
 
 lastupdate = performance.now();
 firstupdate = lastupdate;
