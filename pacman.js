@@ -471,8 +471,40 @@ LineHV2D.prototype.containsYStrictly = function(y)
 var MazeView = function()
 {
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
+    this._width = 0;
+    this._height = 0;
     
     this._generateRects();
+    this._computeSize();
+    
+//TODO PlayingScreen contient des objets : Pacman (+ PacmanView ?) + MazeView + ScoreView + ... les xxxView contiendront les draw(padding) (ou: padding_up, padding_left, ...)
+// ptetre pas utile que mazeview contienne un objet maze, on pourrait laisser le maze au meme "niveau" que mazeview, genre en propriété de Game (le truc le plus global)
+// au final, ptetre mettre directement MAZE_LINES en argument du constructeur de maze (donc y mettre les push, et les verifs avec les memes assert que dans le checkConfig()
+// comment appellera-t-on le constructeur Playingscreen() ? => aucun argument, et il fait tout ? ouaich
+/*
+- "normaliser" les coordonnées des lignes pour que (xmin,ymin) soit à (0,0) (que la map soit dans le systeme de coordonnees normal du canvas)
+    => penser que le pacman_startx/y est aussi a mettre a jour par rapport a ça
+*/
+};
+
+MazeView.prototype._computeSize = function()
+{
+    var xmin = this._mazerects[0].x;
+    var ymin = this._mazerects[0].y;
+    var xmax = this._mazerects[0].x + this._mazerects[0].w;
+    var ymax = this._mazerects[0].y + this._mazerects[0].h;
+
+    for(var i=1; i<this._mazerects.length; i++)
+    {
+        if (this._mazerects[i].x < xmin) {xmin = this._mazerects[i].x;}
+        if (this._mazerects[i].y < ymin) {ymin = this._mazerects[i].y;}
+        if (this._mazerects[i].x + this._mazerects[i].w > xmax) {xmax = this._mazerects[i].x + this._mazerects[i].w;}
+        if (this._mazerects[i].y + this._mazerects[i].h > ymax) {ymax = this._mazerects[i].y + this._mazerects[i].h;}
+    }
+
+    this._width = xmax - xmin;
+    this._height = ymax - ymin;
+    console.log(xmin + ", " + ymin + " / " + xmax + ", " + ymax);
 };
 
 MazeView.prototype._generateRects = function()
@@ -557,10 +589,17 @@ var Maze = function(mazelines)
     }
     
     this._mazelines = mazelines; // lines on which the pacman center can move
-    /*this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines*/
     this._pacdots = [];
     this._powerpellets = [];
+    this._width = 0;
+    this._height = 0;
     
+    this._computeSize();
+    this._generatePacdots();
+};
+
+Maze.prototype._computeSize = function()
+{
     var xmin = this._mazelines[0].getPoint1().getX();
     var ymin = this._mazelines[0].getPoint1().getY();
     var xmax = this._mazelines[0].getPoint2().getX();
@@ -576,27 +615,7 @@ var Maze = function(mazelines)
 
     this._width = xmax - xmin;
     this._height = ymax - ymin;
-    
-    this._generatePacdots();
-    
-    
-    
-    
-//TODO autre idée : PlayingScreen contient 2 objets : MazeView et ScoreView (ou autre), MazeView contenant lui-même un objet Maze, et c'est mazeview qui contient rects et generaterects() et draw(padding) (qui dessinera en faisant des get sur l'objet maze
-// ptetre pas utile que mazeview contienne un objet maze, on pourrait laisser le maze au meme "niveau" que mazeview, genre en propriété de Game (le truc le plus global)
-// propriétés width et size pour chaque XXXView
-
-/*
-xmin -= LINE_WIDTH/2;
-ymin -= LINE_WIDTH/2;
-xmax += LINE_WIDTH/2;
-ymax += LINE_WIDTH/2;
-*/
-/*
-- mettre a jour les x/y min/max avec les LINE_WIDTH/2 (+/- des MAP_MARGIN ou xxx_MARGIN eventuellement differents selon si on veut mettre des trucs a gauche/droite/haut/bas)
-- "normaliser" les coordonnées des lignes pour que (xmin,ymin) soit à (0,0) (que la map soit dans le systeme de coordonnees normal du canvas)
-=> penser que le pacman_startx/y est aussi a mettre a jour par rapport a ça
-*/
+    console.log(xmin + ", " + ymin + " / " + xmax + ", " + ymax);
 };
 
 Maze.prototype._generatePacdots = function()
@@ -655,12 +674,6 @@ Maze.prototype._generatePacdots = function()
         }
     }
 };
-
-/*Maze.prototype.XminBorder = function()
-{
-    
-    return this._mazelines[index];
-};*/
 
 Maze.prototype.getMazeLines = function()
 {
@@ -1217,49 +1230,16 @@ for(var i=0; i<MAZE_LINES.length; i++)
     lines.push(new LineHV2D(new Point2D(MAZE_LINES[i].x1, MAZE_LINES[i].y1),
                             new Point2D(MAZE_LINES[i].x2, MAZE_LINES[i].y2)));
 }
-/*
-var xmin = lines[0].getPoint1().getX();
-var ymin = lines[0].getPoint1().getY();
-var xmax = lines[0].getPoint2().getX();
-var ymax = lines[0].getPoint2().getY();
 
-for(var i=1; i<lines.length; i++)
-{
-    if (lines[i].getPoint1().getX() < xmin) {xmin = lines[i].getPoint1().getX();}
-    if (lines[i].getPoint1().getY() < ymin) {ymin = lines[i].getPoint1().getY();}
-    if (lines[i].getPoint2().getX() > xmax) {xmax = lines[i].getPoint2().getX();}
-    if (lines[i].getPoint2().getY() > ymax) {ymax = lines[i].getPoint2().getY();}
-}
-
-xmin -= LINE_WIDTH/2;
-ymin -= LINE_WIDTH/2;
-xmax += LINE_WIDTH/2;
-ymax += LINE_WIDTH/2;
-*/
 /* TODO
-- faire le truc avec les x/y min/max ci-dessus dans Map, sans faire avec line_width pour l'instant
-- mettre a jour les x/y min/max avec les LINE_WIDTH/2 (+/- des MAP_MARGIN ou xxx_MARGIN eventuellement differents selon si on veut mettre des trucs a gauche/droite/haut/bas)
-- enregistrer la largeur et la hauteur de toute la map dans des propriétés width/height
-- "normaliser" les coordonnées des lignes pour que (xmin,ymin) soit à (0,0) (que la map soit dans le systeme de coordonnees normal du canvas)
-=> penser que le pacman_startx/y est aussi a mettre a jour par rapport a ça
-
-
-
-- enfin, ici, on fait donc le new Map()
+- ici, on fait donc le new Map()
 - puis on crée les menus (avant ou après) : avec des MENU_HEIGHT, MENU_FONT, ... et on centre les elements du menu
-- puis on met la taille du canvas automatiquement : on appelle les getHeight()/Width() des menus et de la map : on obtiendra un genre de PPCM => on prend la hauteur et la largeur max de ce qu'on obtient, puis on appelle pour chacun (menus+map) un setPadding() qui mettra dans une propriété perso le padding necessaire pour etre centré dans le canvas qui sera trop grand pour certains
+- puis on met la taille du canvas automatiquement : on appelle les getHeight()/Width() des menus et de la map : on obtiendra un genre de PPCM => on prend la hauteur et la largeur max de ce qu'on obtient, puis on appelle pour chacun (menus+map) un setPadding() qui mettra dans une propriété perso le padding necessaire pour etre centré dans le canvas qui sera trop grand pour certains (en utilisant les propriétés width et size pour chaque XXXView)
 */
 
 /*FIXME
 - prob quand on met xstart a 51 par exemple => typerror currentline undefined !!!
 */
-
-/*
-console.log(xmin + ", " + ymin + " / " + xmax + ", " + ymax);
-context.strokeStyle = "red";
-context.strokeRect(xmin,ymin,xmax-xmin,ymax-ymin);
-*/
-
 
 maze = new Maze(lines);
 mazeview = new MazeView();
