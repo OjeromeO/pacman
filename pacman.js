@@ -210,7 +210,7 @@ var checkConfiguration = function()
         var p1 = new Point2D(MAZE_LINES[i].x1, MAZE_LINES[i].y1);
         var p2 = new Point2D(MAZE_LINES[i].x2, MAZE_LINES[i].y2);
         
-        assert((p1.getX() === p2.getX() || p1.getY() === p2.getY()), "MAZE_LINES[" + i + "] points value will not a horizontal nor a vertical line");
+        assert((p1.getX() === p2.getX() || p1.getY() === p2.getY()), "MAZE_LINES[" + i + "] points value will not create a horizontal nor a vertical line");
         
         var l = new LineHV2D(p1, p2);
         
@@ -479,7 +479,6 @@ var MazeView = function()
     
 //TODO PlayingScreen contient des objets : Pacman (+ PacmanView ?) + MazeView + ScoreView + ... les xxxView contiendront les draw(padding) (ou: padding_up, padding_left, ...)
 // ptetre pas utile que mazeview contienne un objet maze, on pourrait laisser le maze au meme "niveau" que mazeview, genre en propriété de Game (le truc le plus global)
-// au final, ptetre mettre directement MAZE_LINES en argument du constructeur de maze (donc y mettre les push, et les verifs avec les memes assert que dans le checkConfig()
 // comment appellera-t-on le constructeur Playingscreen() ? => aucun argument, et il fait tout ? ouaich
 /*
 - "normaliser" les coordonnées des lignes pour que (xmin,ymin) soit à (0,0) (que la map soit dans le systeme de coordonnees normal du canvas)
@@ -504,7 +503,6 @@ MazeView.prototype._computeSize = function()
 
     this._width = xmax - xmin;
     this._height = ymax - ymin;
-    console.log(xmin + ", " + ymin + " / " + xmax + ", " + ymax);
 };
 
 MazeView.prototype._generateRects = function()
@@ -598,6 +596,40 @@ var Maze = function(mazelines)
     this._generatePacdots();
 };
 
+Maze.createFromArrayOfLitterals = function(mazelines)
+{
+    assert((mazelines instanceof Array && mazelines.length > 0), "mazelines is not an array");
+    
+    for(var i=0; i<mazelines.length; i++)
+    {
+        assert((typeof mazelines[i].x1 === "number"), "mazelines[" + i + "].x1 value not valid");
+        assert((typeof mazelines[i].y1 === "number"), "mazelines[" + i + "].y1 value not valid");
+        assert((typeof mazelines[i].x2 === "number"), "mazelines[" + i + "].x2 value not valid");
+        assert((typeof mazelines[i].y2 === "number"), "mazelines[" + i + "].y2 value not valid");
+        
+        var p1 = new Point2D(mazelines[i].x1, mazelines[i].y1);
+        var p2 = new Point2D(mazelines[i].x2, mazelines[i].y2);
+        
+        assert((p1.getX() === p2.getX() || p1.getY() === p2.getY()), "mazelines[" + i + "] points value will not create a horizontal nor a vertical line");
+        
+        assert((((p1.getX()-50) % GRID_UNIT) === 0
+             && ((p1.getY()-50) % GRID_UNIT) === 0
+             && ((p2.getX()-50) % GRID_UNIT) === 0
+             && ((p2.getY()-50) % GRID_UNIT) === 0),
+             "line n°" + i +" points will not be on the game grid, using " + GRID_UNIT + " pixels unit");
+    }
+    
+    var lines = [];
+
+    for(var i=0; i<mazelines.length; i++)
+    {
+        lines.push(new LineHV2D(new Point2D(mazelines[i].x1, mazelines[i].y1),
+                                new Point2D(mazelines[i].x2, mazelines[i].y2)));
+    }
+    
+    return new Maze(lines);
+};
+
 Maze.prototype._computeSize = function()
 {
     var xmin = this._mazelines[0].getPoint1().getX();
@@ -615,7 +647,6 @@ Maze.prototype._computeSize = function()
 
     this._width = xmax - xmin;
     this._height = ymax - ymin;
-    console.log(xmin + ", " + ymin + " / " + xmax + ", " + ymax);
 };
 
 Maze.prototype._generatePacdots = function()
@@ -1223,14 +1254,6 @@ checkConfiguration();
 //TODO save the game size, and use it for the canvas (or the opposite) ?
 //     like that we have good size and measures for the map lines ? or define the lines first and then find the game map and then the game size (with a minimal game size) ?
 
-var lines = [];
-
-for(var i=0; i<MAZE_LINES.length; i++)
-{
-    lines.push(new LineHV2D(new Point2D(MAZE_LINES[i].x1, MAZE_LINES[i].y1),
-                            new Point2D(MAZE_LINES[i].x2, MAZE_LINES[i].y2)));
-}
-
 /* TODO
 - ici, on fait donc le new Map()
 - puis on crée les menus (avant ou après) : avec des MENU_HEIGHT, MENU_FONT, ... et on centre les elements du menu
@@ -1241,12 +1264,12 @@ for(var i=0; i<MAZE_LINES.length; i++)
 - prob quand on met xstart a 51 par exemple => typerror currentline undefined !!!
 */
 
-maze = new Maze(lines);
+maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
 mazeview = new MazeView();
 
 pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION);
 
-console.log("yeaaaaah 4");
+console.log("yeaaaaah 5");
 
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
