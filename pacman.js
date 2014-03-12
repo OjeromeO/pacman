@@ -466,11 +466,23 @@ LineHV2D.prototype.containsYStrictly = function(y)
     }
 };
 
+/**************************** PlayingScreen class *****************************/
+
+var PlayingScreen = function()
+{
+    
+};
+
 /******************************* MazeView class *******************************/
 
-var MazeView = function()
-{
+var MazeView = function(paddingTop, paddingLeft)
+{    
+    assert((typeof paddingTop === "number"), "paddingTop is not a number");
+    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");    
+    
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
+    this._paddingTop = paddingTop;
+    this._paddingLeft = paddingLeft;
     this._width = 0;
     this._height = 0;
     
@@ -478,6 +490,7 @@ var MazeView = function()
     this._computeSize();
     
 //TODO PlayingScreen contient des objets : Pacman (+ PacmanView ?) + MazeView + ScoreView + ... les xxxView contiendront les draw(padding) (ou: padding_up, padding_left, ...)
+// les xxxView devraient être initialisés avec leur padding en argument du constructeur, et les draw() utilisent donc leur propriété interne
 // ptetre pas utile que mazeview contienne un objet maze, on pourrait laisser le maze au meme "niveau" que mazeview, genre en propriété de Game (le truc le plus global)
 // comment appellera-t-on le constructeur Playingscreen() ? => aucun argument, et il fait tout ? ouaich
 /*
@@ -529,8 +542,8 @@ MazeView.prototype._drawMazeRects = function()
     
     for(var i=0;i<this._mazerects.length;i++)
     {
-        context.fillRect(this._mazerects[i].x,
-                         this._mazerects[i].y,
+        context.fillRect(this._mazerects[i].x + this._paddingLeft,
+                         this._mazerects[i].y + this._paddingTop,
                          this._mazerects[i].w,
                          this._mazerects[i].h);
     }
@@ -545,7 +558,11 @@ MazeView.prototype._drawPacdots = function()
     for(var i=0;i<pacdots.length;i++)
     {
         context.beginPath();
-        context.arc(pacdots[i].getX(), pacdots[i].getY(), PACDOTS_RADIUS, 0, 2 * Math.PI);
+        context.arc(pacdots[i].getX() + this._paddingLeft,
+                    pacdots[i].getY() + this._paddingTop,
+                    PACDOTS_RADIUS,
+                    0,
+                    2 * Math.PI);
         context.fill();
     }
     
@@ -558,7 +575,10 @@ MazeView.prototype._drawPacdots = function()
 MazeView.prototype.draw = function()
 {
     context.fillStyle = "blue";
-    context.fillRect(0, 0, context.canvas.width, context.canvas.height);
+    context.fillRect(this._paddingLeft,
+                     this._paddingTop,
+                     context.canvas.width,
+                     context.canvas.height);
     this._drawMazeRects();
     this._drawPacdots();
     
@@ -1265,11 +1285,11 @@ checkConfiguration();
 */
 
 maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
-mazeview = new MazeView();
+mazeview = new MazeView(0,0);
 
 pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION);
 
-console.log("yeaaaaah 5");
+console.log("yeaaaaah 6");
 
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
