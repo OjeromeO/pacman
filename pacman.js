@@ -637,16 +637,10 @@ var MazeView = function(maze, paddingTop, paddingLeft)
     this._computeSize();
     
 //TODO PlayingScreen contient des objets : Pacman (+ PacmanView ?) + MazeView + ScoreView + ... les xxxView contiendront les draw(padding) (ou: padding_up, padding_left, ...)
-// comment appellera-t-on le constructeur Playingscreen() ? => aucun argument, et il fait tout ? ouaich
 /*
 - "normaliser" les coordonnées des lignes pour que (xmin,ymin) soit à (0,0) (que la map soit dans le systeme de coordonnees normal du canvas)
     => penser que le pacman_startx/y est aussi a mettre a jour par rapport a ça
 -=> en fait non, c'est pas les coordonnées des lignes qu'il faut mettre à (0,0), mais le coin haut gauche du rectangle entourant le dédale
-*/
-/* problemes
-- "maze" dans Pacman() + changedirection() + move() => OK en mettant maze en argument ; plus tard le move() sera remplacé par xxxScreen.update() donc OK
-- score dans Pacman.move() => plus tard le move() sera remplacé par xxxScreen.update() donc OK
-===> en fait on garde les pacman et ghosts dans playingscreen, qui aura lui une fonction update() ; elle remplace les fonctions move() de pacman/ghosts, et du coup dans update() on fera tout : bouger, modif du score, accès a maze sans probleme, ...
 */
 };
 
@@ -952,6 +946,22 @@ Maze.prototype.mazeCurrentLine = function(point, direction)
             return line;
         }
     }
+    
+    /*
+        if we reach this place, that means that the point has a perpendicular
+        direction on its current line ; this is only possible when setting the
+        pacman on the maze at the beginning
+    */
+    
+    for(var i=0; i<this._mazelines.length; i++)
+    {
+        line = this._mazelines[i];
+        
+        if (line.containsPoint(point))
+        {
+            return line;
+        }
+    }
 };
 
 Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
@@ -1220,124 +1230,6 @@ Pacman.prototype.animate = function(elapsed)
     this._mouthendangle = baseangle - mouthhalfangle;
 };
 
-Pacman.prototype.move = function(elapsed, maze)
-{
-    assert((elapsed > 0), "elapsed value is not valid");
-    assert((maze instanceof Maze), "maze is not a Maze");
-    
-    var movement = Math.round(PACMAN_SPEED * elapsed/1000);
-    var limit = 0;
-    var turndistance = 0;
-    
-    if (this._nextdirection !== null && this._nextturn !== null)
-    {
-        turndistance = this._nextturn.distance(this._position);
-    }
-    
-    /* if we don't have to turn for now */
-    if (this._nextdirection === null
-     || this._nextturn === null
-     || (this._nextdirection !== null && this._nextturn !== null && turndistance > movement))
-    {
-        var newx = 0;
-        var newy = 0;
-        
-        if (this._direction === Direction.UP)
-        {
-            limit = this._currentline.getPoint1().getY();
-            newx = this._position.getX();
-            newy = (this._position.getY()-movement > limit) ? this._position.getY()-movement : limit ;
-        }
-        else if (this._direction === Direction.DOWN)
-        {
-            limit = this._currentline.getPoint2().getY();
-            newx = this._position.getX();
-            newy = (this._position.getY()+movement < limit) ? this._position.getY()+movement : limit ;
-        }
-        else if (this._direction === Direction.LEFT)
-        {
-            limit = this._currentline.getPoint1().getX();
-            newx = (this._position.getX()-movement > limit) ? this._position.getX()-movement : limit ;
-            newy = this._position.getY();
-        }
-        else
-        {
-            limit = this._currentline.getPoint2().getX();
-            newx = (this._position.getX()+movement < limit) ? this._position.getX()+movement : limit ;
-            newy = this._position.getY();
-        }
-        
-        /* check if pacman has eaten some pacdots... */
-        
-        var travelled = new LineHV2D(this._position, new Point2D(newx, newy));
-        
-        for(var i=0; i<maze.pacdotsCount(); i++)
-        {
-            if (travelled.containsPoint(maze.getPacdot(i)))
-            {
-                score += PACDOT_POINT;
-                maze.deletePacdot(i);
-            }
-        }
-        
-        this._position.set(newx, newy);
-    }
-    else
-    {
-        var nextline = maze.mazeCurrentLine(this._nextturn, this._nextdirection);
-        var newx = 0;
-        var newy = 0;
-        
-        if (this._nextdirection === Direction.UP)
-        {
-            limit = nextline.getPoint1().getY();
-            newx = this._nextturn.getX();
-            newy = (this._position.getY() - (movement - turndistance) > limit) ? this._position.getY() - (movement - turndistance) : limit ;
-        }
-        else if (this._nextdirection === Direction.DOWN)
-        {
-            limit = nextline.getPoint2().getY();
-            newx = this._nextturn.getX();
-            newy = (this._position.getY() + (movement - turndistance) < limit) ? this._position.getY() + (movement - turndistance) : limit ;
-        }
-        else if (this._nextdirection === Direction.LEFT)
-        {
-            limit = nextline.getPoint1().getX();
-            newx = (this._position.getX() - (movement - turndistance) > limit) ? this._position.getX() - (movement - turndistance) : limit ;
-            newy = this._nextturn.getY();
-        }
-        else
-        {
-            limit = nextline.getPoint2().getX();
-            newx = (this._position.getX() + (movement - turndistance) < limit) ? this._position.getX() + (movement - turndistance) : limit ;
-            newy = this._nextturn.getY();
-        }
-        
-        /* check if pacman has eaten some pacdots... */
-        
-        var travelled1 = new LineHV2D(this._position, this._nextturn);
-        var travelled2 = new LineHV2D(this._nextturn, new Point2D(newx, newy));
-        
-        for(var i=0; i<maze.pacdotsCount(); i++)
-        {
-            if (travelled1.containsPoint(maze.getPacdot(i))
-             || travelled2.containsPoint(maze.getPacdot(i)))
-            {
-                score += PACDOT_POINT;
-                maze.deletePacdot(i);
-            }
-        }
-        
-        this._position.set(newx, newy);
-        
-        this._direction = this._nextdirection;
-        this._nextdirection = null;
-        this._nextturn = null;
-        
-        this._currentline = nextline;
-    }
-};
-
 /******************************* game functions *******************************/
 
 
@@ -1385,13 +1277,6 @@ var logicLoop = function()
     newupdate = performance.now();
     var elapsed = newupdate - lastupdate;
     
-    
-    /* input management */
-    
-    /* TODO
-        normalement il faudrait ici que dans le for(), selon l'état du jeu, on appelle le xxxScreen.handleInput() de l'état correspondant, cette fonction renvoyant un état (vu qu'elle s'occupe des entrées), et on met ensuite l'etat du jeu a cet etat, puis on continue le for(), etc...
-    */
-    
     if (pressedkeys.length === 0)
     {
         if (state === GameState.PLAYING)
@@ -1430,7 +1315,6 @@ var logicLoop = function()
             state = nextstate;
         }
     }
-    
     
     /*for(var i=0;i<pressedkeys.length;i++)
     {
@@ -1473,12 +1357,6 @@ var logicLoop = function()
                 return;
             }*/
     
-    /* movement management */
-    
-    //pacman.move(elapsed, maze);
-    /*playingscreen.move(elapsed);*/
-    
-    
     lastupdate = newupdate;
     
     /* animation management */
@@ -1512,7 +1390,8 @@ var logicLoop = function()
     - ajouter les fantomes
     - ajouter les power pellets
     - dans checkConfiguration(), verifier si pr le menu la taille specifiée et la police et sa taille peuvent rentrer dedans, ...
-    - implement pause
+    - implement pause (PauseMenu + PauseMenuView)
+    - implement score
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -1533,11 +1412,6 @@ checkConfiguration();
 - puis on crée les menus (avant ou après) : avec des MENU_HEIGHT, MENU_FONT, ... et on centre les elements du menu
 - puis on met la taille du canvas automatiquement : on appelle les getHeight()/Width() des menus et de la map : on obtiendra un genre de PPCM => on prend la hauteur et la largeur max de ce qu'on obtient, puis on appelle pour chacun (menus+map) un setPadding() qui mettra dans une propriété perso le padding necessaire pour etre centré dans le canvas qui sera trop grand pour certains (en utilisant les propriétés width et size pour chaque XXXView)
 */
-
-/*FIXME
-- prob quand on met xstart a 51 par exemple => typerror currentline undefined !!!
-*/
-
 
 playingscreen = new PlayingScreen();
 
