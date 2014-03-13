@@ -26,8 +26,8 @@ var mazeview = null;
 var pressedkeys = [];
 var pause = false;
 var state = null;
-var currentline = null;
 var score = 0;
+var playingscreen = null;
 
 var LOGIC_REFRESH_RATE = 60;
 
@@ -470,16 +470,157 @@ LineHV2D.prototype.containsYStrictly = function(y)
 
 var PlayingScreen = function()
 {
+    this._maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
+    this._mazeview = new MazeView(this._maze, 0, 0);
     
+    this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
+    
+    this._pause = false;
+    this._score = 0;
+};
+
+PlayingScreen.prototype.handleInput = function(key)
+{
+    if (key === 37) {this._pacman.changeDirection(Direction.LEFT, this._maze);}
+    else if (key === 38) {this._pacman.changeDirection(Direction.UP, this._maze);}
+    else if (key === 39) {this._pacman.changeDirection(Direction.RIGHT, this._maze);}
+    else if (key === 40) {this._pacman.changeDirection(Direction.DOWN, this._maze);}
+};
+
+PlayingScreen.prototype.update = function(elapsed)
+{
+    assert((elapsed > 0), "elapsed value is not valid");
+    
+    var movement = Math.round(PACMAN_SPEED * elapsed/1000);
+    var limit = 0;
+    var turndistance = 0;
+    
+    if (this._pacman.getNextDirection() !== null && this._pacman.getNextTurn() !== null)
+    {
+        turndistance = this._pacman.getNextTurn().distance(this._pacman.getPosition());
+    }
+    
+    /* if we don't have to turn for now */
+    if (this._pacman.getNextDirection() === null
+     || this._pacman.getNextTurn() === null
+     || (this._pacman.getNextDirection() !== null && this._pacman.getNextTurn() !== null && turndistance > movement))
+    {
+        var newx = 0;
+        var newy = 0;
+        
+        if (this._pacman.getDirection() === Direction.UP)
+        {
+            limit = this._pacman.getCurrentline().getPoint1().getY();
+            newx = this._pacman.getPosition().getX();
+            newy = (this._pacman.getPosition().getY()-movement > limit) ? this._pacman.getPosition().getY()-movement : limit ;
+        }
+        else if (this._pacman.getDirection() === Direction.DOWN)
+        {
+            limit = this._pacman.getCurrentline().getPoint2().getY();
+            newx = this._pacman.getPosition().getX();
+            newy = (this._pacman.getPosition().getY()+movement < limit) ? this._pacman.getPosition().getY()+movement : limit ;
+        }
+        else if (this._pacman.getDirection() === Direction.LEFT)
+        {
+            limit = this._pacman.getCurrentline().getPoint1().getX();
+            newx = (this._pacman.getPosition().getX()-movement > limit) ? this._pacman.getPosition().getX()-movement : limit ;
+            newy = this._pacman.getPosition().getY();
+        }
+        else
+        {
+            limit = this._pacman.getCurrentline().getPoint2().getX();
+            newx = (this._pacman.getPosition().getX()+movement < limit) ? this._pacman.getPosition().getX()+movement : limit ;
+            newy = this._pacman.getPosition().getY();
+        }
+        
+        /* check if pacman has eaten some pacdots... */
+        
+        var travelled = new LineHV2D(this._pacman.getPosition(), new Point2D(newx, newy));
+        
+        for(var i=0; i<this._maze.pacdotsCount(); i++)
+        {
+            if (travelled.containsPoint(this._maze.getPacdot(i)))
+            {
+                this._score += PACDOT_POINT;
+                this._maze.deletePacdot(i);
+            }
+        }
+        
+        this._pacman.getPosition().set(newx, newy);
+    }
+    else
+    {
+        var nextline = this._maze.mazeCurrentLine(this._pacman.getNextTurn(), this._pacman.getNextDirection());
+        var newx = 0;
+        var newy = 0;
+        
+        if (this._pacman.getNextDirection() === Direction.UP)
+        {
+            limit = nextline.getPoint1().getY();
+            newx = this._pacman.getNextTurn().getX();
+            newy = (this._pacman.getPosition().getY() - (movement - turndistance) > limit) ? this._pacman.getPosition().getY() - (movement - turndistance) : limit ;
+        }
+        else if (this._pacman.getNextDirection() === Direction.DOWN)
+        {
+            limit = nextline.getPoint2().getY();
+            newx = this._pacman.getNextTurn().getX();
+            newy = (this._pacman.getPosition().getY() + (movement - turndistance) < limit) ? this._pacman.getPosition().getY() + (movement - turndistance) : limit ;
+        }
+        else if (this._pacman.getNextDirection() === Direction.LEFT)
+        {
+            limit = nextline.getPoint1().getX();
+            newx = (this._pacman.getPosition().getX() - (movement - turndistance) > limit) ? this._pacman.getPosition().getX() - (movement - turndistance) : limit ;
+            newy = this._pacman.getNextTurn().getY();
+        }
+        else
+        {
+            limit = nextline.getPoint2().getX();
+            newx = (this._pacman.getPosition().getX() + (movement - turndistance) < limit) ? this._pacman.getPosition().getX() + (movement - turndistance) : limit ;
+            newy = this._pacman.getNextTurn().getY();
+        }
+        
+        /* check if pacman has eaten some pacdots... */
+        
+        var travelled1 = new LineHV2D(this._pacman.getPosition(), this._pacman.getNextTurn());
+        var travelled2 = new LineHV2D(this._pacman.getNextTurn(), new Point2D(newx, newy));
+        
+        for(var i=0; i<this._maze.pacdotsCount(); i++)
+        {
+            if (travelled1.containsPoint(this._maze.getPacdot(i))
+             || travelled2.containsPoint(this._maze.getPacdot(i)))
+            {
+                this._score += PACDOT_POINT;
+                this._maze.deletePacdot(i);
+            }
+        }
+        
+        this._pacman.getPosition().set(newx, newy);
+        
+        this._pacman.setDirection(this._pacman.getNextDirection());
+        this._pacman.setNextDirection(null);
+        this._pacman.setNextTurn(null);
+        
+        this._pacman.setCurrentline(nextline);
+    }
+    
+    this._pacman.animate(elapsed);
+};
+
+PlayingScreen.prototype.draw = function()
+{
+    this._mazeview.draw();
+    this._pacman.draw();
 };
 
 /******************************* MazeView class *******************************/
 
-var MazeView = function(paddingTop, paddingLeft)
-{    
+var MazeView = function(maze, paddingTop, paddingLeft)
+{
+    assert((maze instanceof Maze), "maze is not a Maze");
     assert((typeof paddingTop === "number"), "paddingTop is not a number");
     assert((typeof paddingLeft === "number"), "paddingLeft is not a number");    
     
+    this._maze = maze;
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
     this._paddingTop = paddingTop;
     this._paddingLeft = paddingLeft;
@@ -490,12 +631,16 @@ var MazeView = function(paddingTop, paddingLeft)
     this._computeSize();
     
 //TODO PlayingScreen contient des objets : Pacman (+ PacmanView ?) + MazeView + ScoreView + ... les xxxView contiendront les draw(padding) (ou: padding_up, padding_left, ...)
-// les xxxView devraient être initialisés avec leur padding en argument du constructeur, et les draw() utilisent donc leur propriété interne
-// ptetre pas utile que mazeview contienne un objet maze, on pourrait laisser le maze au meme "niveau" que mazeview, genre en propriété de Game (le truc le plus global)
 // comment appellera-t-on le constructeur Playingscreen() ? => aucun argument, et il fait tout ? ouaich
 /*
 - "normaliser" les coordonnées des lignes pour que (xmin,ymin) soit à (0,0) (que la map soit dans le systeme de coordonnees normal du canvas)
     => penser que le pacman_startx/y est aussi a mettre a jour par rapport a ça
+-=> en fait non, c'est pas les coordonnées des lignes qu'il faut mettre à (0,0), mais le coin haut gauche du rectangle entourant le dédale
+*/
+/* problemes
+- "maze" dans Pacman() + changedirection() + move() => OK en mettant maze en argument ; plus tard le move() sera remplacé par xxxScreen.update() donc OK
+- score dans Pacman.move() => plus tard le move() sera remplacé par xxxScreen.update() donc OK
+===> en fait on garde les pacman et ghosts dans playingscreen, qui aura lui une fonction update() ; elle remplace les fonctions move() de pacman/ghosts, et du coup dans update() on fera tout : bouger, modif du score, accès a maze sans probleme, ...
 */
 };
 
@@ -520,7 +665,7 @@ MazeView.prototype._computeSize = function()
 
 MazeView.prototype._generateRects = function()
 {
-    var mazelines = maze.getMazeLines();
+    var mazelines = this._maze.getMazeLines();
     
     for(var i=0; i<mazelines.length; i++)
     {
@@ -551,7 +696,7 @@ MazeView.prototype._drawMazeRects = function()
 
 MazeView.prototype._drawPacdots = function()
 {
-    var pacdots = maze.getPacdots();
+    var pacdots = this._maze.getPacdots();
     
     context.fillStyle = "silver";
     
@@ -886,12 +1031,13 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
 
 /******************************** Pacman class ********************************/
 
-var Pacman = function(x, y, direction)
+var Pacman = function(x, y, direction, maze)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
     assert((maze.containsPoint(new Point2D(x, y))), "coordinates are not inside the maze");
+    assert((maze instanceof Maze), "maze is not a Maze");
     
     this._position = new Point2D(x, y);
     this._direction = direction;
@@ -903,7 +1049,53 @@ var Pacman = function(x, y, direction)
     this._mouthstartangle = 0;
     this._mouthendangle = 2 * Math.PI;
     
-    currentline = maze.mazeCurrentLine(this._position, this._direction);
+    this._currentline = maze.mazeCurrentLine(this._position, this._direction);
+};
+
+Pacman.prototype.getCurrentline = function()
+{
+    return this._currentline;
+};
+
+Pacman.prototype.setCurrentline = function(currentline)
+{
+    assert((currentline instanceof LineHV2D), "currentline value is not valid");
+
+    this._currentline = currentline;
+};
+
+Pacman.prototype.getPosition = function()
+{
+    return this._position;
+};
+
+Pacman.prototype.getDirection = function()
+{
+    return this._direction;
+};
+
+Pacman.prototype.getNextDirection = function()
+{
+    return this._nextdirection;
+};
+
+Pacman.prototype.setNextDirection = function(nextdirection)
+{
+    assert((isDirection(nextdirection) || nextdirection === null), "nextdirection value is not valid");
+
+    this._nextdirection = nextdirection;
+};
+
+Pacman.prototype.getNextTurn = function()
+{
+    return this._nextturn;
+};
+
+Pacman.prototype.setNextTurn = function(nextturn)
+{
+    assert((nextturn instanceof Point2D || nextturn === null), "nextturn value is not valid");
+
+    this._nextturn = nextturn;
 };
 
 Pacman.prototype.setDirection = function(direction)
@@ -935,16 +1127,10 @@ Pacman.prototype.setPositionY = function(y)
     this._position.setY(y);
 };
 
-Pacman.prototype.setNextDirection = function(nextdirection)
-{
-    assert((isDirection(nextdirection)), "nextdirection value is not valid");
-    
-    this._nextdirection = nextdirection;
-};
-
-Pacman.prototype.changeDirection = function(direction)
+Pacman.prototype.changeDirection = function(direction, maze)
 {
     assert((isDirection(direction)), "direction value is not valid");
+    assert((maze instanceof Maze), "maze is not a Maze");
     
     if (direction === this._direction
      || direction === this._nextdirection)
@@ -963,7 +1149,7 @@ Pacman.prototype.changeDirection = function(direction)
     {
         this._nextdirection = direction;
         
-        var point = maze.mazeNextTurn(currentline, this._position, this._direction, this._nextdirection);
+        var point = maze.mazeNextTurn(this._currentline, this._position, this._direction, this._nextdirection);
         
         this._nextturn = (point === undefined) ? null : point ;
     }
@@ -1028,9 +1214,10 @@ Pacman.prototype.animate = function(elapsed)
     this._mouthendangle = baseangle - mouthhalfangle;
 };
 
-Pacman.prototype.move = function(elapsed)
+Pacman.prototype.move = function(elapsed, maze)
 {
     assert((elapsed > 0), "elapsed value is not valid");
+    assert((maze instanceof Maze), "maze is not a Maze");
     
     var movement = Math.round(PACMAN_SPEED * elapsed/1000);
     var limit = 0;
@@ -1051,25 +1238,25 @@ Pacman.prototype.move = function(elapsed)
         
         if (this._direction === Direction.UP)
         {
-            limit = currentline.getPoint1().getY();
+            limit = this._currentline.getPoint1().getY();
             newx = this._position.getX();
             newy = (this._position.getY()-movement > limit) ? this._position.getY()-movement : limit ;
         }
         else if (this._direction === Direction.DOWN)
         {
-            limit = currentline.getPoint2().getY();
+            limit = this._currentline.getPoint2().getY();
             newx = this._position.getX();
             newy = (this._position.getY()+movement < limit) ? this._position.getY()+movement : limit ;
         }
         else if (this._direction === Direction.LEFT)
         {
-            limit = currentline.getPoint1().getX();
+            limit = this._currentline.getPoint1().getX();
             newx = (this._position.getX()-movement > limit) ? this._position.getX()-movement : limit ;
             newy = this._position.getY();
         }
         else
         {
-            limit = currentline.getPoint2().getX();
+            limit = this._currentline.getPoint2().getX();
             newx = (this._position.getX()+movement < limit) ? this._position.getX()+movement : limit ;
             newy = this._position.getY();
         }
@@ -1141,7 +1328,7 @@ Pacman.prototype.move = function(elapsed)
         this._nextdirection = null;
         this._nextturn = null;
         
-        currentline = nextline;
+        this._currentline = nextline;
     }
 };
 
@@ -1151,6 +1338,12 @@ Pacman.prototype.move = function(elapsed)
 
 /**************************** game event listeners ****************************/
 
+/*TODO when key pressed, register also */
+/* when it was : like that, even if the */
+/* game lags, we can move the pacman to */
+/* the good place (move() then look */
+/* remaining pressed keys then move() */
+/* then...) */
 var keyEventListener= function(e)
 {
     e.preventDefault();         // prevent up and down arrows of moving the page
@@ -1165,12 +1358,11 @@ var graphicsLoop = function()
     
     if (state === GameState.PLAYING)
     {
-        mazeview.draw();
-        pacman.draw();
+        playingscreen.draw();
     }
     else if (state === GameState.PAUSE)
     {
-        //TODO pausemenu.draw() ?
+        
     }
     else    /* state === GameState.MAINMENU */
     {
@@ -1190,12 +1382,26 @@ var logicLoop = function()
     
     /* input management */
     
-    for(var i=0;i<pressedkeys.length;i++) /*TODO when key pressed, register also */
-    {                                     /* when it was : like that, even if the */
-        var key = pressedkeys.shift()     /* game lags, we can move the pacman to */
-                                          /* the good place (move() then look */
-                                          /* remaining pressed keys then move() */
-                                          /* then...) */
+    /* TODO
+        normalement il faudrait ici que dans le for(), selon l'état du jeu, on appelle le xxxScreen.handleInput() de l'état correspondant, cette fonction renvoyant un état (vu qu'elle s'occupe des entrées), et on met ensuite l'etat du jeu a cet etat, puis on continue le for(), etc...
+    */
+    for(var i=0;i<pressedkeys.length;i++)
+    {
+        var key = pressedkeys.shift()
+        
+        if (state === GameState.PLAYING)
+        {
+            playingscreen.handleInput(key);
+        }
+        else if (state === GameState.PAUSE)
+        {
+            
+        }
+        else    /* state === GameState.MAINMENU */
+        {
+            
+        }
+        /*
         if (key === 80)
         {
             pause = !pause;
@@ -1204,17 +1410,14 @@ var logicLoop = function()
         {
             if (pause)
             {
-                /*setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
-                return;*/
+                //setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
+                //return;
             }
             else
-            {
-                if (key === 37) {pacman.changeDirection(Direction.LEFT);}
-                else if (key === 38) {pacman.changeDirection(Direction.UP);}
-                else if (key === 39) {pacman.changeDirection(Direction.RIGHT);}
-                else if (key === 40) {pacman.changeDirection(Direction.DOWN);}
-            }
-        }
+            {*/
+                //playingscreen.handleInput(key);
+            /*}
+        }*/
     }
     
     /*if (pause)
@@ -1225,11 +1428,12 @@ var logicLoop = function()
     
     /* movement management */
     
-    pacman.move(elapsed);
+    //pacman.move(elapsed, maze);
+    playingscreen.update(elapsed);
     
     /* animation management */
     
-    pacman.animate(elapsed);
+    //pacman.animate(elapsed);
     
     //TODO if (performance.now()-newupdate) > 1000/LOGIC_REFRESH_RATE,
     //     then settimeout(logicLoop, k*1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate))
@@ -1284,12 +1488,15 @@ checkConfiguration();
 - prob quand on met xstart a 51 par exemple => typerror currentline undefined !!!
 */
 
+
+playingscreen = new PlayingScreen();
+
 maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
-mazeview = new MazeView(0,0);
+mazeview = new MazeView(maze, 0, 0);
 
-pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION);
+pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, maze);
 
-console.log("yeaaaaah 6");
+console.log("yeaaaaah 7");
 
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
