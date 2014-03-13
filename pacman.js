@@ -477,10 +477,80 @@ var PlayingScreen = function()
     this._maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
     this._mazeview = new MazeView(this._maze, 0, 0);
     
+    this._status = new Status();
+    this._statusview = new StatusView(this._status, 0, 0);
+    
     this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
     
     this._pause = false;
-    this._score = 0;
+    
+    this._width = 0;
+    this._height = 0;
+    
+    this._computeSize();
+    this._normalizeCoordinates();
+};
+
+/*
+    normalize all the coordinates of the maze lines and pacman, ghosts, ...
+    => this function reposition all of the MazeView elements so that its upper
+    left corner match the canvas origin (0,0)
+*/
+PlayingScreen.prototype._normalizeCoordinates = function()
+{
+    var mazerects = this._mazeview.getMazerects();
+    var pacdots = this._maze.getPacdots();
+    var mazelines = this._maze.getMazeLines();
+    
+    var xmin = mazerects[0].x;
+    var ymin = mazerects[0].y;
+    var xmax = mazerects[0].x + mazerects[0].w;
+    var ymax = mazerects[0].y + mazerects[0].h;
+    
+    for(var i=1; i<mazerects.length; i++)
+    {
+        if (mazerects[i].x < xmin) {xmin = mazerects[i].x;}
+        if (mazerects[i].y < ymin) {ymin = mazerects[i].y;}
+        if (mazerects[i].x + mazerects[i].w > xmax) {xmax = mazerects[i].x + mazerects[i].w;}
+        if (mazerects[i].y + mazerects[i].h > ymax) {ymax = mazerects[i].y + mazerects[i].h;}
+    }
+    
+    var xpadding = 0 - xmin;
+    var ypadding = 0 - ymin;
+    
+    for(var i=0; i<mazerects.length; i++)
+    {
+        mazerects[i].x += xpadding;
+        mazerects[i].y += ypadding;
+    }
+    
+    for(var i=0; i<pacdots.length; i++)
+    {
+        pacdots[i].set(pacdots[i].getX() + xpadding,
+                       pacdots[i].getY() + ypadding);
+    }
+    
+    for(var i=0; i<mazelines.length; i++)
+    {
+        mazelines[i].getPoint1().set(mazelines[i].getPoint1().getX() + xpadding,
+                                     mazelines[i].getPoint1().getY() + ypadding);
+        mazelines[i].getPoint2().set(mazelines[i].getPoint2().getX() + xpadding,
+                                     mazelines[i].getPoint2().getY() + ypadding);
+    }
+    
+    this._pacman.setPosition(this._pacman.getPosition().getX() + xpadding,
+                             this._pacman.getPosition().getY() + ypadding);
+};
+
+PlayingScreen.prototype._computeSize = function()
+{
+    var mazeviewwidth = this._mazeview.getWidth();
+    var mazeviewheight = this._mazeview.getHeight();
+    var statusviewwidth = this._statusview.getWidth();
+    var statusviewheight = this._statusview.getHeight();
+    
+    this._width = (mazeviewwidth > statusviewwidth) ? mazeviewwidth : statusviewwidth ;
+    this._height = mazeviewheight + statusviewheight;
 };
 
 PlayingScreen.prototype.handleInput = function(key)
@@ -547,7 +617,7 @@ PlayingScreen.prototype.move = function(elapsed)
         {
             if (travelled.containsPoint(this._maze.getPacdot(i)))
             {
-                this._score += PACDOT_POINT;
+                this._status.increaseScore(PACDOT_POINT);
                 this._maze.deletePacdot(i);
             }
         }
@@ -595,7 +665,7 @@ PlayingScreen.prototype.move = function(elapsed)
             if (travelled1.containsPoint(this._maze.getPacdot(i))
              || travelled2.containsPoint(this._maze.getPacdot(i)))
             {
-                this._score += PACDOT_POINT;
+                this._status.increaseScore(PACDOT_POINT);
                 this._maze.deletePacdot(i);
             }
         }
@@ -616,6 +686,91 @@ PlayingScreen.prototype.draw = function()
 {
     this._mazeview.draw();
     this._pacman.draw();
+    this._statusview.draw();
+};
+
+/****************************** StatusView class ******************************/
+
+var StatusView = function(status, paddingTop, paddingLeft)
+{
+    assert((status instanceof Status), "status is not a Status");
+    assert((typeof paddingTop === "number"), "paddingTop is not a number");
+    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");    
+    
+    this._status = status;
+    this._paddingTop = paddingTop;
+    this._paddingLeft = paddingLeft;
+    this._width = 100;
+    this._height = 50;
+};
+
+StatusView.prototype.getWidth = function()
+{
+    return this._width;
+};
+
+StatusView.prototype.getHeight = function()
+{
+    return this._height;
+};
+
+StatusView.prototype.draw = function()
+{
+    context.fillStyle = "black";
+    
+    context.fillRect(0 + this._paddingLeft,
+                     0 + this._paddingTop,
+                     this._width,
+                     this._height);
+    
+    context.fillStyle = "white";
+    
+    context.fillText(this._status.getScore(), this._width/2, this._height/2);
+};
+
+/********************************* Status class *******************************/
+
+var Status = function()
+{
+    this._score = 0;
+    this._lives = 3;
+    this._level = 1;
+};
+
+Status.prototype.getScore = function()
+{
+    return this._score;
+};
+
+Status.prototype.increaseScore = function(incr)
+{
+    assert((typeof incr === "number"), "incr is not a number");
+    
+    this._score += incr;
+};
+
+Status.prototype.setScore = function(score)
+{
+    assert((typeof score === "number"), "score is not a number");
+    
+    this._score = score;
+};
+
+Status.prototype.getLives = function()
+{
+    return this._lives;
+};
+
+Status.prototype.setLives = function(lives)
+{
+    assert((typeof lives === "number"), "lives is not a number");
+    
+    this._lives = lives;
+};
+
+Status.prototype.decrementLives = function()
+{
+    this._lives--;
 };
 
 /******************************* MazeView class *******************************/
@@ -637,11 +792,21 @@ var MazeView = function(maze, paddingTop, paddingLeft)
     this._computeSize();
     
 //TODO PlayingScreen contient des objets : Pacman (+ PacmanView ?) + MazeView + ScoreView + ... les xxxView contiendront les draw(padding) (ou: padding_up, padding_left, ...)
-/*
-- "normaliser" les coordonnées des lignes pour que (xmin,ymin) soit à (0,0) (que la map soit dans le systeme de coordonnees normal du canvas)
-    => penser que le pacman_startx/y est aussi a mettre a jour par rapport a ça
--=> en fait non, c'est pas les coordonnées des lignes qu'il faut mettre à (0,0), mais le coin haut gauche du rectangle entourant le dédale
-*/
+};
+
+MazeView.prototype.getMazerects = function()
+{
+    return this._mazerects;
+};
+
+MazeView.prototype.getWidth = function()
+{
+    return this._width;
+};
+
+MazeView.prototype.getHeight = function()
+{
+    return this._height;
 };
 
 MazeView.prototype._computeSize = function()
@@ -726,10 +891,6 @@ MazeView.prototype.draw = function()
                      context.canvas.height);
     this._drawMazeRects();
     this._drawPacdots();
-    
-    /* TODO
-        dessine aussi le reste de la map, qui est statique (donc pas les pacman, ghost, bouboules...) ; utiliser le pre-render du coup ? vu que ce sera toujours la même chose, inutile de refaire tous les dessins de la map
-    */
 };
 
 /********************************* Maze class *********************************/
@@ -754,10 +915,10 @@ var Maze = function(mazelines)
     this._mazelines = mazelines; // lines on which the pacman center can move
     this._pacdots = [];
     this._powerpellets = [];
-    this._width = 0;
-    this._height = 0;
+    /*this._width = 0;
+    this._height = 0;*/
     
-    this._computeSize();
+    //this._computeSize();
     this._generatePacdots();
 };
 
@@ -795,7 +956,7 @@ Maze.createFromArrayOfLitterals = function(mazelines)
     return new Maze(lines);
 };
 
-Maze.prototype._computeSize = function()
+/*Maze.prototype._computeSize = function()
 {
     var xmin = this._mazelines[0].getPoint1().getX();
     var ymin = this._mazelines[0].getPoint1().getY();
@@ -812,7 +973,7 @@ Maze.prototype._computeSize = function()
 
     this._width = xmax - xmin;
     this._height = ymax - ymin;
-};
+};*/
 
 Maze.prototype._generatePacdots = function()
 {
@@ -1390,8 +1551,8 @@ var logicLoop = function()
     - ajouter les fantomes
     - ajouter les power pellets
     - dans checkConfiguration(), verifier si pr le menu la taille specifiée et la police et sa taille peuvent rentrer dedans, ...
-    - implement pause (PauseMenu + PauseMenuView)
-    - implement score
+    - implement pause (PauseScreen + PauseMenu + PauseMenuView)
+    - implement HUD (HUD + HUDView)
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -1415,10 +1576,6 @@ checkConfiguration();
 
 playingscreen = new PlayingScreen();
 
-maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
-mazeview = new MazeView(maze, 0, 0);
-
-pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, maze);
 
 console.log("yeaaaaah 7");
 
