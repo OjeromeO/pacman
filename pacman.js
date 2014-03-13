@@ -21,9 +21,11 @@ Object.defineProperties(GameState,
 var context = null;
 var pacman = null;
 var lastupdate = null;
+var newupdate = null;
 var maze = null;
 var mazeview = null;
 var pressedkeys = [];
+var pressedkeysdate = [];
 var pause = false;
 var state = null;
 var score = 0;
@@ -114,6 +116,8 @@ var count1 = 0;
 var count2 = 0;
 var firstupdate = 0;
 */
+var tmp1 = 0;
+var tmp2 = 0;
 /***************************** utilities functions ****************************/
 
 var AssertError = function(message)
@@ -485,9 +489,11 @@ PlayingScreen.prototype.handleInput = function(key)
     else if (key === 38) {this._pacman.changeDirection(Direction.UP, this._maze);}
     else if (key === 39) {this._pacman.changeDirection(Direction.RIGHT, this._maze);}
     else if (key === 40) {this._pacman.changeDirection(Direction.DOWN, this._maze);}
+    
+    return GameState.PLAYING;
 };
 
-PlayingScreen.prototype.update = function(elapsed)
+PlayingScreen.prototype.move = function(elapsed)
 {
     assert((elapsed > 0), "elapsed value is not valid");
     
@@ -1338,16 +1344,15 @@ Pacman.prototype.move = function(elapsed, maze)
 
 /**************************** game event listeners ****************************/
 
-/*TODO when key pressed, register also */
-/* when it was : like that, even if the */
-/* game lags, we can move the pacman to */
-/* the good place (move() then look */
-/* remaining pressed keys then move() */
-/* then...) */
+/*
+    we also save when the key was pressed, to be able, if there is some system
+    lag, to update later the game internal state
+*/
 var keyEventListener= function(e)
 {
     e.preventDefault();         // prevent up and down arrows of moving the page
     pressedkeys.push(e.keyCode);
+    pressedkeysdate.push(performance.now());
 };
 
 /**************************** game loop functions *****************************/
@@ -1355,7 +1360,7 @@ var keyEventListener= function(e)
 var graphicsLoop = function()
 {
     //XXX count1++;
-    
+    tmp2 = performance.now();
     if (state === GameState.PLAYING)
     {
         playingscreen.draw();
@@ -1368,26 +1373,68 @@ var graphicsLoop = function()
     {
         
     }
-    
+    //console.log(performance.now()-tmp2);
     requestAnimationFrame(graphicsLoop);
 };
 
 var logicLoop = function()
 {
+    tmp1 = performance.now();
     //XXX count2++;
     //XXX if (performance.now() - firstupdate > 1000) {console.log(count1 + ", " + count2); firstupdate = performance.now(); count1 = 0; count2 = 0;}
-    var newupdate = performance.now();
+    newupdate = performance.now();
     var elapsed = newupdate - lastupdate;
-    lastupdate = newupdate;
+    
     
     /* input management */
     
     /* TODO
         normalement il faudrait ici que dans le for(), selon l'état du jeu, on appelle le xxxScreen.handleInput() de l'état correspondant, cette fonction renvoyant un état (vu qu'elle s'occupe des entrées), et on met ensuite l'etat du jeu a cet etat, puis on continue le for(), etc...
     */
-    for(var i=0;i<pressedkeys.length;i++)
+    
+    if (pressedkeys.length === 0)
     {
-        var key = pressedkeys.shift()
+        if (state === GameState.PLAYING)
+        {
+            playingscreen.move(newupdate - lastupdate);
+        }
+    }
+    else
+    {
+        /*
+            we go through all the pressed keys ; even if there were some system
+            lag, the keys will be taken into account
+        */
+        while (pressedkeys.length > 0)
+        {
+            var key = pressedkeys.shift();
+            var keydate = pressedkeysdate.shift();
+            var nextstate = state;
+            
+            if (state === GameState.PLAYING)
+            {
+                playingscreen.move(keydate - lastupdate);
+                nextstate = playingscreen.handleInput(key);
+                lastupdate = keydate;
+                
+                if (pressedkeys.length === 0)
+                {
+                    playingscreen.move(newupdate - lastupdate);
+                }
+            }
+            else
+            {
+                
+            }
+            
+            state = nextstate;
+        }
+    }
+    
+    
+    /*for(var i=0;i<pressedkeys.length;i++)
+    {
+        var key = pressedkeys.shift();
         
         if (state === GameState.PLAYING)
         {
@@ -1397,10 +1444,10 @@ var logicLoop = function()
         {
             
         }
-        else    /* state === GameState.MAINMENU */
+        else    // state === GameState.MAINMENU
         {
             
-        }
+        }*/
         /*
         if (key === 80)
         {
@@ -1418,7 +1465,7 @@ var logicLoop = function()
                 //playingscreen.handleInput(key);
             /*}
         }*/
-    }
+    /*}*/
     
     /*if (pause)
             {
@@ -1429,12 +1476,15 @@ var logicLoop = function()
     /* movement management */
     
     //pacman.move(elapsed, maze);
-    playingscreen.update(elapsed);
+    /*playingscreen.move(elapsed);*/
+    
+    
+    lastupdate = newupdate;
     
     /* animation management */
     
     //pacman.animate(elapsed);
-    
+    //console.log(performance.now()-tmp1);
     //TODO if (performance.now()-newupdate) > 1000/LOGIC_REFRESH_RATE,
     //     then settimeout(logicLoop, k*1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate))
     // then test that and simulate a logicLoop() taking too much time
