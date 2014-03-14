@@ -475,20 +475,67 @@ LineHV2D.prototype.containsYStrictly = function(y)
 var PlayingScreen = function()
 {
     this._maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
-    this._mazeview = new MazeView(this._maze, 0, 0);
+    this._mazeview = new MazeView(this._maze);
     
     this._status = new Status();
-    this._statusview = new StatusView(this._status, 0, 0);
+    this._statusview = new StatusView(this._status);
     
     this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
     
     this._pause = false;
     
-    this._width = 0;
-    this._height = 0;
+    var mazeviewwidth = this._mazeview.getWidth();
+    var mazeviewheight = this._mazeview.getHeight();
+    var statusviewwidth = this._statusview.getWidth();
+    var statusviewheight = this._statusview.getHeight();
     
-    this._computeSize();
+    this._width = (mazeviewwidth > statusviewwidth) ? mazeviewwidth : statusviewwidth ;
+    this._height = mazeviewheight + 10 + statusviewheight;
+    
+    /* center the mazeview horizontally */
+    //TODO
+    /* put the statusview at the bottom */
+    
+    this._statusview.addPaddingTop(mazeviewheight + 10);
+    
+    /* center the statusview horizontally */
+    //TODO
+    
+    
+    this._paddingTop = 0;
+    this._paddingLeft = 0;
+    
     this._normalizeCoordinates();
+};
+
+PlayingScreen.prototype.addPaddingTop = function(paddingTop)
+{
+    assert((typeof paddingTop === "number"), "paddingTop is not a number");
+    
+    this._paddingTop += paddingTop;
+    this._mazeview.addPaddingTop(paddingTop);
+    this._statusview.addPaddingTop(paddingTop);
+    this._pacman.addPaddingTop(paddingTop);
+};
+
+PlayingScreen.prototype.addPaddingLeft = function(paddingLeft)
+{
+    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
+    
+    this._paddingLeft += paddingLeft;
+    this._mazeview.addPaddingLeft(paddingLeft);
+    this._statusview.addPaddingLeft(paddingLeft);
+    this._pacman.addPaddingLeft(paddingLeft);
+};
+
+PlayingScreen.prototype.getWidth = function()
+{
+    return this._width;
+};
+
+PlayingScreen.prototype.getHeight = function()
+{
+    return this._height;
 };
 
 /*
@@ -540,17 +587,6 @@ PlayingScreen.prototype._normalizeCoordinates = function()
     
     this._pacman.setPosition(this._pacman.getPosition().getX() + xpadding,
                              this._pacman.getPosition().getY() + ypadding);
-};
-
-PlayingScreen.prototype._computeSize = function()
-{
-    var mazeviewwidth = this._mazeview.getWidth();
-    var mazeviewheight = this._mazeview.getHeight();
-    var statusviewwidth = this._statusview.getWidth();
-    var statusviewheight = this._statusview.getHeight();
-    
-    this._width = (mazeviewwidth > statusviewwidth) ? mazeviewwidth : statusviewwidth ;
-    this._height = mazeviewheight + statusviewheight;
 };
 
 PlayingScreen.prototype.handleInput = function(key)
@@ -691,17 +727,29 @@ PlayingScreen.prototype.draw = function()
 
 /****************************** StatusView class ******************************/
 
-var StatusView = function(status, paddingTop, paddingLeft)
+var StatusView = function(status)
 {
     assert((status instanceof Status), "status is not a Status");
-    assert((typeof paddingTop === "number"), "paddingTop is not a number");
-    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");    
     
     this._status = status;
-    this._paddingTop = paddingTop;
-    this._paddingLeft = paddingLeft;
+    this._paddingTop = 0;
+    this._paddingLeft = 0;
     this._width = 100;
     this._height = 50;
+};
+
+StatusView.prototype.addPaddingTop = function(paddingTop)
+{
+    assert((typeof paddingTop === "number"), "paddingTop is not a number");
+    
+    this._paddingTop += paddingTop;
+};
+
+StatusView.prototype.addPaddingLeft = function(paddingLeft)
+{
+    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
+    
+    this._paddingLeft += paddingLeft;
 };
 
 StatusView.prototype.getWidth = function()
@@ -725,7 +773,7 @@ StatusView.prototype.draw = function()
     
     context.fillStyle = "white";
     
-    context.fillText(this._status.getScore(), this._width/2, this._height/2);
+    context.fillText(this._status.getScore(), 0 + this._paddingLeft + 20, 0 + this._paddingTop + 20);
 };
 
 /********************************* Status class *******************************/
@@ -775,23 +823,33 @@ Status.prototype.decrementLives = function()
 
 /******************************* MazeView class *******************************/
 
-var MazeView = function(maze, paddingTop, paddingLeft)
+var MazeView = function(maze)
 {
     assert((maze instanceof Maze), "maze is not a Maze");
-    assert((typeof paddingTop === "number"), "paddingTop is not a number");
-    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");    
     
     this._maze = maze;
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
-    this._paddingTop = paddingTop;
-    this._paddingLeft = paddingLeft;
+    this._paddingTop = 0;
+    this._paddingLeft = 0;
     this._width = 0;
     this._height = 0;
     
     this._generateRects();
     this._computeSize();
+};
+
+MazeView.prototype.addPaddingTop = function(paddingTop)
+{
+    assert((typeof paddingTop === "number"), "paddingTop is not a number");
     
-//TODO PlayingScreen contient des objets : Pacman (+ PacmanView ?) + MazeView + ScoreView + ... les xxxView contiendront les draw(padding) (ou: padding_up, padding_left, ...)
+    this._paddingTop += paddingTop;
+};
+
+MazeView.prototype.addPaddingLeft = function(paddingLeft)
+{
+    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
+    
+    this._paddingLeft += paddingLeft;
 };
 
 MazeView.prototype.getMazerects = function()
@@ -887,8 +945,8 @@ MazeView.prototype.draw = function()
     context.fillStyle = "blue";
     context.fillRect(this._paddingLeft,
                      this._paddingTop,
-                     context.canvas.width,
-                     context.canvas.height);
+                     this._width,
+                     this._height);
     this._drawMazeRects();
     this._drawPacdots();
 };
@@ -1222,11 +1280,28 @@ var Pacman = function(x, y, direction, maze)
     this._nextdirection = null;     // direction requested
     this._nextturn = null;          // intersection that allows movement in the requested direction
     
+    this._paddingTop = 0;
+    this._paddingLeft = 0;
+    
     this._animtime = 0;
     this._mouthstartangle = 0;
     this._mouthendangle = 2 * Math.PI;
     
     this._currentline = maze.mazeCurrentLine(this._position, this._direction);
+};
+
+Pacman.prototype.addPaddingTop = function(paddingTop)
+{
+    assert((typeof paddingTop === "number"), "paddingTop is not a number");
+    
+    this._paddingTop += paddingTop;
+};
+
+Pacman.prototype.addPaddingLeft = function(paddingLeft)
+{
+    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
+    
+    this._paddingLeft += paddingLeft;
 };
 
 Pacman.prototype.getCurrentline = function()
@@ -1336,14 +1411,19 @@ Pacman.prototype.draw = function()
 {
     context.fillStyle = "yellow";
     context.beginPath();
-    context.moveTo(this._position.getX(), this._position.getY());
+    context.moveTo(this._position.getX() + this._paddingLeft,
+                   this._position.getY() + this._paddingTop);
     
     /*
         if arc() has the same start and end angles (mouth shutted), nothing is
         done ; a little trick to have a circle in this case is to use the fact
         that angles are modulo(2*PI)
     */
-    context.arc(this._position.getX(), this._position.getY(), PACMAN_RADIUS, this._mouthstartangle, this._mouthendangle);
+    context.arc(this._position.getX() + this._paddingLeft,
+                this._position.getY() + this._paddingTop,
+                PACMAN_RADIUS,
+                this._mouthstartangle,
+                this._mouthendangle);
     context.fill();
 };
 
@@ -1552,12 +1632,12 @@ var logicLoop = function()
     - ajouter les power pellets
     - dans checkConfiguration(), verifier si pr le menu la taille specifiée et la police et sa taille peuvent rentrer dedans, ...
     - implement pause (PauseScreen + PauseMenu + PauseMenuView)
-    - implement HUD (HUD + HUDView)
+    - ameliorer le statusview et le centrer (lui mettre un setwidth() ou autre, appelé dans playingscreen au constructeur)
 */
 
 var canvas = document.getElementById("gamecanvas");
-canvas.width = 600;
-canvas.height = 650;
+canvas.width = 1000;
+canvas.height = 1000;
 
 context = canvas.getContext("2d");
 
@@ -1575,7 +1655,8 @@ checkConfiguration();
 */
 
 playingscreen = new PlayingScreen();
-
+playingscreen.addPaddingLeft((canvas.width - playingscreen.getWidth())/2);
+canvas.height = playingscreen.getHeight();
 
 console.log("yeaaaaah 7");
 
