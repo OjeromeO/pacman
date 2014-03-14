@@ -43,6 +43,11 @@ var PACMAN_STARTY = 50;
 var PACMAN_STARTDIRECTION = Direction.UP;
 var PACDOT_POINT = 10;
 
+var STATUS_LIVES_RADIUS = 10;
+var STATUS_FONT = "sans-serif";
+var STATUS_FONT_SIZE = 20;
+var STATUS_PADDINGLEFT = 20;
+
 var MAZE_LINES = [
                  /* horizontal lines */
                  
@@ -474,38 +479,52 @@ LineHV2D.prototype.containsYStrictly = function(y)
 
 var PlayingScreen = function()
 {
+
     this._maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
-    this._mazeview = new MazeView(this._maze);
+    
+    this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
+    this._generateMazeRects();
     
     this._status = new Status();
-    this._statusview = new StatusView(this._status);
     
     this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
     
     this._pause = false;
     
-    var mazeviewwidth = this._mazeview.getWidth();
-    var mazeviewheight = this._mazeview.getHeight();
-    var statusviewwidth = this._statusview.getWidth();
-    var statusviewheight = this._statusview.getHeight();
-    
-    this._width = (mazeviewwidth > statusviewwidth) ? mazeviewwidth : statusviewwidth ;
-    this._height = mazeviewheight + 10 + statusviewheight;
-    
-    /* center the mazeview horizontally */
-    //TODO
-    /* put the statusview at the bottom */
-    
-    this._statusview.addPaddingTop(mazeviewheight + 10);
-    
-    /* center the statusview horizontally */
-    //TODO
-    
+    this._width = 0;
+    this._height = 0;
     
     this._paddingTop = 0;
     this._paddingLeft = 0;
     
+    this._computeSize();
     this._normalizeCoordinates();
+};
+
+PlayingScreen.prototype._generateMazeRects = function()
+{
+    var mazelines = this._maze.getMazeLines();
+    
+    for(var i=0; i<mazelines.length; i++)
+    {
+        var line = mazelines[i];
+        var rect = {};
+        
+        rect.x = line.getPoint1().getX() - LINE_WIDTH/2;
+        rect.y = line.getPoint1().getY() - LINE_WIDTH/2;
+        rect.w = (isVertical(line)) ? LINE_WIDTH : line.size() + LINE_WIDTH ;
+        rect.h = (isVertical(line)) ? line.size() + LINE_WIDTH : LINE_WIDTH ;
+        
+        this._mazerects.push(rect);
+    }
+};
+
+PlayingScreen.prototype._computeSize = function()
+{
+    var statusheight = 1.3 * STATUS_FONT_SIZE;
+    
+    this._width = (this._maze.getWidth() + LINE_WIDTH > this._statusMaxWidth()) ? this._maze.getWidth() + LINE_WIDTH : this._statusMaxWidth() ;
+    this._height = this._maze.getHeight() + LINE_WIDTH + 10 + statusheight;
 };
 
 PlayingScreen.prototype.addPaddingTop = function(paddingTop)
@@ -513,8 +532,6 @@ PlayingScreen.prototype.addPaddingTop = function(paddingTop)
     assert((typeof paddingTop === "number"), "paddingTop is not a number");
     
     this._paddingTop += paddingTop;
-    this._mazeview.addPaddingTop(paddingTop);
-    this._statusview.addPaddingTop(paddingTop);
     this._pacman.addPaddingTop(paddingTop);
 };
 
@@ -523,8 +540,6 @@ PlayingScreen.prototype.addPaddingLeft = function(paddingLeft)
     assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
     
     this._paddingLeft += paddingLeft;
-    this._mazeview.addPaddingLeft(paddingLeft);
-    this._statusview.addPaddingLeft(paddingLeft);
     this._pacman.addPaddingLeft(paddingLeft);
 };
 
@@ -538,14 +553,20 @@ PlayingScreen.prototype.getHeight = function()
     return this._height;
 };
 
+PlayingScreen.prototype._statusMaxWidth = function()
+{
+    return context.measureText("Score : 9 999 999").width + 50 + context.measureText("Lives : ").width + 3 * (10 + 2*STATUS_LIVES_RADIUS);
+};
+
 /*
     normalize all the coordinates of the maze lines and pacman, ghosts, ...
-    => this function reposition all of the MazeView elements so that its upper
-    left corner match the canvas origin (0,0)
+    => this function reposition all of the maze elements so that its upper
+    left corner match the canvas origin (0,0), or is centered horizontally if it
+    is smaller than the playingscreen width
 */
 PlayingScreen.prototype._normalizeCoordinates = function()
 {
-    var mazerects = this._mazeview.getMazerects();
+    var mazerects = this._mazerects;
     var pacdots = this._maze.getPacdots();
     var mazelines = this._maze.getMazeLines();
     
@@ -564,6 +585,12 @@ PlayingScreen.prototype._normalizeCoordinates = function()
     
     var xpadding = 0 - xmin;
     var ypadding = 0 - ymin;
+    
+    /* if the width is the same of the status, it means that the maze is smaller, and then needs to be centered */
+    if (this._width === this._statusMaxWidth())
+    {
+        xpadding += this._width/2 - (this._maze.getWidth() + LINE_WIDTH)/2;
+    }
     
     for(var i=0; i<mazerects.length; i++)
     {
@@ -718,62 +745,111 @@ PlayingScreen.prototype.move = function(elapsed)
     this._pacman.animate(elapsed);
 };
 
-PlayingScreen.prototype.draw = function()
-{
-    this._mazeview.draw();
-    this._pacman.draw();
-    this._statusview.draw();
-};
-
-/****************************** StatusView class ******************************/
-
-var StatusView = function(status)
-{
-    assert((status instanceof Status), "status is not a Status");
-    
-    this._status = status;
-    this._paddingTop = 0;
-    this._paddingLeft = 0;
-    this._width = 100;
-    this._height = 50;
-};
-
-StatusView.prototype.addPaddingTop = function(paddingTop)
-{
-    assert((typeof paddingTop === "number"), "paddingTop is not a number");
-    
-    this._paddingTop += paddingTop;
-};
-
-StatusView.prototype.addPaddingLeft = function(paddingLeft)
-{
-    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
-    
-    this._paddingLeft += paddingLeft;
-};
-
-StatusView.prototype.getWidth = function()
-{
-    return this._width;
-};
-
-StatusView.prototype.getHeight = function()
-{
-    return this._height;
-};
-
-StatusView.prototype.draw = function()
+PlayingScreen.prototype._drawMazeRects = function()
 {
     context.fillStyle = "black";
     
-    context.fillRect(0 + this._paddingLeft,
-                     0 + this._paddingTop,
+    for(var i=0;i<this._mazerects.length;i++)
+    {
+        context.fillRect(this._mazerects[i].x + this._paddingLeft,
+                         this._mazerects[i].y + this._paddingTop,
+                         this._mazerects[i].w,
+                         this._mazerects[i].h);
+    }
+};
+
+PlayingScreen.prototype._drawMazePacdots = function()
+{
+    var pacdots = this._maze.getPacdots();
+    
+    context.fillStyle = "silver";
+    
+    for(var i=0;i<pacdots.length;i++)
+    {
+        context.beginPath();
+        context.arc(pacdots[i].getX() + this._paddingLeft,
+                    pacdots[i].getY() + this._paddingTop,
+                    PACDOTS_RADIUS,
+                    0,
+                    2 * Math.PI);
+        context.fill();
+    }
+    
+    // TODO
+    //  better performances : draw in a hidden canvas and then drawImage() or putimagedata()
+    //  cf: http://stackoverflow.com/questions/13916066/speed-up-the-drawing-of-many-points-on-a-html5-canvas-element
+};
+
+PlayingScreen.prototype._drawMaze = function()
+{
+    var xpadding = 0;
+    
+    /* if the width is the same of the status, it means that the maze is smaller, and then the background needs to be centered*/
+    if (this._width === this._statusMaxWidth())
+    {
+        xpadding += this._width/2 - (this._maze.getWidth() + LINE_WIDTH)/2;
+    }
+    
+    context.fillStyle = "blue";
+    context.fillRect(this._paddingLeft + xpadding,
+                     this._paddingTop,
+                     this._maze.getWidth() + LINE_WIDTH,
+                     this._maze.getHeight() + LINE_WIDTH);
+    this._drawMazeRects();
+    this._drawMazePacdots();
+};
+
+PlayingScreen.prototype._drawStatus = function()
+{
+    context.fillStyle = "gray";
+    
+    var maxscorewidth = context.measureText("Score : 9 999 999").width;
+    var statusheight = 1.3 * STATUS_FONT_SIZE;
+    var mapheight = this._maze.getHeight() + LINE_WIDTH;
+    
+    context.fillRect(this._paddingLeft,
+                     this._paddingTop + mapheight + 10,
                      this._width,
-                     this._height);
+                     statusheight);
     
     context.fillStyle = "white";
+    context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
     
-    context.fillText(this._status.getScore(), 0 + this._paddingLeft + 20, 0 + this._paddingTop + 20);
+    context.fillText("Score : " + this._status.getScore(),
+                     this._paddingLeft + STATUS_PADDINGLEFT,
+                     this._paddingTop + mapheight + 10 + STATUS_FONT_SIZE);
+    
+    context.fillText("Lives : ",
+                     this._paddingLeft + STATUS_PADDINGLEFT + maxscorewidth + 50,
+                     this._paddingTop + mapheight + 10 + STATUS_FONT_SIZE);
+    
+    context.fillStyle = "yellow";
+    
+    for(var i=1; i<=this._status.getLives(); i++)
+    {
+        var distance = i*10 + (i-1)*2*STATUS_LIVES_RADIUS + (STATUS_LIVES_RADIUS/2);
+        context.beginPath();
+        context.arc(this._paddingLeft + STATUS_PADDINGLEFT + maxscorewidth + 50 + context.measureText("Lives : ").width + distance,
+                    this._paddingTop + mapheight + 10 + statusheight/2,
+                    STATUS_LIVES_RADIUS,
+                    0,
+                    2 * Math.PI);
+        context.fill();
+    }
+};
+
+PlayingScreen.prototype.draw = function()
+{
+    context.fillStyle = "green";
+    
+    context.fillRect(this._paddingLeft,
+                     this._paddingTop,
+                     this._width,
+                     this._height);
+                     
+    this._drawMaze();
+    this._pacman.draw();
+    this._drawStatus();
 };
 
 /********************************* Status class *******************************/
@@ -821,136 +897,6 @@ Status.prototype.decrementLives = function()
     this._lives--;
 };
 
-/******************************* MazeView class *******************************/
-
-var MazeView = function(maze)
-{
-    assert((maze instanceof Maze), "maze is not a Maze");
-    
-    this._maze = maze;
-    this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
-    this._paddingTop = 0;
-    this._paddingLeft = 0;
-    this._width = 0;
-    this._height = 0;
-    
-    this._generateRects();
-    this._computeSize();
-};
-
-MazeView.prototype.addPaddingTop = function(paddingTop)
-{
-    assert((typeof paddingTop === "number"), "paddingTop is not a number");
-    
-    this._paddingTop += paddingTop;
-};
-
-MazeView.prototype.addPaddingLeft = function(paddingLeft)
-{
-    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
-    
-    this._paddingLeft += paddingLeft;
-};
-
-MazeView.prototype.getMazerects = function()
-{
-    return this._mazerects;
-};
-
-MazeView.prototype.getWidth = function()
-{
-    return this._width;
-};
-
-MazeView.prototype.getHeight = function()
-{
-    return this._height;
-};
-
-MazeView.prototype._computeSize = function()
-{
-    var xmin = this._mazerects[0].x;
-    var ymin = this._mazerects[0].y;
-    var xmax = this._mazerects[0].x + this._mazerects[0].w;
-    var ymax = this._mazerects[0].y + this._mazerects[0].h;
-
-    for(var i=1; i<this._mazerects.length; i++)
-    {
-        if (this._mazerects[i].x < xmin) {xmin = this._mazerects[i].x;}
-        if (this._mazerects[i].y < ymin) {ymin = this._mazerects[i].y;}
-        if (this._mazerects[i].x + this._mazerects[i].w > xmax) {xmax = this._mazerects[i].x + this._mazerects[i].w;}
-        if (this._mazerects[i].y + this._mazerects[i].h > ymax) {ymax = this._mazerects[i].y + this._mazerects[i].h;}
-    }
-
-    this._width = xmax - xmin;
-    this._height = ymax - ymin;
-};
-
-MazeView.prototype._generateRects = function()
-{
-    var mazelines = this._maze.getMazeLines();
-    
-    for(var i=0; i<mazelines.length; i++)
-    {
-        var line = mazelines[i];
-        var rect = {};
-        
-        rect.x = line.getPoint1().getX() - LINE_WIDTH/2;
-        rect.y = line.getPoint1().getY() - LINE_WIDTH/2;
-        rect.w = (isVertical(line)) ? LINE_WIDTH : line.size() + LINE_WIDTH ;
-        rect.h = (isVertical(line)) ? line.size() + LINE_WIDTH : LINE_WIDTH ;
-        
-        this._mazerects.push(rect);
-    }
-};
-
-MazeView.prototype._drawMazeRects = function()
-{
-    context.fillStyle = "black";
-    
-    for(var i=0;i<this._mazerects.length;i++)
-    {
-        context.fillRect(this._mazerects[i].x + this._paddingLeft,
-                         this._mazerects[i].y + this._paddingTop,
-                         this._mazerects[i].w,
-                         this._mazerects[i].h);
-    }
-};
-
-MazeView.prototype._drawPacdots = function()
-{
-    var pacdots = this._maze.getPacdots();
-    
-    context.fillStyle = "silver";
-    
-    for(var i=0;i<pacdots.length;i++)
-    {
-        context.beginPath();
-        context.arc(pacdots[i].getX() + this._paddingLeft,
-                    pacdots[i].getY() + this._paddingTop,
-                    PACDOTS_RADIUS,
-                    0,
-                    2 * Math.PI);
-        context.fill();
-    }
-    
-    /* TODO
-        better performances : draw in a hidden canvas and then drawImage() or putimagedata()
-        cf: http://stackoverflow.com/questions/13916066/speed-up-the-drawing-of-many-points-on-a-html5-canvas-element
-    */
-};
-
-MazeView.prototype.draw = function()
-{
-    context.fillStyle = "blue";
-    context.fillRect(this._paddingLeft,
-                     this._paddingTop,
-                     this._width,
-                     this._height);
-    this._drawMazeRects();
-    this._drawPacdots();
-};
-
 /********************************* Maze class *********************************/
 
 var Maze = function(mazelines)
@@ -973,10 +919,11 @@ var Maze = function(mazelines)
     this._mazelines = mazelines; // lines on which the pacman center can move
     this._pacdots = [];
     this._powerpellets = [];
-    /*this._width = 0;
-    this._height = 0;*/
     
-    //this._computeSize();
+    this._width = 0;
+    this._height = 0;
+    
+    this._computeSize();
     this._generatePacdots();
 };
 
@@ -1014,7 +961,17 @@ Maze.createFromArrayOfLitterals = function(mazelines)
     return new Maze(lines);
 };
 
-/*Maze.prototype._computeSize = function()
+Maze.prototype.getWidth = function()
+{
+    return this._width;
+};
+
+Maze.prototype.getHeight = function()
+{
+    return this._height;
+};
+
+Maze.prototype._computeSize = function()
 {
     var xmin = this._mazelines[0].getPoint1().getX();
     var ymin = this._mazelines[0].getPoint1().getY();
@@ -1031,7 +988,7 @@ Maze.createFromArrayOfLitterals = function(mazelines)
 
     this._width = xmax - xmin;
     this._height = ymax - ymin;
-};*/
+};
 
 Maze.prototype._generatePacdots = function()
 {
@@ -1632,7 +1589,6 @@ var logicLoop = function()
     - ajouter les power pellets
     - dans checkConfiguration(), verifier si pr le menu la taille specifiée et la police et sa taille peuvent rentrer dedans, ...
     - implement pause (PauseScreen + PauseMenu + PauseMenuView)
-    - ameliorer le statusview et le centrer (lui mettre un setwidth() ou autre, appelé dans playingscreen au constructeur)
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -1645,13 +1601,8 @@ checkConfiguration();
 
 /* init the game */
 
-//TODO save the game size, and use it for the canvas (or the opposite) ?
-//     like that we have good size and measures for the map lines ? or define the lines first and then find the game map and then the game size (with a minimal game size) ?
-
 /* TODO
-- ici, on fait donc le new Map()
-- puis on crée les menus (avant ou après) : avec des MENU_HEIGHT, MENU_FONT, ... et on centre les elements du menu
-- puis on met la taille du canvas automatiquement : on appelle les getHeight()/Width() des menus et de la map : on obtiendra un genre de PPCM => on prend la hauteur et la largeur max de ce qu'on obtient, puis on appelle pour chacun (menus+map) un setPadding() qui mettra dans une propriété perso le padding necessaire pour etre centré dans le canvas qui sera trop grand pour certains (en utilisant les propriétés width et size pour chaque XXXView)
+on met la taille du canvas automatiquement : on appelle les getHeight()/Width() des differents screens : on obtiendra un genre de PPCM => on prend la hauteur et la largeur max de ce qu'on obtient, puis on appelle pour chacun un setPadding() qui mettra dans une propriété perso le padding necessaire pour etre centré dans le canvas qui sera trop grand pour certains (en utilisant les propriétés width et size pour chaque XXXView)
 */
 
 playingscreen = new PlayingScreen();
