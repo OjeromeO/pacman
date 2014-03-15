@@ -10,10 +10,18 @@ Object.defineProperties(Direction,
     "RIGHT":  {value: 4, writable: false, configurable: false, enumerable: true}
 });
 
+var PauseMenuItem = {};
+Object.defineProperties(PauseMenuItem,
+{
+    "RESUME":  {value: "resume", writable: false, configurable: false, enumerable: true},
+    "QUIT":  {value: "quit", writable: false, configurable: false, enumerable: true}
+});
+PauseMenuItem.count = 2;
+
 var GameState = {};
 Object.defineProperties(GameState,
 {
-    "MAINMENU":  {value: 1, writable: false, configurable: false, enumerable: true},
+    "MAIN":  {value: 1, writable: false, configurable: false, enumerable: true},
     "PAUSE":  {value: 2, writable: false, configurable: false, enumerable: true},
     "PLAYING":  {value: 3, writable: false, configurable: false, enumerable: true}
 });
@@ -30,8 +38,17 @@ var pause = false;
 var state = null;
 var score = 0;
 var playingscreen = null;
+var pausescreen = null;
 
 var LOGIC_REFRESH_RATE = 60;
+
+var PAUSEMENU_RESUMESTRING = "Resume game";
+var PAUSEMENU_QUITSTRING = "Return to main menu";
+var PAUSEMENU_FONT = "sans-serif";
+var PAUSEMENU_FONT_SIZE = 30;
+var PAUSEMENU_HPADDING = 20;
+var PAUSEMENU_VPADDING = 20;
+var PAUSEMENU_ITEMSDISTANCE = 30;
 
 var PACMAN_RADIUS = 15;
 var PACDOTS_RADIUS = 2;
@@ -45,7 +62,7 @@ var PACDOT_POINT = 10;
 
 var STATUS_LIVES_RADIUS = 10;
 var STATUS_FONT = "sans-serif";
-var STATUS_FONT_SIZE = 20;
+var STATUS_FONT_SIZE = 30;
 var STATUS_PADDINGLEFT = 20;
 
 var MAZE_LINES = [
@@ -116,7 +133,7 @@ var MAZE_LINES = [
                  {x1: 330, y1: 550, x2: 330, y2: 610},
                  {x1: 550, y1: 550, x2: 550, y2: 610}
                  ];
-/* XXX
+/*
 var count1 = 0;
 var count2 = 0;
 var firstupdate = 0;
@@ -146,6 +163,19 @@ var isDirection = function(direction)
      || direction === Direction.DOWN
      || direction === Direction.RIGHT
      || direction === Direction.LEFT)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+var isPauseMenuItem = function(item)
+{
+    if (item === PauseMenuItem.RESUME
+     || item === PauseMenuItem.QUIT)
     {
         return true;
     }
@@ -475,11 +505,151 @@ LineHV2D.prototype.containsYStrictly = function(y)
     }
 };
 
+/**************************** PauseScreen class *****************************/
+
+var PauseScreen = function()
+{
+    this._pausemenu = new PauseMenu();
+    
+    this._paddingTop = 0;
+    this._paddingLeft = 0;
+    
+    this._width = 0;
+    this._height = 0;
+    
+    this._computeSize();
+};
+
+PauseScreen.prototype._computeSize = function()
+{
+    var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
+    var textmaxwidth = 0;
+    
+    context.font = PAUSEMENU_FONT_SIZE + "px " + PAUSEMENU_FONT;
+    
+    for(var item in this._pausemenu.getItems())
+    {
+        var itemwidth = context.measureText(this._pausemenu.getItems()[item]).width;
+        if (itemwidth > textmaxwidth)
+        {
+            textmaxwidth = itemwidth;
+        }
+    }
+    
+    this._width = PAUSEMENU_HPADDING + textmaxwidth + PAUSEMENU_HPADDING;
+    
+    this._height += PAUSEMENU_VPADDING;
+    for(var item in this._pausemenu.getItems())
+    {
+        this._height += textheight;
+        this._height += PAUSEMENU_ITEMSDISTANCE;
+    }
+    this._height -= PAUSEMENU_ITEMSDISTANCE;
+    this._height += PAUSEMENU_VPADDING;
+};
+
+PauseScreen.prototype.addPaddingTop = function(paddingTop)
+{
+    assert((typeof paddingTop === "number"), "paddingTop is not a number");
+    
+    this._paddingTop += paddingTop;
+};
+
+PauseScreen.prototype.addPaddingLeft = function(paddingLeft)
+{
+    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
+    
+    this._paddingLeft += paddingLeft;
+};
+
+PauseScreen.prototype.getWidth = function()
+{
+    return this._width;
+};
+
+PauseScreen.prototype.getHeight = function()
+{
+    return this._height;
+};
+
+PauseScreen.prototype.draw = function()
+{
+    var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
+    var textmaxwidth = 0;
+    
+    context.font = PAUSEMENU_FONT_SIZE + "px " + PAUSEMENU_FONT;
+    
+    for(var item in this._pausemenu.getItems())
+    {
+        var itemwidth = context.measureText(this._pausemenu.getItems()[item]).width;
+        if (itemwidth > textmaxwidth)
+        {
+            textmaxwidth = itemwidth;
+        }
+    }
+    
+    context.fillStyle = "green";
+    
+    context.fillRect(this._paddingLeft,
+                     this._paddingTop,
+                     this._width,
+                     this._height);
+    
+    context.fillStyle = "blue";
+    
+    for(var i=0; i<PauseMenuItem.count; i++)
+    {
+        context.fillRect(this._paddingLeft + PAUSEMENU_HPADDING,
+                         this._paddingTop + PAUSEMENU_VPADDING + i*(textheight + PAUSEMENU_ITEMSDISTANCE),
+                         textmaxwidth,
+                         textheight);
+    }
+    
+    context.fillStyle = "white";
+    
+    var yval = 0;
+    for(var item in this._pausemenu.getItems())
+    {
+        context.fillText(this._pausemenu.getItems()[item],
+                         this._paddingLeft + PAUSEMENU_HPADDING,
+                         this._paddingTop + PAUSEMENU_VPADDING + PAUSEMENU_FONT_SIZE + yval);
+        
+        yval += (textheight + PAUSEMENU_ITEMSDISTANCE);
+    }
+};
+
+/******************************* PauseMenu class ******************************/
+
+var PauseMenu = function()
+{
+    this._current = null;
+    
+    this._items = {};
+    this._items[PauseMenuItem.RESUME] = PAUSEMENU_RESUMESTRING;
+    this._items[PauseMenuItem.QUIT] = PAUSEMENU_QUITSTRING;
+};
+
+PauseMenu.prototype.getCurrent = function()
+{
+    return this._current;
+};
+
+PauseMenu.prototype.setCurrent = function(item)
+{
+    assert((isPauseMenuItem(item) || item === null), "item value is not valid");
+    
+    this._current = item;
+};
+
+PauseMenu.prototype.getItems = function()
+{
+    return this._items;
+};
+
 /**************************** PlayingScreen class *****************************/
 
 var PlayingScreen = function()
 {
-
     this._maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
     
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
@@ -532,7 +702,6 @@ PlayingScreen.prototype.addPaddingTop = function(paddingTop)
     assert((typeof paddingTop === "number"), "paddingTop is not a number");
     
     this._paddingTop += paddingTop;
-    //this._pacman.addPaddingTop(paddingTop);
 };
 
 PlayingScreen.prototype.addPaddingLeft = function(paddingLeft)
@@ -540,7 +709,6 @@ PlayingScreen.prototype.addPaddingLeft = function(paddingLeft)
     assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
     
     this._paddingLeft += paddingLeft;
-    //this._pacman.addPaddingLeft(paddingLeft);
 };
 
 PlayingScreen.prototype.getWidth = function()
@@ -555,6 +723,8 @@ PlayingScreen.prototype.getHeight = function()
 
 PlayingScreen.prototype._statusMaxWidth = function()
 {
+    context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
+    
     return context.measureText("Score : 9 999 999").width + 50 + context.measureText("Lives : ").width + 3 * (10 + 2*STATUS_LIVES_RADIUS);
 };
 
@@ -803,6 +973,8 @@ PlayingScreen.prototype._drawStatus = function()
 {
     context.fillStyle = "gray";
     
+    context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
+    
     var maxscorewidth = context.measureText("Score : 9 999 999").width;
     var statusheight = 1.3 * STATUS_FONT_SIZE;
     var mapheight = this._maze.getHeight() + LINE_WIDTH;
@@ -813,7 +985,6 @@ PlayingScreen.prototype._drawStatus = function()
                      statusheight);
     
     context.fillStyle = "white";
-    context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
     
     context.fillText("Score : " + this._status.getScore(),
                      this._paddingLeft + STATUS_PADDINGLEFT,
@@ -868,7 +1039,6 @@ PlayingScreen.prototype.draw = function()
                      this._height);
                      
     this._drawMaze();
-    this._pacman.draw();
     this._drawPacman();
     this._drawStatus();
 };
@@ -1448,12 +1618,13 @@ var graphicsLoop = function()
     if (state === GameState.PLAYING)
     {
         playingscreen.draw();
+        pausescreen.draw();
     }
     else if (state === GameState.PAUSE)
     {
         
     }
-    else    /* state === GameState.MAINMENU */
+    else    /* state === GameState.MAIN */
     {
         
     }
@@ -1490,16 +1661,31 @@ var logicLoop = function()
             
             if (state === GameState.PLAYING)
             {
+                /*
+                    compute the elements movement between the previous update
+                    and the pressed key date
+                */
                 playingscreen.move(keydate - lastupdate);
                 nextstate = playingscreen.handleInput(key);
                 lastupdate = keydate;
                 
                 if (pressedkeys.length === 0)
                 {
-                    playingscreen.move(newupdate - lastupdate);
+                    /*
+                        compute the elements movement between the last pressed key
+                        date and now
+                    */
+                    playingscreen.move(newupdate - keydate);
                 }
             }
-            else
+            else if (state === GameState.PAUSE)
+            {
+                lastupdate = keydate;
+                /* TODO
+                    ne permettre que la navigation au clavier
+                */
+            }
+            else    /* state === GameState.MAIN */
             {
                 
             }
@@ -1508,52 +1694,8 @@ var logicLoop = function()
         }
     }
     
-    /*for(var i=0;i<pressedkeys.length;i++)
-    {
-        var key = pressedkeys.shift();
-        
-        if (state === GameState.PLAYING)
-        {
-            playingscreen.handleInput(key);
-        }
-        else if (state === GameState.PAUSE)
-        {
-            
-        }
-        else    // state === GameState.MAINMENU
-        {
-            
-        }*/
-        /*
-        if (key === 80)
-        {
-            pause = !pause;
-        }
-        else
-        {
-            if (pause)
-            {
-                //setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
-                //return;
-            }
-            else
-            {*/
-                //playingscreen.handleInput(key);
-            /*}
-        }*/
-    /*}*/
-    
-    /*if (pause)
-            {
-                setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
-                return;
-            }*/
-    
     lastupdate = newupdate;
     
-    /* animation management */
-    
-    //pacman.animate(elapsed);
     //console.log(performance.now()-tmp1);
     //TODO if (performance.now()-newupdate) > 1000/LOGIC_REFRESH_RATE,
     //     then settimeout(logicLoop, k*1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate))
@@ -1582,7 +1724,7 @@ var logicLoop = function()
     - ajouter les fantomes
     - ajouter les power pellets
     - dans checkConfiguration(), verifier si pr le menu la taille specifiée et la police et sa taille peuvent rentrer dedans, ...
-    - implement pause (PauseScreen + PauseMenu)
+    - implement pause
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -1595,15 +1737,26 @@ checkConfiguration();
 
 /* init the game */
 
-/* TODO
-on met la taille du canvas automatiquement : on appelle les getHeight()/Width() des differents screens : on obtiendra un genre de PPCM => on prend la hauteur et la largeur max de ce qu'on obtient, puis on appelle pour chacun un setPadding() qui mettra dans une propriété perso le padding necessaire pour etre centré dans le canvas qui sera trop grand pour certains (en utilisant les propriétés width et size pour chaque XXXView)
-*/
+var maxheight = 0;
+var maxwidth = 0;
 
 playingscreen = new PlayingScreen();
-playingscreen.addPaddingLeft((canvas.width - playingscreen.getWidth())/2);
-canvas.height = playingscreen.getHeight();
+pausescreen = new PauseScreen();
 
-console.log("yeaaaaah 7");
+if (playingscreen.getHeight() > maxheight) {maxheight = playingscreen.getHeight();}
+if (playingscreen.getWidth() > maxwidth) {maxwidth = playingscreen.getWidth();}
+
+if (pausescreen.getHeight() > maxheight) {pausescreen = playingscreen.getHeight();}
+if (pausescreen.getWidth() > maxwidth) {pausescreen = playingscreen.getWidth();}
+
+canvas.height = maxheight;
+//TODO canvas.width = maxwidth;     // une fois les tests termines
+
+playingscreen.addPaddingLeft((1000 - playingscreen.getWidth())/2);  //TODO remplacer 1000 par maxwidth
+playingscreen.addPaddingTop((maxheight - playingscreen.getHeight())/2);
+
+pausescreen.addPaddingLeft((1000 - pausescreen.getWidth())/2);      //TODO remplacer 1000 par maxwidth
+pausescreen.addPaddingTop((maxheight - pausescreen.getHeight())/2);
 
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
