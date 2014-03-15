@@ -532,7 +532,7 @@ PlayingScreen.prototype.addPaddingTop = function(paddingTop)
     assert((typeof paddingTop === "number"), "paddingTop is not a number");
     
     this._paddingTop += paddingTop;
-    this._pacman.addPaddingTop(paddingTop);
+    //this._pacman.addPaddingTop(paddingTop);
 };
 
 PlayingScreen.prototype.addPaddingLeft = function(paddingLeft)
@@ -540,7 +540,7 @@ PlayingScreen.prototype.addPaddingLeft = function(paddingLeft)
     assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
     
     this._paddingLeft += paddingLeft;
-    this._pacman.addPaddingLeft(paddingLeft);
+    //this._pacman.addPaddingLeft(paddingLeft);
 };
 
 PlayingScreen.prototype.getWidth = function()
@@ -838,6 +838,26 @@ PlayingScreen.prototype._drawStatus = function()
     }
 };
 
+PlayingScreen.prototype._drawPacman = function()
+{
+    context.fillStyle = "yellow";
+    context.beginPath();
+    context.moveTo(this._pacman.getPosition().getX() + this._paddingLeft,
+                   this._pacman.getPosition().getY() + this._paddingTop);
+    
+    //
+    //    if arc() has the same start and end angles (mouth shutted), nothing is
+    //    done ; a little trick to have a circle in this case is to use the fact
+    //    that angles are modulo(2*PI)
+    //
+    context.arc(this._paddingLeft + this._pacman.getPosition().getX(),
+                this._paddingTop + this._pacman.getPosition().getY(),
+                PACMAN_RADIUS,
+                this._pacman.getMouthstartangle(),
+                this._pacman.getMouthendangle());
+    context.fill();
+};
+
 PlayingScreen.prototype.draw = function()
 {
     context.fillStyle = "green";
@@ -849,6 +869,7 @@ PlayingScreen.prototype.draw = function()
                      
     this._drawMaze();
     this._pacman.draw();
+    this._drawPacman();
     this._drawStatus();
 };
 
@@ -1237,9 +1258,6 @@ var Pacman = function(x, y, direction, maze)
     this._nextdirection = null;     // direction requested
     this._nextturn = null;          // intersection that allows movement in the requested direction
     
-    this._paddingTop = 0;
-    this._paddingLeft = 0;
-    
     this._animtime = 0;
     this._mouthstartangle = 0;
     this._mouthendangle = 2 * Math.PI;
@@ -1247,18 +1265,14 @@ var Pacman = function(x, y, direction, maze)
     this._currentline = maze.mazeCurrentLine(this._position, this._direction);
 };
 
-Pacman.prototype.addPaddingTop = function(paddingTop)
+Pacman.prototype.getMouthstartangle = function()
 {
-    assert((typeof paddingTop === "number"), "paddingTop is not a number");
-    
-    this._paddingTop += paddingTop;
+    return this._mouthstartangle;
 };
 
-Pacman.prototype.addPaddingLeft = function(paddingLeft)
+Pacman.prototype.getMouthendangle = function()
 {
-    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
-    
-    this._paddingLeft += paddingLeft;
+    return this._mouthendangle;
 };
 
 Pacman.prototype.getCurrentline = function()
@@ -1362,26 +1376,6 @@ Pacman.prototype.changeDirection = function(direction, maze)
         
         this._nextturn = (point === undefined) ? null : point ;
     }
-};
-
-Pacman.prototype.draw = function()
-{
-    context.fillStyle = "yellow";
-    context.beginPath();
-    context.moveTo(this._position.getX() + this._paddingLeft,
-                   this._position.getY() + this._paddingTop);
-    
-    /*
-        if arc() has the same start and end angles (mouth shutted), nothing is
-        done ; a little trick to have a circle in this case is to use the fact
-        that angles are modulo(2*PI)
-    */
-    context.arc(this._position.getX() + this._paddingLeft,
-                this._position.getY() + this._paddingTop,
-                PACMAN_RADIUS,
-                this._mouthstartangle,
-                this._mouthendangle);
-    context.fill();
 };
 
 Pacman.prototype.animate = function(elapsed)
@@ -1588,7 +1582,7 @@ var logicLoop = function()
     - ajouter les fantomes
     - ajouter les power pellets
     - dans checkConfiguration(), verifier si pr le menu la taille specifiée et la police et sa taille peuvent rentrer dedans, ...
-    - implement pause (PauseScreen + PauseMenu + PauseMenuView)
+    - implement pause (PauseScreen + PauseMenu)
 */
 
 var canvas = document.getElementById("gamecanvas");
