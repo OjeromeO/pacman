@@ -10,13 +10,18 @@ Object.defineProperties(Direction,
     "RIGHT":  {value: 4, writable: false, configurable: false, enumerable: true}
 });
 
+/*
+    - items for the pause menu ; they will appear in increasing order
+    - values need to start at 0 and to be incremented by 1 each time
+      as we use an array
+*/
 var PauseMenuItem = {};
 Object.defineProperties(PauseMenuItem,
 {
-    "RESUME":  {value: "resume", writable: false, configurable: false, enumerable: true},
-    "QUIT":  {value: "quit", writable: false, configurable: false, enumerable: true}
+    "RESUME":  {value: 0, writable: false, configurable: false, enumerable: true},
+    "QUIT":  {value: 1, writable: false, configurable: false, enumerable: true}
 });
-PauseMenuItem.count = 2;
+
 
 var GameState = {};
 Object.defineProperties(GameState,
@@ -527,9 +532,9 @@ PauseScreen.prototype._computeSize = function()
     
     context.font = PAUSEMENU_FONT_SIZE + "px " + PAUSEMENU_FONT;
     
-    for(var item in this._pausemenu.getItems())
+    for(var i=0; i<this._pausemenu.getItems().length; i++)
     {
-        var itemwidth = context.measureText(this._pausemenu.getItems()[item]).width;
+        var itemwidth = context.measureText(this._pausemenu.getItems()[i]).width;
         if (itemwidth > textmaxwidth)
         {
             textmaxwidth = itemwidth;
@@ -539,7 +544,8 @@ PauseScreen.prototype._computeSize = function()
     this._width = PAUSEMENU_HPADDING + textmaxwidth + PAUSEMENU_HPADDING;
     
     this._height += PAUSEMENU_VPADDING;
-    for(var item in this._pausemenu.getItems())
+    
+    for(var i=0; i<this._pausemenu.getItems().length; i++)
     {
         this._height += textheight;
         this._height += PAUSEMENU_ITEMSDISTANCE;
@@ -572,6 +578,31 @@ PauseScreen.prototype.getHeight = function()
     return this._height;
 };
 
+PauseScreen.prototype.handleInput = function(key)
+{
+    if (key === 38)         /* up arrow */
+    {
+        this._pausemenu.changeToPreviousItem();
+    }
+    else if (key === 40)    /* down arrow */
+    {
+        this._pausemenu.changeToNextItem();
+    }
+    else if (key === 13)    /* enter key */
+    {
+        if (this._pausemenu.getCurrent() === PauseMenuItem.RESUME)
+        {
+            return GameState.PLAYING;
+        }
+        else if (this._pausemenu.getCurrent() === PauseMenuItem.QUIT)
+        {
+            //TODO
+        }
+    }
+    
+    return GameState.PAUSE;
+};
+
 PauseScreen.prototype.draw = function()
 {
     var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
@@ -579,9 +610,9 @@ PauseScreen.prototype.draw = function()
     
     context.font = PAUSEMENU_FONT_SIZE + "px " + PAUSEMENU_FONT;
     
-    for(var item in this._pausemenu.getItems())
+    for(var i=0; i<this._pausemenu.getItems().length; i++)
     {
-        var itemwidth = context.measureText(this._pausemenu.getItems()[item]).width;
+        var itemwidth = context.measureText(this._pausemenu.getItems()[i]).width;
         if (itemwidth > textmaxwidth)
         {
             textmaxwidth = itemwidth;
@@ -597,7 +628,7 @@ PauseScreen.prototype.draw = function()
     
     context.fillStyle = "blue";
     
-    for(var i=0; i<PauseMenuItem.count; i++)
+    for(var i=0; i<this._pausemenu.getItems().length; i++)
     {
         context.fillRect(this._paddingLeft + PAUSEMENU_HPADDING,
                          this._paddingTop + PAUSEMENU_VPADDING + i*(textheight + PAUSEMENU_ITEMSDISTANCE),
@@ -605,12 +636,19 @@ PauseScreen.prototype.draw = function()
                          textheight);
     }
     
-    context.fillStyle = "white";
-    
     var yval = 0;
-    for(var item in this._pausemenu.getItems())
+    for(var i=0; i<this._pausemenu.getItems().length; i++)
     {
-        context.fillText(this._pausemenu.getItems()[item],
+        if (i === this._pausemenu.getCurrent())
+        {
+            context.fillStyle = "white";
+        }
+        else
+        {
+            context.fillStyle = "gray";
+        }
+        
+        context.fillText(this._pausemenu.getItems()[i],
                          this._paddingLeft + PAUSEMENU_HPADDING,
                          this._paddingTop + PAUSEMENU_VPADDING + PAUSEMENU_FONT_SIZE + yval);
         
@@ -622,9 +660,9 @@ PauseScreen.prototype.draw = function()
 
 var PauseMenu = function()
 {
-    this._current = null;
+    this._current = PauseMenuItem.RESUME;
     
-    this._items = {};
+    this._items = [];
     this._items[PauseMenuItem.RESUME] = PAUSEMENU_RESUMESTRING;
     this._items[PauseMenuItem.QUIT] = PAUSEMENU_QUITSTRING;
 };
@@ -644,6 +682,22 @@ PauseMenu.prototype.setCurrent = function(item)
 PauseMenu.prototype.getItems = function()
 {
     return this._items;
+};
+
+PauseMenu.prototype.changeToPreviousItem = function()
+{
+    if (this._current > 0)
+    {
+        this._current--;
+    }
+};
+
+PauseMenu.prototype.changeToNextItem = function()
+{
+    if (this._current < this._items.length-1)
+    {
+        this._current++;
+    }
 };
 
 /**************************** PlayingScreen class *****************************/
@@ -788,10 +842,26 @@ PlayingScreen.prototype._normalizeCoordinates = function()
 
 PlayingScreen.prototype.handleInput = function(key)
 {
-    if (key === 37) {this._pacman.changeDirection(Direction.LEFT, this._maze);}
-    else if (key === 38) {this._pacman.changeDirection(Direction.UP, this._maze);}
-    else if (key === 39) {this._pacman.changeDirection(Direction.RIGHT, this._maze);}
-    else if (key === 40) {this._pacman.changeDirection(Direction.DOWN, this._maze);}
+    if (key === 37)         /* left arrow */
+    {
+        this._pacman.changeDirection(Direction.LEFT, this._maze);
+    }
+    else if (key === 38)    /* up arrow */
+    {
+        this._pacman.changeDirection(Direction.UP, this._maze);
+    }
+    else if (key === 39)    /* right arrow */
+    {
+        this._pacman.changeDirection(Direction.RIGHT, this._maze);
+    }
+    else if (key === 40)    /* down arrow */
+    {
+        this._pacman.changeDirection(Direction.DOWN, this._maze);
+    }
+    else if (key === 32)    /* space bar */
+    {
+        return GameState.PAUSE;
+    }
     
     return GameState.PLAYING;
 };
@@ -1613,16 +1683,15 @@ var keyEventListener= function(e)
 
 var graphicsLoop = function()
 {
-    //XXX count1++;
-    tmp2 = performance.now();
+    //count1++;
+    //tmp2 = performance.now();
     if (state === GameState.PLAYING)
     {
         playingscreen.draw();
-        pausescreen.draw();
     }
     else if (state === GameState.PAUSE)
     {
-        
+        pausescreen.draw();
     }
     else    /* state === GameState.MAIN */
     {
@@ -1635,8 +1704,8 @@ var graphicsLoop = function()
 var logicLoop = function()
 {
     tmp1 = performance.now();
-    //XXX count2++;
-    //XXX if (performance.now() - firstupdate > 1000) {console.log(count1 + ", " + count2); firstupdate = performance.now(); count1 = 0; count2 = 0;}
+    //count2++;
+    //if (performance.now() - firstupdate > 1000) {console.log(count1 + ", " + count2); firstupdate = performance.now(); count1 = 0; count2 = 0;}
     newupdate = performance.now();
     var elapsed = newupdate - lastupdate;
     
@@ -1669,10 +1738,11 @@ var logicLoop = function()
                 nextstate = playingscreen.handleInput(key);
                 lastupdate = keydate;
                 
-                if (pressedkeys.length === 0)
+                if (nextstate === GameState.PLAYING
+                 && pressedkeys.length === 0)
                 {
                     /*
-                        compute the elements movement between the last pressed key
+                        compute the elements movement between the pressed key
                         date and now
                     */
                     playingscreen.move(newupdate - keydate);
@@ -1681,9 +1751,18 @@ var logicLoop = function()
             else if (state === GameState.PAUSE)
             {
                 lastupdate = keydate;
-                /* TODO
-                    ne permettre que la navigation au clavier
-                */
+                
+                nextstate = pausescreen.handleInput(key);
+                
+                if (nextstate === GameState.PLAYING
+                 && pressedkeys.length === 0)
+                {
+                    /*
+                        compute the elements movement between the pressed key
+                        date and now
+                    */
+                    playingscreen.move(newupdate - keydate);
+                }
             }
             else    /* state === GameState.MAIN */
             {
@@ -1720,16 +1799,14 @@ var logicLoop = function()
     the position and the animation state), and x/y properties, ... and something
     to animate, like passing the timestamp ? or an other solution ?=> the static
     method update())
+    - implement main
     - a Game class
-    - ajouter les fantomes
-    - ajouter les power pellets
-    - dans checkConfiguration(), verifier si pr le menu la taille specifiée et la police et sa taille peuvent rentrer dedans, ...
-    - implement pause
+    - add ghosts
+    - add power pellets
+    - inside checkConfiguration(), check for the menus if their size and size font are OK, ...
 */
 
 var canvas = document.getElementById("gamecanvas");
-canvas.width = 1000;
-canvas.height = 1000;
 
 context = canvas.getContext("2d");
 
@@ -1750,12 +1827,12 @@ if (pausescreen.getHeight() > maxheight) {pausescreen = playingscreen.getHeight(
 if (pausescreen.getWidth() > maxwidth) {pausescreen = playingscreen.getWidth();}
 
 canvas.height = maxheight;
-//TODO canvas.width = maxwidth;     // une fois les tests termines
+canvas.width = maxwidth;
 
-playingscreen.addPaddingLeft((1000 - playingscreen.getWidth())/2);  //TODO remplacer 1000 par maxwidth
+playingscreen.addPaddingLeft((maxwidth - playingscreen.getWidth())/2);
 playingscreen.addPaddingTop((maxheight - playingscreen.getHeight())/2);
 
-pausescreen.addPaddingLeft((1000 - pausescreen.getWidth())/2);      //TODO remplacer 1000 par maxwidth
+pausescreen.addPaddingLeft((maxwidth - pausescreen.getWidth())/2);
 pausescreen.addPaddingTop((maxheight - pausescreen.getHeight())/2);
 
 canvas.addEventListener("keydown", keyEventListener);
@@ -1770,9 +1847,6 @@ firstupdate = lastupdate;
 
 graphicsLoop();
 logicLoop();
-
-
-
 
 
 
