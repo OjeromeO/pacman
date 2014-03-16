@@ -70,6 +70,10 @@ var STATUS_FONT = "sans-serif";
 var STATUS_FONT_SIZE = 30;
 var STATUS_PADDINGLEFT = 20;
 
+/*
+    a "nopacdots" property means that the line will not have any pacdots on it
+    (except on an intersection with a line containing pacdots)
+*/
 var MAZE_LINES = [
                  /* horizontal lines */
                  
@@ -83,12 +87,12 @@ var MAZE_LINES = [
                  {x1: 330, y1: 190, x2: 390, y2: 190},
                  {x1: 450, y1: 190, x2: 550, y2: 190},
                  
-                 {x1: 210, y1: 250, x2: 390, y2: 250},
+                 {x1: 210, y1: 250, x2: 390, y2: 250, nopacdots: "defined"},
                  
-                 {x1: 50, y1: 310, x2: 210, y2: 310},
-                 {x1: 390, y1: 310, x2: 550, y2: 310},
+                 {x1: 50, y1: 310, x2: 210, y2: 310, nopacdots: "defined"},
+                 {x1: 390, y1: 310, x2: 550, y2: 310, nopacdots: "defined"},
                  
-                 {x1: 210, y1: 370, x2: 390, y2: 370},
+                 {x1: 210, y1: 370, x2: 390, y2: 370, nopacdots: "defined"},
                  
                  {x1: 50, y1: 430, x2: 270, y2: 430},
                  {x1: 330, y1: 430, x2: 550, y2: 430},
@@ -117,11 +121,11 @@ var MAZE_LINES = [
                  {x1: 210, y1: 130, x2: 210, y2: 190},
                  {x1: 390, y1: 130, x2: 390, y2: 190},
                  
-                 {x1: 270, y1: 190, x2: 270, y2: 250},
-                 {x1: 330, y1: 190, x2: 330, y2: 250},
+                 {x1: 270, y1: 190, x2: 270, y2: 250, nopacdots: "defined"},
+                 {x1: 330, y1: 190, x2: 330, y2: 250, nopacdots: "defined"},
                  
-                 {x1: 210, y1: 250, x2: 210, y2: 430},
-                 {x1: 390, y1: 250, x2: 390, y2: 430},
+                 {x1: 210, y1: 250, x2: 210, y2: 430, nopacdots: "defined"},
+                 {x1: 390, y1: 250, x2: 390, y2: 430, nopacdots: "defined"},
                  
                  {x1: 50, y1: 430, x2: 50, y2: 490},
                  {x1: 270, y1: 430, x2: 270, y2: 490},
@@ -192,9 +196,9 @@ var isPauseMenuItem = function(item)
 
 var isVertical = function(arg)      /* overloading powaaa ^^ */
 {
-    assert((arg instanceof LineHV2D || isDirection(arg)), "argument is not a Direction nor a LineHV2D");
+    assert((arg instanceof Line || isDirection(arg)), "argument is not a Direction nor a Line");
     
-    if (arg instanceof LineHV2D)
+    if (arg instanceof Line)
     {
         return (arg.getPoint1().getX() === arg.getPoint2().getX()) ? true : false ;
     }
@@ -206,9 +210,9 @@ var isVertical = function(arg)      /* overloading powaaa ^^ */
 
 var isHorizontal = function(arg)
 {
-    assert((arg instanceof LineHV2D || isDirection(arg)), "argument is not a Direction nor a LineHV2D");
+    assert((arg instanceof Line || isDirection(arg)), "argument is not a Direction nor a Line");
     
-    if (arg instanceof LineHV2D)
+    if (arg instanceof Line)
     {
         return (arg.getPoint1().getY() === arg.getPoint2().getY()) ? true : false ;
     }
@@ -241,7 +245,7 @@ var checkConfiguration = function()
     var xmin = MAZE_LINES[0].x1;
     var ymin = MAZE_LINES[0].y1;
     
-    var pacman = new Point2D(PACMAN_STARTX, PACMAN_STARTY);
+    var pacman = new Point(PACMAN_STARTX, PACMAN_STARTY);
     var isPacmanInMaze = false;
 
     for(var i=0; i<MAZE_LINES.length; i++)
@@ -251,12 +255,12 @@ var checkConfiguration = function()
         assert((typeof MAZE_LINES[i].x2 === "number"), "MAZE_LINES[" + i + "].x2 value not valid");
         assert((typeof MAZE_LINES[i].y2 === "number"), "MAZE_LINES[" + i + "].y2 value not valid");
         
-        var p1 = new Point2D(MAZE_LINES[i].x1, MAZE_LINES[i].y1);
-        var p2 = new Point2D(MAZE_LINES[i].x2, MAZE_LINES[i].y2);
+        var p1 = new Point(MAZE_LINES[i].x1, MAZE_LINES[i].y1);
+        var p2 = new Point(MAZE_LINES[i].x2, MAZE_LINES[i].y2);
         
         assert((p1.getX() === p2.getX() || p1.getY() === p2.getY()), "MAZE_LINES[" + i + "] points value will not create a horizontal nor a vertical line");
         
-        var l = new LineHV2D(p1, p2);
+        var l = new Line(p1, p2);
         
         if (l.containsPoint(pacman)) {isPacmanInMaze = true;}
         
@@ -276,9 +280,9 @@ var checkConfiguration = function()
     }
 };
 
-/********************************* Point class ********************************/
+/******************************** Point class *******************************/
 
-var Point2D = function(x, y)
+var Point = function(x, y)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -287,31 +291,31 @@ var Point2D = function(x, y)
     this._y = y;
 };
 
-Point2D.prototype.getX = function()
+Point.prototype.getX = function()
 {
     return this._x;
 };
 
-Point2D.prototype.getY = function()
+Point.prototype.getY = function()
 {
     return this._y;
 };
 
-Point2D.prototype.setX = function(x)
+Point.prototype.setX = function(x)
 {
     assert((typeof x === "number"), "x is not a number");
     
     this._x = x;
 };
 
-Point2D.prototype.setY = function(y)
+Point.prototype.setY = function(y)
 {
     assert((typeof y === "number"), "y is not a number");
     
     this._y = y;
 };
 
-Point2D.prototype.set = function(x, y)
+Point.prototype.set = function(x, y)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -320,33 +324,34 @@ Point2D.prototype.set = function(x, y)
     this._y = y;
 };
 
-Point2D.prototype.equals = function(point)
+Point.prototype.equals = function(point)
 {
-    assert((point instanceof Point2D), "point is not a Point2D");
+    assert((point instanceof Point), "point is not a Point");
     
     return (this._x === point.getX() && this._y === point.getY()) ? true : false ;
 };
 
-Point2D.prototype.distance = function(point)
+Point.prototype.distance = function(point)
 {
-    assert((point instanceof Point2D), "point is not a Point2D");
+    assert((point instanceof Point), "point is not a Point");
     
     return Math.sqrt(Math.pow(point.getX()-this.getX(), 2) + Math.pow(point.getY()-this.getY(), 2));
 };
 
-/********************************* Line class *********************************/
+/******************************* Line class *******************************/
 
 /*
-    - HV stands for "Horizontal or Vertical"
+    - Line creates horizontal or vertical lines
     - the instances first point will be the nearest of the origin (the way the
-      constructor ensures that is only valid for H or V lines)
+      constructor ensures that is only valid for horizontal or vertical lines)
 */
-var LineHV2D = function(point1, point2)
+var Line = function(point1, point2, hasPacdots)
 {
-    assert((point1 instanceof Point2D), "point1 is not a Point2D");
-    assert((point2 instanceof Point2D), "point2 is not a Point2D");
+    assert((point1 instanceof Point), "point1 is not a Point");
+    assert((point2 instanceof Point), "point2 is not a Point");
     assert((point1.getX() === point2.getX() || point1.getY() === point2.getY()),
            "points will not create a horizontal nor a vertical line");
+    assert((typeof hasPacdots === "undefined" || typeof hasPacdots === "boolean"), "hasPacdots is not a boolean");
     
     //XXX   should we clone the "pointZ" objects instead of just referencing them ?
     
@@ -360,19 +365,26 @@ var LineHV2D = function(point1, point2)
         this._point1 = point2;
         this._point2 = point1;
     }
+    
+    this._hasPacdots = (typeof hasPacdots === "undefined") ? true : hasPacdots ;
 };
 
-LineHV2D.prototype.getPoint1 = function()
+Line.prototype.getHasPacdots = function()
+{
+    return this._hasPacdots;
+};
+
+Line.prototype.getPoint1 = function()
 {
     return this._point1;
 };
 
-LineHV2D.prototype.getPoint2 = function()
+Line.prototype.getPoint2 = function()
 {
     return this._point2;
 };
 
-LineHV2D.prototype.size = function()
+Line.prototype.size = function()
 {
     if (isVertical(this))
     {
@@ -384,19 +396,27 @@ LineHV2D.prototype.size = function()
     }
 };
 
-LineHV2D.prototype.XAxis = function()
+Line.prototype.XAxis = function()
 {
-    return (isVertical(this)) ? this._point1.getX() : undefined ;
+    if (isVertical(this))
+    {
+        return this._point1.getX();
+    }
+    /* else "undefined" */
 };
 
-LineHV2D.prototype.YAxis = function()
+Line.prototype.YAxis = function()
 {
-    return (isHorizontal(this)) ? this._point1.getY() : undefined ;
+    if (isHorizontal(this))
+    {
+        return this._point1.getY();
+    }
+    /* else "undefined" */
 };
 
-LineHV2D.prototype.isInXIntervalOf = function(line)
+Line.prototype.isInXIntervalOf = function(line)
 {
-    assert((line instanceof LineHV2D), "line is not a LineHV2D");
+    assert((line instanceof Line), "line is not a Line");
     
     if (this._point1.getX() >= line.getPoint1().getX()
      && this._point2.getX() <= line.getPoint2().getX())
@@ -409,9 +429,9 @@ LineHV2D.prototype.isInXIntervalOf = function(line)
     }
 };
 
-LineHV2D.prototype.isInYIntervalOf = function(line)
+Line.prototype.isInYIntervalOf = function(line)
 {
-    assert((line instanceof LineHV2D), "line is not a LineHV2D");
+    assert((line instanceof Line), "line is not a Line");
     
     if (this._point1.getY() >= line.getPoint1().getY()
      && this._point2.getY() <= line.getPoint2().getY())
@@ -424,9 +444,9 @@ LineHV2D.prototype.isInYIntervalOf = function(line)
     }
 };
 
-LineHV2D.prototype.isCrossing = function(line)
+Line.prototype.isCrossing = function(line)
 {
-    assert((line instanceof LineHV2D), "line is not a LineHV2D");
+    assert((line instanceof Line), "line is not a Line");
     
     if ((this.isInYIntervalOf(line) && line.isInXIntervalOf(this))
      || (this.isInXIntervalOf(line) && line.isInYIntervalOf(this)))
@@ -437,9 +457,9 @@ LineHV2D.prototype.isCrossing = function(line)
     return false;
 };
 
-LineHV2D.prototype.containsPoint = function(point)
+Line.prototype.containsPoint = function(point)
 {
-    assert((point instanceof Point2D), "point is not a Point2D");
+    assert((point instanceof Point), "point is not a Point");
     
     if (point.getY() >= this._point1.getY() && point.getY() <= this.getPoint2().getY()
      && point.getX() >= this._point1.getX() && point.getX() <= this.getPoint2().getX())
@@ -452,7 +472,7 @@ LineHV2D.prototype.containsPoint = function(point)
     }
 };
 
-LineHV2D.prototype.containsX = function(x)
+Line.prototype.containsX = function(x)
 {
     assert((typeof x === "number"), "x is not a number");
     
@@ -467,7 +487,7 @@ LineHV2D.prototype.containsX = function(x)
     }
 };
 
-LineHV2D.prototype.containsY = function(y)
+Line.prototype.containsY = function(y)
 {
     assert((typeof y === "number"), "y is not a number");
     
@@ -482,7 +502,7 @@ LineHV2D.prototype.containsY = function(y)
     }
 };
 
-LineHV2D.prototype.containsXStrictly = function(x)
+Line.prototype.containsXStrictly = function(x)
 {
     assert((typeof x === "number"), "x is not a number");
     
@@ -496,7 +516,7 @@ LineHV2D.prototype.containsXStrictly = function(x)
     }
 };
 
-LineHV2D.prototype.containsYStrictly = function(y)
+Line.prototype.containsYStrictly = function(y)
 {
     assert((typeof y === "number"), "y is not a number");
     
@@ -914,7 +934,7 @@ PlayingScreen.prototype.move = function(elapsed)
         
         /* check if pacman has eaten some pacdots... */
         
-        var travelled = new LineHV2D(this._pacman.getPosition(), new Point2D(newx, newy));
+        var travelled = new Line(this._pacman.getPosition(), new Point(newx, newy));
         
         for(var i=0; i<this._maze.pacdotsCount(); i++)
         {
@@ -960,8 +980,8 @@ PlayingScreen.prototype.move = function(elapsed)
         
         /* check if pacman has eaten some pacdots... */
         
-        var travelled1 = new LineHV2D(this._pacman.getPosition(), this._pacman.getNextTurn());
-        var travelled2 = new LineHV2D(this._pacman.getNextTurn(), new Point2D(newx, newy));
+        var travelled1 = new Line(this._pacman.getPosition(), this._pacman.getNextTurn());
+        var travelled2 = new Line(this._pacman.getNextTurn(), new Point(newx, newy));
         
         for(var i=0; i<this._maze.pacdotsCount(); i++)
         {
@@ -1165,15 +1185,26 @@ var Maze = function(mazelines)
     //XXX   should we clone the "mazelines" object instead of just referencing it ?
     
     //TODO  check if lines don't overlap with one another => if overlap, create
-    //      a new one containing the two lines overlapping
+    //      a new one containing the two lines overlapping (they need to be of
+    //      the same type : the 2 with pacdots, or the 2 without pacdots)
     assert((mazelines instanceof Array && mazelines.length > 0), "mazelines is not an array");
+    
+    var xmin = mazelines[0].getPoint1().getX();
+    var ymin = mazelines[0].getPoint1().getY();
+
+    for(var i=1; i<mazelines.length; i++)
+    {
+        if (mazelines[i].getPoint1().getX() < xmin) {xmin = mazelines[i].getPoint1().getX();}
+        if (mazelines[i].getPoint1().getY() < ymin) {ymin = mazelines[i].getPoint1().getY();}
+    }
+    
     for(var i=0; i<mazelines.length; i++)
     {
-        assert((mazelines[i] instanceof LineHV2D), "line " + i +" is not a LineHV2D");
-        assert((((mazelines[i].getPoint1().getX()-50) % GRID_UNIT) === 0
-             && ((mazelines[i].getPoint1().getY()-50) % GRID_UNIT) === 0
-             && ((mazelines[i].getPoint2().getX()-50) % GRID_UNIT) === 0
-             && ((mazelines[i].getPoint2().getY()-50) % GRID_UNIT) === 0),
+        assert((mazelines[i] instanceof Line), "line " + i +" is not a Line");
+        assert((((mazelines[i].getPoint1().getX()-xmin) % GRID_UNIT) === 0
+             && ((mazelines[i].getPoint1().getY()-ymin) % GRID_UNIT) === 0
+             && ((mazelines[i].getPoint2().getX()-xmin) % GRID_UNIT) === 0
+             && ((mazelines[i].getPoint2().getY()-ymin) % GRID_UNIT) === 0),
              "line n°" + i +" points are not on the game grid, using " + GRID_UNIT + " pixels unit");
     }
     
@@ -1192,6 +1223,15 @@ Maze.createFromArrayOfLitterals = function(mazelines)
 {
     assert((mazelines instanceof Array && mazelines.length > 0), "mazelines is not an array");
     
+    var xmin = mazelines[0].x1;
+    var ymin = mazelines[0].y1;
+
+    for(var i=1; i<mazelines.length; i++)
+    {
+        if (mazelines[i].x1 < xmin) {xmin = mazelines[i].x1;}
+        if (mazelines[i].y1 < ymin) {ymin = mazelines[i].y1;}
+    }
+    
     for(var i=0; i<mazelines.length; i++)
     {
         assert((typeof mazelines[i].x1 === "number"), "mazelines[" + i + "].x1 value not valid");
@@ -1199,15 +1239,15 @@ Maze.createFromArrayOfLitterals = function(mazelines)
         assert((typeof mazelines[i].x2 === "number"), "mazelines[" + i + "].x2 value not valid");
         assert((typeof mazelines[i].y2 === "number"), "mazelines[" + i + "].y2 value not valid");
         
-        var p1 = new Point2D(mazelines[i].x1, mazelines[i].y1);
-        var p2 = new Point2D(mazelines[i].x2, mazelines[i].y2);
+        var p1 = new Point(mazelines[i].x1, mazelines[i].y1);
+        var p2 = new Point(mazelines[i].x2, mazelines[i].y2);
         
         assert((p1.getX() === p2.getX() || p1.getY() === p2.getY()), "mazelines[" + i + "] points value will not create a horizontal nor a vertical line");
         
-        assert((((p1.getX()-50) % GRID_UNIT) === 0
-             && ((p1.getY()-50) % GRID_UNIT) === 0
-             && ((p2.getX()-50) % GRID_UNIT) === 0
-             && ((p2.getY()-50) % GRID_UNIT) === 0),
+        assert((((p1.getX()-xmin) % GRID_UNIT) === 0
+             && ((p1.getY()-ymin) % GRID_UNIT) === 0
+             && ((p2.getX()-xmin) % GRID_UNIT) === 0
+             && ((p2.getY()-ymin) % GRID_UNIT) === 0),
              "line n°" + i +" points will not be on the game grid, using " + GRID_UNIT + " pixels unit");
     }
     
@@ -1215,8 +1255,11 @@ Maze.createFromArrayOfLitterals = function(mazelines)
 
     for(var i=0; i<mazelines.length; i++)
     {
-        lines.push(new LineHV2D(new Point2D(mazelines[i].x1, mazelines[i].y1),
-                                new Point2D(mazelines[i].x2, mazelines[i].y2)));
+        var hasPacdots = (typeof mazelines[i].nopacdots === "undefined") ? true : false ;
+        
+        lines.push(new Line(new Point(mazelines[i].x1, mazelines[i].y1),
+                            new Point(mazelines[i].x2, mazelines[i].y2),
+                            hasPacdots));
     }
     
     return new Maze(lines);
@@ -1260,28 +1303,31 @@ Maze.prototype._generatePacdots = function()
     
     for(var i=0; i<this._mazelines.length; i++)
     {
-        var line = this._mazelines[i];
-        var start = 0;
-        var end = 0;
-        
-        if (isVertical(line))
+        if (this._mazelines[i].getHasPacdots() === true)
         {
-            start = line.getPoint1().getY();
-            end = line.getPoint2().getY();
+            var line = this._mazelines[i];
+            var start = 0;
+            var end = 0;
             
-            for(var j=start; j<=end; j+=GRID_UNIT)
+            if (isVertical(line))
             {
-                this._pacdots.push(new Point2D(line.XAxis(), j));
+                start = line.getPoint1().getY();
+                end = line.getPoint2().getY();
+                
+                for(var j=start; j<=end; j+=GRID_UNIT)
+                {
+                    this._pacdots.push(new Point(line.XAxis(), j));
+                }
             }
-        }
-        else
-        {
-            start = line.getPoint1().getX();
-            end = line.getPoint2().getX();
-            
-            for(var j=start; j<=end; j+=GRID_UNIT)
+            else
             {
-                this._pacdots.push(new Point2D(j, line.YAxis()));
+                start = line.getPoint1().getX();
+                end = line.getPoint2().getX();
+                
+                for(var j=start; j<=end; j+=GRID_UNIT)
+                {
+                    this._pacdots.push(new Point(j, line.YAxis()));
+                }
             }
         }
     }
@@ -1351,7 +1397,7 @@ Maze.prototype.pacdotsCount = function()
 
 Maze.prototype.containsPoint = function(point)
 {
-    assert((point instanceof Point2D), "point is not a Point2D");
+    assert((point instanceof Point), "point is not a Point");
     
     for(var i=0;i<this._mazelines.length;i++)
     {
@@ -1366,7 +1412,7 @@ Maze.prototype.containsPoint = function(point)
 
 Maze.prototype.mazeCurrentLine = function(point, direction)
 {
-    assert((point instanceof Point2D), "point is not a Point2D");
+    assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
     assert((this.containsPoint(point)), "point is not inside the maze");
     
@@ -1403,15 +1449,15 @@ Maze.prototype.mazeCurrentLine = function(point, direction)
 
 Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
 {
-    assert((line instanceof LineHV2D), "line is not a LineHV2D");
-    assert((point instanceof Point2D), "point is not a Point2D");
+    assert((line instanceof Line), "line is not a Line");
+    assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
     assert((isDirection(nextdirection)), "nextdirection value is not valid");
     
     if ((isVertical(direction) && isVertical(nextdirection))
      || (isHorizontal(direction) && isHorizontal(nextdirection)))
     {
-        return undefined;
+        return;     /* "undefined" */
     }
     
     var lines = [];
@@ -1430,7 +1476,7 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
         var line = this._mazelines[i];
         
         /* if this line is crossing ours */
-        if (line.isCrossing(new LineHV2D(point, new Point2D(xlimit, ylimit))))
+        if (line.isCrossing(new Line(point, new Point(xlimit, ylimit))))
         {
             /* if there is some place to turn */
             if ((nextdirection === Direction.LEFT && line.containsX(point.getX()-1))
@@ -1445,7 +1491,7 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
     
     if (lines.length === 0)
     {
-        return undefined;
+        return;     /* "undefined" */
     }
     else
     {
@@ -1473,11 +1519,11 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
         
         if (isVertical(nextdirection))
         {
-            return new Point2D(nearest, point.getY());
+            return new Point(nearest, point.getY());
         }
         else
         {
-            return new Point2D(point.getX(), nearest);
+            return new Point(point.getX(), nearest);
         }
     }
 };
@@ -1489,10 +1535,10 @@ var Pacman = function(x, y, direction, maze)
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
-    assert((maze.containsPoint(new Point2D(x, y))), "coordinates are not inside the maze");
+    assert((maze.containsPoint(new Point(x, y))), "coordinates are not inside the maze");
     assert((maze instanceof Maze), "maze is not a Maze");
     
-    this._position = new Point2D(x, y);
+    this._position = new Point(x, y);
     this._direction = direction;
     
     this._nextdirection = null;     // direction requested
@@ -1522,7 +1568,7 @@ Pacman.prototype.getCurrentline = function()
 
 Pacman.prototype.setCurrentline = function(currentline)
 {
-    assert((currentline instanceof LineHV2D), "currentline value is not valid");
+    assert((currentline instanceof Line), "currentline value is not valid");
 
     this._currentline = currentline;
 };
@@ -1556,7 +1602,7 @@ Pacman.prototype.getNextTurn = function()
 
 Pacman.prototype.setNextTurn = function(nextturn)
 {
-    assert((nextturn instanceof Point2D || nextturn === null), "nextturn value is not valid");
+    assert((nextturn instanceof Point || nextturn === null), "nextturn value is not valid");
 
     this._nextturn = nextturn;
 };
@@ -1614,7 +1660,7 @@ Pacman.prototype.changeDirection = function(direction, maze)
         
         var point = maze.mazeNextTurn(this._currentline, this._position, this._direction, this._nextdirection);
         
-        this._nextturn = (point === undefined) ? null : point ;
+        this._nextturn = (typeof point === "undefined") ? null : point ;
     }
 };
 
@@ -1677,6 +1723,14 @@ var keyEventListener= function(e)
     e.preventDefault();         // prevent up and down arrows of moving the page
     pressedkeys.push(e.keyCode);
     pressedkeysdate.push(performance.now());
+};
+
+var blurEventListener= function(e)
+{
+    if (state === GameState.PLAYING)
+    {
+        state = GameState.PAUSE;
+    }
 };
 
 /**************************** game loop functions *****************************/
@@ -1789,7 +1843,6 @@ var logicLoop = function()
     - utiliser getImageData() et putImageData() pour les boutons ingame et les
     faire changer de couleur/forme, ou simplement redessiner si ça pose pas de
     probleme de faire un fillrect() d'une zone un peu plus large
-    - manage focus loss (auto pause)
     - when refreshing, useless to redraw everything, just redraw what was under
     the pacman + ghosts
     - improve pacman graphics : how to create borders automatically ? and the inside walls ?
@@ -1801,8 +1854,9 @@ var logicLoop = function()
     method update())
     - implement main
     - a Game class
-    - add ghosts
+    - add ghosts : http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
     - add power pellets
+    - make the pacman able to use the "teleportation" tunnels : use a property portal1id and/or portal2id in MAZE_LINES !!!
     - inside checkConfiguration(), check for the menus if their size and size font are OK, ...
 */
 
@@ -1835,6 +1889,7 @@ playingscreen.addPaddingTop((maxheight - playingscreen.getHeight())/2);
 pausescreen.addPaddingLeft((maxwidth - pausescreen.getWidth())/2);
 pausescreen.addPaddingTop((maxheight - pausescreen.getHeight())/2);
 
+canvas.addEventListener("blur", blurEventListener);
 canvas.addEventListener("keydown", keyEventListener);
 canvas.focus();
 
