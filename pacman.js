@@ -89,8 +89,8 @@ var MAZE_LINES = [
                  
                  {x1: 210, y1: 250, x2: 390, y2: 250, nopacdots: "defined"},
                  
-                 {x1: 50, y1: 310, x2: 210, y2: 310, nopacdots: "defined"},
-                 {x1: 390, y1: 310, x2: 550, y2: 310, nopacdots: "defined"},
+                 {x1: 50, y1: 310, x2: 210, y2: 310, nopacdots: "defined", portalid1: 1},
+                 {x1: 390, y1: 310, x2: 550, y2: 310, nopacdots: "defined", portalid2: 1},
                  
                  {x1: 210, y1: 370, x2: 390, y2: 370, nopacdots: "defined"},
                  
@@ -172,6 +172,19 @@ var isDirection = function(direction)
      || direction === Direction.DOWN
      || direction === Direction.RIGHT
      || direction === Direction.LEFT)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+var isPortalID = function(id)
+{
+    if (typeof id === "number"
+     && id > 0)
     {
         return true;
     }
@@ -282,13 +295,25 @@ var checkConfiguration = function()
 
 /******************************** Point class *******************************/
 
-var Point = function(x, y)
+var Point = function(x, y, portalid)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
+    assert((typeof portalid === "undefined" || isPortalID(portalid)), "portalid is not a portal ID");
     
     this._x = x;
     this._y = y;
+    this._portalid = (typeof portalid === "undefined") ? null : portalid ;
+};
+
+Point.prototype.isPortal = function()
+{
+    return isPortalID(this._portalid);
+};
+
+Point.prototype.getPortalID = function()
+{
+    return this._portalid;
 };
 
 Point.prototype.getX = function()
@@ -328,7 +353,7 @@ Point.prototype.equals = function(point)
 {
     assert((point instanceof Point), "point is not a Point");
     
-    return (this._x === point.getX() && this._y === point.getY()) ? true : false ;
+    return (this._x === point.getX() && this._y === point.getY());
 };
 
 Point.prototype.distance = function(point)
@@ -743,6 +768,21 @@ var PlayingScreen = function()
     
     this._computeSize();
     this._normalizeCoordinates();
+    
+    for(var i=0; i<this._maze.getMazeLines().length; i++)
+    {
+        var line = this._maze.getMazeLine(i);
+        
+        if (line.getPoint1().isPortal())
+        {
+            console.log("===> " + line.getPoint1().getX() + ", " + line.getPoint1().getY());
+        }
+        
+        if (line.getPoint2().isPortal())
+        {
+            console.log("===> " + line.getPoint2().getX() + ", " + line.getPoint2().getY());
+        }
+    }
 };
 
 PlayingScreen.prototype._generateMazeRects = function()
@@ -886,6 +926,15 @@ PlayingScreen.prototype.handleInput = function(key)
     return GameState.PLAYING;
 };
 
+
+
+
+
+
+
+
+
+
 PlayingScreen.prototype.move = function(elapsed)
 {
     assert((elapsed > 0), "elapsed value is not valid");
@@ -899,111 +948,119 @@ PlayingScreen.prototype.move = function(elapsed)
         turndistance = this._pacman.getNextTurn().distance(this._pacman.getPosition());
     }
     
-    /* if we don't have to turn for now */
-    if (this._pacman.getNextDirection() === null
-     || this._pacman.getNextTurn() === null
-     || (this._pacman.getNextDirection() !== null && this._pacman.getNextTurn() !== null && turndistance > movement))
+    /* if we will have to turn */
+    if (this._pacman.getNextDirection() !== null
+     && this._pacman.getNextTurn() !== null
+     && turndistance <= movement)
     {
-        var newx = 0;
-        var newy = 0;
-        
-        if (this._pacman.getDirection() === Direction.UP)
-        {
-            limit = this._pacman.getCurrentline().getPoint1().getY();
-            newx = this._pacman.getPosition().getX();
-            newy = (this._pacman.getPosition().getY()-movement > limit) ? this._pacman.getPosition().getY()-movement : limit ;
-        }
-        else if (this._pacman.getDirection() === Direction.DOWN)
-        {
-            limit = this._pacman.getCurrentline().getPoint2().getY();
-            newx = this._pacman.getPosition().getX();
-            newy = (this._pacman.getPosition().getY()+movement < limit) ? this._pacman.getPosition().getY()+movement : limit ;
-        }
-        else if (this._pacman.getDirection() === Direction.LEFT)
-        {
-            limit = this._pacman.getCurrentline().getPoint1().getX();
-            newx = (this._pacman.getPosition().getX()-movement > limit) ? this._pacman.getPosition().getX()-movement : limit ;
-            newy = this._pacman.getPosition().getY();
-        }
-        else
-        {
-            limit = this._pacman.getCurrentline().getPoint2().getX();
-            newx = (this._pacman.getPosition().getX()+movement < limit) ? this._pacman.getPosition().getX()+movement : limit ;
-            newy = this._pacman.getPosition().getY();
-        }
-        
-        /* check if pacman has eaten some pacdots... */
-        
-        var travelled = new Line(this._pacman.getPosition(), new Point(newx, newy));
-        
-        for(var i=0; i<this._maze.pacdotsCount(); i++)
-        {
-            if (travelled.containsPoint(this._maze.getPacdot(i)))
-            {
-                this._status.increaseScore(PACDOT_POINT);
-                this._maze.deletePacdot(i);
-            }
-        }
-        
-        this._pacman.getPosition().set(newx, newy);
-    }
-    else
-    {
-        var nextline = this._maze.mazeCurrentLine(this._pacman.getNextTurn(), this._pacman.getNextDirection());
-        var newx = 0;
-        var newy = 0;
-        
-        if (this._pacman.getNextDirection() === Direction.UP)
-        {
-            limit = nextline.getPoint1().getY();
-            newx = this._pacman.getNextTurn().getX();
-            newy = (this._pacman.getPosition().getY() - (movement - turndistance) > limit) ? this._pacman.getPosition().getY() - (movement - turndistance) : limit ;
-        }
-        else if (this._pacman.getNextDirection() === Direction.DOWN)
-        {
-            limit = nextline.getPoint2().getY();
-            newx = this._pacman.getNextTurn().getX();
-            newy = (this._pacman.getPosition().getY() + (movement - turndistance) < limit) ? this._pacman.getPosition().getY() + (movement - turndistance) : limit ;
-        }
-        else if (this._pacman.getNextDirection() === Direction.LEFT)
-        {
-            limit = nextline.getPoint1().getX();
-            newx = (this._pacman.getPosition().getX() - (movement - turndistance) > limit) ? this._pacman.getPosition().getX() - (movement - turndistance) : limit ;
-            newy = this._pacman.getNextTurn().getY();
-        }
-        else
-        {
-            limit = nextline.getPoint2().getX();
-            newx = (this._pacman.getPosition().getX() + (movement - turndistance) < limit) ? this._pacman.getPosition().getX() + (movement - turndistance) : limit ;
-            newy = this._pacman.getNextTurn().getY();
-        }
-        
-        /* check if pacman has eaten some pacdots... */
+        /* check if pacman will eat some pacdots... */
         
         var travelled1 = new Line(this._pacman.getPosition(), this._pacman.getNextTurn());
-        var travelled2 = new Line(this._pacman.getNextTurn(), new Point(newx, newy));
         
         for(var i=0; i<this._maze.pacdotsCount(); i++)
         {
-            if (travelled1.containsPoint(this._maze.getPacdot(i))
-             || travelled2.containsPoint(this._maze.getPacdot(i)))
+            if (travelled1.containsPoint(this._maze.getPacdot(i)))
             {
                 this._status.increaseScore(PACDOT_POINT);
                 this._maze.deletePacdot(i);
             }
         }
         
-        this._pacman.getPosition().set(newx, newy);
+        /* move towards the intersection point */
         
+        var nextline = this._maze.mazeCurrentLine(this._pacman.getNextTurn(), this._pacman.getNextDirection());
+        
+        this._pacman.setPosition(this._pacman.getNextTurn().getX(), this._pacman.getNextTurn().getY());
         this._pacman.setDirection(this._pacman.getNextDirection());
         this._pacman.setNextDirection(null);
         this._pacman.setNextTurn(null);
-        
         this._pacman.setCurrentline(nextline);
+        
+        movement -= turndistance;
+    }
+    
+    var newx = 0;
+    var newy = 0;
+    
+    if (this._pacman.getDirection() === Direction.UP)
+    {
+        limit = this._pacman.getCurrentline().getPoint1().getY();
+        newx = this._pacman.getPosition().getX();
+        newy = (this._pacman.getPosition().getY()-movement > limit) ? this._pacman.getPosition().getY()-movement : limit ;
+    }
+    else if (this._pacman.getDirection() === Direction.DOWN)
+    {
+        limit = this._pacman.getCurrentline().getPoint2().getY();
+        newx = this._pacman.getPosition().getX();
+        newy = (this._pacman.getPosition().getY()+movement < limit) ? this._pacman.getPosition().getY()+movement : limit ;
+    }
+    else if (this._pacman.getDirection() === Direction.LEFT)
+    {
+        limit = this._pacman.getCurrentline().getPoint1().getX();
+        newx = (this._pacman.getPosition().getX()-movement > limit) ? this._pacman.getPosition().getX()-movement : limit ;
+        newy = this._pacman.getPosition().getY();
+    }
+    else
+    {
+        limit = this._pacman.getCurrentline().getPoint2().getX();
+        newx = (this._pacman.getPosition().getX()+movement < limit) ? this._pacman.getPosition().getX()+movement : limit ;
+        newy = this._pacman.getPosition().getY();
+    }
+    
+    /* check if pacman will eat some pacdots... */
+    
+    var travelled2 = new Line(this._pacman.getPosition(), new Point(newx, newy));
+    
+    for(var i=0; i<this._maze.pacdotsCount(); i++)
+    {
+        if (travelled2.containsPoint(this._maze.getPacdot(i)))
+        {
+            this._status.increaseScore(PACDOT_POINT);
+            this._maze.deletePacdot(i);
+        }
+    }
+    
+    this._pacman.setPosition(newx, newy);
+    
+    /* if we enter a teleportation tunnel */
+    if (this._maze.isPortal(this._pacman.getPosition().getX(), this._pacman.getPosition().getY()))
+    {
+        var p = this._maze.associatedPortal(this._pacman.getPosition().getX(), this._pacman.getPosition().getY());
+        var newline = this._maze.mazeCurrentLine(p, this._pacman.getDirection());
+        
+        this._pacman.setPosition(p.getX(), p.getY());
+        this._pacman.setCurrentline(newline);
+        
+        /* search if we can now turn after the teleportation */
+        
+        if (this._pacman.getNextDirection() !== null
+         && this._pacman.getNextTurn() === null)
+        {
+            var nt = this._maze.mazeNextTurn(this._pacman.getCurrentline(), this._pacman.getPosition(), this._pacman.getDirection(), this._pacman.getNextDirection());
+            
+            this._pacman.setNextTurn(nt);
+        }
+        
+        
+        //TODO move again, as we reached the limit of the teleportation point
+        
+        
+        //TODO if we will reach the next turn point, turn and then... mais alors
+        // et si on rechoppe un teleporteur c chiant... fait un do while() ?
     }
     
     this._pacman.animate(elapsed);
 };
+
+
+
+
+
+
+
+
+
+
 
 PlayingScreen.prototype._drawMazeRects = function()
 {
@@ -1119,6 +1176,39 @@ PlayingScreen.prototype._drawPacman = function()
     context.fill();
 };
 
+PlayingScreen.prototype._drawPortals = function()
+{
+    var m = this._maze.getMazelines();
+    
+    for(var i=0; i<m.length; i++)
+    {
+        var p1 = m[i].getPoint1();
+        var p2 = m[i].getPoint2();
+        
+        if (p1.isPortal()
+         && p1.distance(this._pacman.getPosition()) < PACMAN_RADIUS
+         /*TODO && this._pacman.isGoingToward(p1)*/)
+        {
+            
+            
+            context.fillStyle = "red";
+            
+            //TODO si a gauche
+            context.fillRect(this._paddingLeft + p1.getX() - LINE_WIDTH/2,
+                             this._paddingTop + p1.getY() - LINE_WIDTH/2,
+                             LINE_WIDTH/2,
+                             LINE_WIDTH/2);
+            //TODO a droite, en haut, en bas
+        }
+        
+        if (p2.isPortal()
+         && p2.distance(this._pacman.getPosition()) < PACMAN_RADIUS)
+        {
+            
+        }
+    }
+};
+
 PlayingScreen.prototype.draw = function()
 {
     context.fillStyle = "green";
@@ -1130,6 +1220,7 @@ PlayingScreen.prototype.draw = function()
                      
     this._drawMaze();
     this._drawPacman();
+    /*XXX this._drawPortals();*/
     this._drawStatus();
 };
 
@@ -1256,10 +1347,28 @@ Maze.createFromArrayOfLitterals = function(mazelines)
     for(var i=0; i<mazelines.length; i++)
     {
         var hasPacdots = (typeof mazelines[i].nopacdots === "undefined") ? true : false ;
+        var p1 = null;
+        var p2 = null;
         
-        lines.push(new Line(new Point(mazelines[i].x1, mazelines[i].y1),
-                            new Point(mazelines[i].x2, mazelines[i].y2),
-                            hasPacdots));
+        if (typeof mazelines[i].portalid1 === "undefined")
+        {
+            p1 = new Point(mazelines[i].x1, mazelines[i].y1);
+        }
+        else
+        {
+            p1 = new Point(mazelines[i].x1, mazelines[i].y1, mazelines[i].portalid1);
+        }
+        
+        if (typeof mazelines[i].portalid2 === "undefined")
+        {
+            p2 = new Point(mazelines[i].x2, mazelines[i].y2);
+        }
+        else
+        {
+            p2 = new Point(mazelines[i].x2, mazelines[i].y2, mazelines[i].portalid2);
+        }
+        
+        lines.push(new Line(p1, p2, hasPacdots));
     }
     
     return new Maze(lines);
@@ -1369,6 +1478,68 @@ Maze.prototype.getMazeLine = function(index)
 Maze.prototype.getPacdots = function()
 {
     return this._pacdots;
+};
+
+Maze.prototype.isPortal = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    for(var i=0; i<this._mazelines.length; i++)
+    {
+        var p1 = this._mazelines[i].getPoint1();
+        var p2 = this._mazelines[i].getPoint2();
+        
+        if ((p1.equals(new Point(x,y)) && p1.isPortal())
+         || (p2.equals(new Point(x,y)) && p2.isPortal()))
+        {
+            return true;
+        }
+    }
+    
+    return false;
+};
+
+Maze.prototype.associatedPortal = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    var portalid = 0;
+    
+    for(var i=0; i<this._mazelines.length; i++)
+    {
+        var p1 = this._mazelines[i].getPoint1();
+        var p2 = this._mazelines[i].getPoint2();
+        
+        if (p1.equals(new Point(x,y)) && p1.isPortal())
+        {
+            portalid = p1.getPortalID();
+            break;
+        }
+        
+        if (p2.equals(new Point(x,y)) && p2.isPortal())
+        {
+            portalid = p2.getPortalID();
+            break;
+        }
+    }
+    
+    for(var i=0; i<this._mazelines.length; i++)
+    {
+        var p1 = this._mazelines[i].getPoint1();
+        var p2 = this._mazelines[i].getPoint2();
+        
+        if (!p1.equals(new Point(x,y)) && p1.getPortalID() === portalid)
+        {
+            return p1;
+        }
+        
+        if (!p2.equals(new Point(x,y)) && p2.getPortalID() === portalid)
+        {
+            return p2;
+        }
+    }
 };
 
 Maze.prototype.getPacdot = function(index)
@@ -1856,8 +2027,9 @@ var logicLoop = function()
     - a Game class
     - add ghosts : http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
     - add power pellets
-    - make the pacman able to use the "teleportation" tunnels : use a property portal1id and/or portal2id in MAZE_LINES !!!
-    - inside checkConfiguration(), check for the menus if their size and size font are OK, ...
+    - make the pacman able to use the "teleportation" tunnels => when drawing, draw the pacman and then a black rectangle on a part of it ; + modifs simple dans move() pour se teleporter
+    - inside checkConfiguration(), check for the menus if their size and size font are OK, ... check if each portal has one and only one other portal
+    - pausescreen et a fortiori les autres screen n'est pas fait de la bonne facon ; puisque il a un padding mais en fait c'est juste le padding du menu, pas de l'ecran complet de pause ! faudrait en realite commencer par trouver la taille du jeu ?
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -1865,6 +2037,10 @@ var canvas = document.getElementById("gamecanvas");
 context = canvas.getContext("2d");
 
 checkConfiguration();
+
+
+console.log("yeah");
+
 
 /* init the game */
 
