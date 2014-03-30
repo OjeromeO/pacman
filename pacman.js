@@ -19,7 +19,8 @@ var PauseMenuItem = {};
 Object.defineProperties(PauseMenuItem,
 {
     "RESUME":  {value: 0, writable: false, configurable: false, enumerable: true},
-    "QUIT":  {value: 1, writable: false, configurable: false, enumerable: true}
+    "RESTART":  {value: 1, writable: false, configurable: false, enumerable: true},
+    "QUIT":  {value: 2, writable: false, configurable: false, enumerable: true}
 });
 
 
@@ -49,6 +50,7 @@ var LOGIC_REFRESH_RATE = 60;
 
 var PAUSEMENU_RESUMESTRING = "Resume game";
 var PAUSEMENU_QUITSTRING = "Return to main menu";
+var PAUSEMENU_RESTARTSTRING = "Restart game";
 var PAUSEMENU_FONT = "sans-serif";
 var PAUSEMENU_FONT_SIZE = 30;
 var PAUSEMENU_HPADDING = 20;
@@ -197,7 +199,8 @@ var isPortalID = function(id)
 var isPauseMenuItem = function(item)
 {
     if (item === PauseMenuItem.RESUME
-     || item === PauseMenuItem.QUIT)
+     || item === PauseMenuItem.QUIT
+     || item === PauseMenuItem.RESTART)
     {
         return true;
     }
@@ -643,6 +646,12 @@ PauseScreen.prototype.handleInput = function(key)
         {
             //TODO
         }
+        else if (this._pausemenu.getCurrent() === PauseMenuItem.RESTART)
+        {
+            playingscreen.reinit();
+            
+            return GameState.PLAYING;
+        }
     }
     
     return GameState.PAUSE;
@@ -709,6 +718,7 @@ var PauseMenu = function()
     
     this._items = [];
     this._items[PauseMenuItem.RESUME] = PAUSEMENU_RESUMESTRING;
+    this._items[PauseMenuItem.RESTART] = PAUSEMENU_RESTARTSTRING;
     this._items[PauseMenuItem.QUIT] = PAUSEMENU_QUITSTRING;
 };
 
@@ -754,11 +764,15 @@ var PlayingScreen = function()
     this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
     this._generateMazeRects();
     
+    this._mazeportalrects = []; // rectangles that will partially hide the pacman when it go towards a portal
+    this._generateMazePortalsRects();
+    
+    /*console.log(this._mazeportalrects[0].x);
+    console.log(this._mazeportalrects[1].x);*/
+    
     this._status = new Status();
     
     this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
-    
-    this._pause = false;
     
     this._width = 0;
     this._height = 0;
@@ -768,21 +782,19 @@ var PlayingScreen = function()
     
     this._computeSize();
     this._normalizeCoordinates();
+};
+
+PlayingScreen.prototype.reinit = function()
+{
+    this._maze.reinit();
     
-    for(var i=0; i<this._maze.getMazeLines().length; i++)
-    {
-        var line = this._maze.getMazeLine(i);
-        
-        if (line.getPoint1().isPortal())
-        {
-            console.log("===> " + line.getPoint1().getX() + ", " + line.getPoint1().getY());
-        }
-        
-        if (line.getPoint2().isPortal())
-        {
-            console.log("===> " + line.getPoint2().getX() + ", " + line.getPoint2().getY());
-        }
-    }
+    this._status.reinit();
+    
+    this._pacman.setPosition(PACMAN_STARTX, PACMAN_STARTY);
+    this._pacman.setDirection(PACMAN_STARTDIRECTION);
+    this._pacman.setNextDirection(null);
+    this._pacman.setNextTurn(null);
+    this._pacman.setCurrentline(this._maze.mazeCurrentLine(this._pacman.getPosition(), this._pacman.getDirection()));
 };
 
 PlayingScreen.prototype._generateMazeRects = function()
@@ -800,6 +812,42 @@ PlayingScreen.prototype._generateMazeRects = function()
         rect.h = (isVertical(line)) ? line.size() + LINE_WIDTH : LINE_WIDTH ;
         
         this._mazerects.push(rect);
+    }
+};
+
+PlayingScreen.prototype._generateMazePortalsRects = function()
+{
+    var mazelines = this._maze.getMazeLines();
+    
+    for(var i=0; i<mazelines.length; i++)
+    {
+        var line = mazelines[i];
+        var p1 = line.getPoint1();
+        var p2 = line.getPoint2();
+        
+        if (p1.isPortal())
+        {
+            var rect = {};
+            
+            rect.x = p1.getX() - LINE_WIDTH/2;
+            rect.y = p1.getY() - LINE_WIDTH/2;
+            rect.w = (isVertical(line)) ? LINE_WIDTH : LINE_WIDTH/2 ;
+            rect.h = (isVertical(line)) ? LINE_WIDTH/2 : LINE_WIDTH ;
+            
+            this._mazeportalrects.push(rect);
+        }
+        
+        if (p2.isPortal())
+        {
+            var rect = {};
+            
+            rect.x = (isVertical(line)) ? p2.getX() - LINE_WIDTH/2 : p2.getX() ;
+            rect.y = (isVertical(line)) ? p2.getY() : p2.getY() - LINE_WIDTH/2 ;
+            rect.w = (isVertical(line)) ? LINE_WIDTH : LINE_WIDTH/2 ;
+            rect.h = (isVertical(line)) ? LINE_WIDTH/2 : LINE_WIDTH ;
+            
+            this._mazeportalrects.push(rect);
+        }
     }
 };
 
@@ -851,6 +899,7 @@ PlayingScreen.prototype._statusMaxWidth = function()
 PlayingScreen.prototype._normalizeCoordinates = function()
 {
     var mazerects = this._mazerects;
+    var mazeportalrects = this._mazeportalrects;
     var pacdots = this._maze.getPacdots();
     var mazelines = this._maze.getMazeLines();
     
@@ -882,6 +931,12 @@ PlayingScreen.prototype._normalizeCoordinates = function()
         mazerects[i].y += ypadding;
     }
     
+    for(var i=0; i<mazeportalrects.length; i++)
+    {
+        mazeportalrects[i].x += xpadding;
+        mazeportalrects[i].y += ypadding;
+    }
+    
     for(var i=0; i<pacdots.length; i++)
     {
         pacdots[i].set(pacdots[i].getX() + xpadding,
@@ -898,6 +953,9 @@ PlayingScreen.prototype._normalizeCoordinates = function()
     
     this._pacman.setPosition(this._pacman.getPosition().getX() + xpadding,
                              this._pacman.getPosition().getY() + ypadding);
+    
+    PACMAN_STARTX += xpadding;
+    PACMAN_STARTY += ypadding;
 };
 
 PlayingScreen.prototype.handleInput = function(key)
@@ -1209,6 +1267,19 @@ PlayingScreen.prototype._drawPortals = function()
     }
 };
 
+PlayingScreen.prototype._drawMazePortalsRects = function()
+{
+    context.fillStyle = "green";
+    
+    for(var i=0;i<this._mazeportalrects.length;i++)
+    {
+        context.fillRect(this._mazeportalrects[i].x + this._paddingLeft,
+                         this._mazeportalrects[i].y + this._paddingTop,
+                         this._mazeportalrects[i].w,
+                         this._mazeportalrects[i].h);
+    }
+};
+
 PlayingScreen.prototype.draw = function()
 {
     context.fillStyle = "green";
@@ -1221,12 +1292,20 @@ PlayingScreen.prototype.draw = function()
     this._drawMaze();
     this._drawPacman();
     /*XXX this._drawPortals();*/
+    this._drawMazePortalsRects();
     this._drawStatus();
 };
 
 /********************************* Status class *******************************/
 
 var Status = function()
+{
+    this._score = 0;
+    this._lives = 3;
+    this._level = 1;
+};
+
+Status.prototype.reinit = function()
 {
     this._score = 0;
     this._lives = 3;
@@ -1262,6 +1341,13 @@ Status.prototype.setLives = function(lives)
     assert((typeof lives === "number"), "lives is not a number");
     
     this._lives = lives;
+};
+
+Status.prototype.setLevel = function(level)
+{
+    assert((typeof level === "number"), "level is not a number");
+    
+    this._level = level;
 };
 
 Status.prototype.decrementLives = function()
@@ -1307,6 +1393,13 @@ var Maze = function(mazelines)
     this._height = 0;
     
     this._computeSize();
+    this._generatePacdots();
+};
+
+Maze.prototype.reinit = function()
+{
+    this._pacdots.length = 0;
+    this._powerpellets.length = 0;
     this._generatePacdots();
 };
 
@@ -2027,9 +2120,10 @@ var logicLoop = function()
     - a Game class
     - add ghosts : http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
     - add power pellets
-    - make the pacman able to use the "teleportation" tunnels => when drawing, draw the pacman and then a black rectangle on a part of it ; + modifs simple dans move() pour se teleporter
+    - "teleportation" tunnels => double the size of the hiding rectangle (hide all of the pacman before it is teleported)
     - inside checkConfiguration(), check for the menus if their size and size font are OK, ... check if each portal has one and only one other portal
     - pausescreen et a fortiori les autres screen n'est pas fait de la bonne facon ; puisque il a un padding mais en fait c'est juste le padding du menu, pas de l'ecran complet de pause ! faudrait en realite commencer par trouver la taille du jeu ?
+    - mettre currentline pas dans pacman ? (car demande de prendre maze en parametre)
 */
 
 var canvas = document.getElementById("gamecanvas");
@@ -2037,10 +2131,6 @@ var canvas = document.getElementById("gamecanvas");
 context = canvas.getContext("2d");
 
 checkConfiguration();
-
-
-console.log("yeah");
-
 
 /* init the game */
 
@@ -2078,22 +2168,4 @@ firstupdate = lastupdate;
 
 graphicsLoop();
 logicLoop();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
