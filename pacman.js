@@ -767,9 +767,6 @@ var PlayingScreen = function()
     this._mazeportalrects = []; // rectangles that will partially hide the pacman when it go towards a portal
     this._generateMazePortalsRects();
     
-    /*console.log(this._mazeportalrects[0].x);
-    console.log(this._mazeportalrects[1].x);*/
-    
     this._status = new Status();
     
     this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
@@ -831,8 +828,8 @@ PlayingScreen.prototype._generateMazePortalsRects = function()
             
             rect.x = p1.getX() - LINE_WIDTH/2;
             rect.y = p1.getY() - LINE_WIDTH/2;
-            rect.w = (isVertical(line)) ? LINE_WIDTH : LINE_WIDTH/2 ;
-            rect.h = (isVertical(line)) ? LINE_WIDTH/2 : LINE_WIDTH ;
+            rect.w = (isVertical(line)) ? LINE_WIDTH : LINE_WIDTH/2 + PACMAN_RADIUS ;
+            rect.h = (isVertical(line)) ? LINE_WIDTH/2 + PACMAN_RADIUS : LINE_WIDTH ;
             
             this._mazeportalrects.push(rect);
         }
@@ -841,10 +838,10 @@ PlayingScreen.prototype._generateMazePortalsRects = function()
         {
             var rect = {};
             
-            rect.x = (isVertical(line)) ? p2.getX() - LINE_WIDTH/2 : p2.getX() ;
-            rect.y = (isVertical(line)) ? p2.getY() : p2.getY() - LINE_WIDTH/2 ;
-            rect.w = (isVertical(line)) ? LINE_WIDTH : LINE_WIDTH/2 ;
-            rect.h = (isVertical(line)) ? LINE_WIDTH/2 : LINE_WIDTH ;
+            rect.x = (isVertical(line)) ? p2.getX() - LINE_WIDTH/2 : p2.getX() - PACMAN_RADIUS ;
+            rect.y = (isVertical(line)) ? p2.getY() - PACMAN_RADIUS : p2.getY() - LINE_WIDTH/2 ;
+            rect.w = (isVertical(line)) ? LINE_WIDTH : LINE_WIDTH/2 + PACMAN_RADIUS ;
+            rect.h = (isVertical(line)) ? LINE_WIDTH/2 + PACMAN_RADIUS : LINE_WIDTH ;
             
             this._mazeportalrects.push(rect);
         }
@@ -1234,39 +1231,6 @@ PlayingScreen.prototype._drawPacman = function()
     context.fill();
 };
 
-PlayingScreen.prototype._drawPortals = function()
-{
-    var m = this._maze.getMazelines();
-    
-    for(var i=0; i<m.length; i++)
-    {
-        var p1 = m[i].getPoint1();
-        var p2 = m[i].getPoint2();
-        
-        if (p1.isPortal()
-         && p1.distance(this._pacman.getPosition()) < PACMAN_RADIUS
-         /*TODO && this._pacman.isGoingToward(p1)*/)
-        {
-            
-            
-            context.fillStyle = "red";
-            
-            //TODO si a gauche
-            context.fillRect(this._paddingLeft + p1.getX() - LINE_WIDTH/2,
-                             this._paddingTop + p1.getY() - LINE_WIDTH/2,
-                             LINE_WIDTH/2,
-                             LINE_WIDTH/2);
-            //TODO a droite, en haut, en bas
-        }
-        
-        if (p2.isPortal()
-         && p2.distance(this._pacman.getPosition()) < PACMAN_RADIUS)
-        {
-            
-        }
-    }
-};
-
 PlayingScreen.prototype._drawMazePortalsRects = function()
 {
     context.fillStyle = "green";
@@ -1291,7 +1255,6 @@ PlayingScreen.prototype.draw = function()
                      
     this._drawMaze();
     this._drawPacman();
-    /*XXX this._drawPortals();*/
     this._drawMazePortalsRects();
     this._drawStatus();
 };
@@ -2116,11 +2079,10 @@ var logicLoop = function()
     the position and the animation state), and x/y properties, ... and something
     to animate, like passing the timestamp ? or an other solution ?=> the static
     method update())
-    - implement main
+    - implement main screen
     - a Game class
     - add ghosts : http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
     - add power pellets
-    - "teleportation" tunnels => double the size of the hiding rectangle (hide all of the pacman before it is teleported)
     - inside checkConfiguration(), check for the menus if their size and size font are OK, ... check if each portal has one and only one other portal
     - pausescreen et a fortiori les autres screen n'est pas fait de la bonne facon ; puisque il a un padding mais en fait c'est juste le padding du menu, pas de l'ecran complet de pause ! faudrait en realite commencer par trouver la taille du jeu ?
     - mettre currentline pas dans pacman ? (car demande de prendre maze en parametre)
