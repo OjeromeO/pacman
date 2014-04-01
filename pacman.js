@@ -59,7 +59,7 @@ var PAUSEMENU_ITEMSDISTANCE = 30;
 
 var PACMAN_RADIUS = 15;
 var PACDOTS_RADIUS = 2;
-var PACMAN_SPEED = 200;
+var PACMAN_SPEED = 400;
 var LINE_WIDTH = 1.5 * 2 * PACMAN_RADIUS;
 var GRID_UNIT = 20;     // useful to set pacdots on the maze
 var PACMAN_STARTX = 50;
@@ -1012,13 +1012,27 @@ PlayingScreen.prototype.move = function(elapsed)
         
         var travelled1 = new Line(this._pacman.getPosition(), this._pacman.getNextTurn());
         
+        var eatenpacdots = [];
+        
         for(var i=0; i<this._maze.pacdotsCount(); i++)
         {
             if (travelled1.containsPoint(this._maze.getPacdot(i)))
             {
                 this._status.increaseScore(PACDOT_POINT);
-                this._maze.deletePacdot(i);
+                eatenpacdots.push(i);
             }
+        }
+        
+        for(var i=0; i<eatenpacdots.length; i++)
+        {
+            /*
+                we need to delete from the biggest index to the lowest, because
+                when deleting an element of an array, the following ones will be
+                re-indexed (indexes decremented) => the registered indexes of
+                the next pacdots to delete will become incorrect
+            */
+            var index = eatenpacdots[eatenpacdots.length-1 - i];
+            this._maze.deletePacdot(index);
         }
         
         /* move towards the intersection point */
@@ -1066,13 +1080,21 @@ PlayingScreen.prototype.move = function(elapsed)
     
     var travelled2 = new Line(this._pacman.getPosition(), new Point(newx, newy));
     
+    var eatenpacdots = [];
+    
     for(var i=0; i<this._maze.pacdotsCount(); i++)
     {
         if (travelled2.containsPoint(this._maze.getPacdot(i)))
         {
             this._status.increaseScore(PACDOT_POINT);
-            this._maze.deletePacdot(i);
+            eatenpacdots.push(i);
         }
+    }
+    
+    for(var i=0; i<eatenpacdots.length; i++)
+    {
+        var index = eatenpacdots[eatenpacdots.length-1 - i];
+        this._maze.deletePacdot(index);
     }
     
     this._pacman.setPosition(newx, newy);
@@ -2082,7 +2104,7 @@ var logicLoop = function()
     - implement main screen
     - a Game class
     - add ghosts : http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
-    - add power pellets
+    - add power pellets (a property of pacman)
     - inside checkConfiguration(), check for the menus if their size and size font are OK, ... check if each portal has one and only one other portal
     - pausescreen et a fortiori les autres screen n'est pas fait de la bonne facon ; puisque il a un padding mais en fait c'est juste le padding du menu, pas de l'ecran complet de pause ! faudrait en realite commencer par trouver la taille du jeu ?
     - mettre currentline pas dans pacman ? (car demande de prendre maze en parametre)
