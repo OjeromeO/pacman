@@ -4,10 +4,10 @@
 var Direction = {};
 Object.defineProperties(Direction,
 {
-    "UP":  {value: 1, writable: false, configurable: false, enumerable: true},
+    "UP":    {value: 1, writable: false, configurable: false, enumerable: true},
     "DOWN":  {value: 2, writable: false, configurable: false, enumerable: true},
     "LEFT":  {value: 3, writable: false, configurable: false, enumerable: true},
-    "RIGHT":  {value: 4, writable: false, configurable: false, enumerable: true}
+    "RIGHT": {value: 4, writable: false, configurable: false, enumerable: true}
 });
 
 /*
@@ -19,19 +19,21 @@ var PauseMenuItem = {};
 Object.defineProperties(PauseMenuItem,
 {
     "RESUME":  {value: 0, writable: false, configurable: false, enumerable: true},
-    "RESTART":  {value: 1, writable: false, configurable: false, enumerable: true},
-    "QUIT":  {value: 2, writable: false, configurable: false, enumerable: true}
+    "RESTART": {value: 1, writable: false, configurable: false, enumerable: true},
+    "QUIT":    {value: 2, writable: false, configurable: false, enumerable: true}
+    //"count":   {value: 3, writable: false, configurable: false, enumerable: true},
 });
 
 
 var GameState = {};
 Object.defineProperties(GameState,
 {
-    "MAIN":  {value: 1, writable: false, configurable: false, enumerable: true},
-    "PAUSE":  {value: 2, writable: false, configurable: false, enumerable: true},
-    "PLAYING":  {value: 3, writable: false, configurable: false, enumerable: true}
+    "MAIN":    {value: 1, writable: false, configurable: false, enumerable: true},
+    "PAUSE":   {value: 2, writable: false, configurable: false, enumerable: true},
+    "PLAYING": {value: 3, writable: false, configurable: false, enumerable: true}
 });
 
+var canvas = null;
 var context = null;
 var pacman = null;
 var lastupdate = null;
@@ -55,6 +57,8 @@ var PAUSEMENU_FONT = "sans-serif";
 var PAUSEMENU_FONT_SIZE = 30;
 var PAUSEMENU_HPADDING = 20;
 var PAUSEMENU_VPADDING = 20;
+var PAUSEMENU_HMARGIN = 30;
+var PAUSEMENU_VMARGIN = 30;
 var PAUSEMENU_ITEMSDISTANCE = 30;
 
 var PACMAN_RADIUS = 15;
@@ -79,46 +83,46 @@ var STATUS_PADDINGLEFT = 20;
 var MAZE_LINES = [
                  /* horizontal lines */
                  
-                 {x1: 50, y1: 50, x2: 270, y2: 50},
-                 {x1: 330, y1: 50, x2: 550, y2: 50},
+                 {x1: 50,  y1: 50,  x2: 270, y2: 50},
+                 {x1: 330, y1: 50,  x2: 550, y2: 50},
                  
-                 {x1: 50, y1: 130, x2: 550, y2: 130},
+                 {x1: 50,  y1: 130, x2: 550, y2: 130},
                  
-                 {x1: 50, y1: 190, x2: 150, y2: 190},
+                 {x1: 50,  y1: 190, x2: 150, y2: 190},
                  {x1: 210, y1: 190, x2: 270, y2: 190},
                  {x1: 330, y1: 190, x2: 390, y2: 190},
                  {x1: 450, y1: 190, x2: 550, y2: 190},
                  
                  {x1: 210, y1: 250, x2: 390, y2: 250, nopacdots: "defined"},
                  
-                 {x1: 50, y1: 310, x2: 210, y2: 310, nopacdots: "defined", portalid1: 1},
+                 {x1: 50,  y1: 310, x2: 210, y2: 310, nopacdots: "defined", portalid1: 1},
                  {x1: 390, y1: 310, x2: 550, y2: 310, nopacdots: "defined", portalid2: 1},
                  
                  {x1: 210, y1: 370, x2: 390, y2: 370, nopacdots: "defined"},
                  
-                 {x1: 50, y1: 430, x2: 270, y2: 430},
+                 {x1: 50,  y1: 430, x2: 270, y2: 430},
                  {x1: 330, y1: 430, x2: 550, y2: 430},
                  
-                 {x1: 50, y1: 490, x2: 90, y2: 490},
+                 {x1: 50,  y1: 490, x2: 90,  y2: 490},
                  {x1: 150, y1: 490, x2: 450, y2: 490},
                  {x1: 510, y1: 490, x2: 550, y2: 490},
                  
-                 {x1: 50, y1: 550, x2: 150, y2: 550},
+                 {x1: 50,  y1: 550, x2: 150, y2: 550},
                  {x1: 210, y1: 550, x2: 270, y2: 550},
                  {x1: 330, y1: 550, x2: 390, y2: 550},
                  {x1: 450, y1: 550, x2: 550, y2: 550},
                  
-                 {x1: 50, y1: 610, x2: 550, y2: 610},
+                 {x1: 50,  y1: 610, x2: 550, y2: 610},
                  
                  /* vertical lines */
                  
-                 {x1: 50, y1: 50, x2: 50, y2: 190},
-                 {x1: 150, y1: 50, x2: 150, y2: 550},
-                 {x1: 450, y1: 50, x2: 450, y2: 550},
-                 {x1: 550, y1: 50, x2: 550, y2: 190},
+                 {x1: 50,  y1: 50,  x2: 50,  y2: 190},
+                 {x1: 150, y1: 50,  x2: 150, y2: 550},
+                 {x1: 450, y1: 50,  x2: 450, y2: 550},
+                 {x1: 550, y1: 50,  x2: 550, y2: 190},
                  
-                 {x1: 270, y1: 50, x2: 270, y2: 130},
-                 {x1: 330, y1: 50, x2: 330, y2: 130},
+                 {x1: 270, y1: 50,  x2: 270, y2: 130},
+                 {x1: 330, y1: 50,  x2: 330, y2: 130},
                  
                  {x1: 210, y1: 130, x2: 210, y2: 190},
                  {x1: 390, y1: 130, x2: 390, y2: 190},
@@ -129,17 +133,17 @@ var MAZE_LINES = [
                  {x1: 210, y1: 250, x2: 210, y2: 430, nopacdots: "defined"},
                  {x1: 390, y1: 250, x2: 390, y2: 430, nopacdots: "defined"},
                  
-                 {x1: 50, y1: 430, x2: 50, y2: 490},
+                 {x1: 50,  y1: 430, x2: 50,  y2: 490},
                  {x1: 270, y1: 430, x2: 270, y2: 490},
                  {x1: 330, y1: 430, x2: 330, y2: 490},
                  {x1: 550, y1: 430, x2: 550, y2: 490},
                  
-                 {x1: 90, y1: 490, x2: 90, y2: 550},
+                 {x1: 90,  y1: 490, x2: 90,  y2: 550},
                  {x1: 210, y1: 490, x2: 210, y2: 550},
                  {x1: 390, y1: 490, x2: 390, y2: 550},
                  {x1: 510, y1: 490, x2: 510, y2: 550},
                  
-                 {x1: 50, y1: 550, x2: 50, y2: 610},
+                 {x1: 50,  y1: 550, x2: 50,  y2: 610},
                  {x1: 270, y1: 550, x2: 270, y2: 610},
                  {x1: 330, y1: 550, x2: 330, y2: 610},
                  {x1: 550, y1: 550, x2: 550, y2: 610}
@@ -236,6 +240,29 @@ var isHorizontal = function(arg)
     {
         return (arg === Direction.LEFT || arg === Direction.RIGHT) ? true : false ;
     }
+};
+
+var changeCanvasDimensions = function(w, h)
+{
+    assert((typeof w === "number" && w >= 0), "w value not valid");
+    assert((typeof h === "number" && h >= 0), "h value not valid");
+    
+    canvas.width = w;
+    canvas.height = h;
+};
+
+var changeCanvasWidth = function(w)
+{
+    assert((typeof w === "number" && w >= 0), "w value not valid");
+    
+    canvas.width = w;
+};
+
+var changeCanvasHeight = function(h)
+{
+    assert((typeof h === "number" && h >= 0), "h value not valid");
+    
+    canvas.height = h;
 };
 
 /* these function's assert() will not be removed on release */
@@ -564,66 +591,122 @@ var PauseScreen = function()
 {
     this._pausemenu = new PauseMenu();
     
-    this._paddingTop = 0;
-    this._paddingLeft = 0;
-    
-    this._width = 0;
-    this._height = 0;
+    this._menuWidth = 0;
+    this._menuHeight = 0;
+    this._minWidth = 0;
+    this._minHeight = 0;
     
     this._computeSize();
 };
 
-PauseScreen.prototype._computeSize = function()
+PauseScreen.menuWidth = function()
 {
-    var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
     var textmaxwidth = 0;
+    var width = 0;
     
     context.font = PAUSEMENU_FONT_SIZE + "px " + PAUSEMENU_FONT;
     
-    for(var i=0; i<this._pausemenu.getItems().length; i++)
+    for(var key in PauseMenuItem)
     {
-        var itemwidth = context.measureText(this._pausemenu.getItems()[i]).width;
+        var itemwidth = context.measureText(PauseMenuItem[key]).width;
+        
         if (itemwidth > textmaxwidth)
         {
             textmaxwidth = itemwidth;
         }
     }
     
-    this._width = PAUSEMENU_HPADDING + textmaxwidth + PAUSEMENU_HPADDING;
+    width = PAUSEMENU_HPADDING + textmaxwidth + PAUSEMENU_HPADDING;
     
-    this._height += PAUSEMENU_VPADDING;
+    return width;
+};
+
+PauseScreen.menuHeight = function()
+{
+    var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
+    var height = 0;
+    
+    height += PAUSEMENU_VPADDING;
+    
+    for(var key in PauseMenuItem)
+    {
+        height += textheight;
+        height += PAUSEMENU_ITEMSDISTANCE;
+    }
+    
+    height -= PAUSEMENU_ITEMSDISTANCE;
+    height += PAUSEMENU_VPADDING;
+    
+    return height;
+};
+
+PauseScreen.prototype._computeSize = function()
+{
+    this._menuWidth = this._computeMenuWidth();
+    this._menuHeight = this._computeMenuHeight();
+    this._minWidth = PAUSEMENU_HMARGIN + this._menuWidth + PAUSEMENU_HMARGIN;
+    this._minHeight = PAUSEMENU_VMARGIN + this._menuHeight + PAUSEMENU_VMARGIN;
+};
+
+PauseScreen.prototype._computeMenuWidth = function()
+{
+    var textmaxwidth = 0;
+    var width = 0;
+    
+    context.font = PAUSEMENU_FONT_SIZE + "px " + PAUSEMENU_FONT;
     
     for(var i=0; i<this._pausemenu.getItems().length; i++)
     {
-        this._height += textheight;
-        this._height += PAUSEMENU_ITEMSDISTANCE;
+        var itemwidth = context.measureText(this._pausemenu.getItems()[i]).width;
+        
+        if (itemwidth > textmaxwidth)
+        {
+            textmaxwidth = itemwidth;
+        }
     }
-    this._height -= PAUSEMENU_ITEMSDISTANCE;
-    this._height += PAUSEMENU_VPADDING;
-};
-
-PauseScreen.prototype.addPaddingTop = function(paddingTop)
-{
-    assert((typeof paddingTop === "number"), "paddingTop is not a number");
     
-    this._paddingTop += paddingTop;
-};
-
-PauseScreen.prototype.addPaddingLeft = function(paddingLeft)
-{
-    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
+    width = PAUSEMENU_HPADDING + textmaxwidth + PAUSEMENU_HPADDING;
     
-    this._paddingLeft += paddingLeft;
+    return width;
 };
 
-PauseScreen.prototype.getWidth = function()
+PauseScreen.prototype._computeMenuHeight = function()
 {
-    return this._width;
+    var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
+    var height = 0;
+    
+    height += PAUSEMENU_VPADDING;
+    
+    for(var i=0; i<this._pausemenu.getItems().length; i++)
+    {
+        height += textheight;
+        height += PAUSEMENU_ITEMSDISTANCE;
+    }
+    
+    height -= PAUSEMENU_ITEMSDISTANCE;
+    height += PAUSEMENU_VPADDING;
+    
+    return height;
 };
 
-PauseScreen.prototype.getHeight = function()
+PauseScreen.prototype.getMinWidth = function()
 {
-    return this._height;
+    return this._minWidth;
+};
+
+PauseScreen.prototype.getMinHeight = function()
+{
+    return this._minHeight;
+};
+
+PauseScreen.prototype.getMenuWidth = function()
+{
+    return this._menuWidth;
+};
+
+PauseScreen.prototype.getMenuHeight = function()
+{
+    return this._menuHeight;
 };
 
 PauseScreen.prototype.handleInput = function(key)
@@ -659,6 +742,9 @@ PauseScreen.prototype.handleInput = function(key)
 
 PauseScreen.prototype.draw = function()
 {
+    var paddingLeft = (canvas.width - this._menuWidth) / 2;
+    var paddingTop = (canvas.height - this._menuHeight) / 2;
+
     var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
     var textmaxwidth = 0;
     
@@ -675,17 +761,17 @@ PauseScreen.prototype.draw = function()
     
     context.fillStyle = "green";
     
-    context.fillRect(this._paddingLeft,
-                     this._paddingTop,
-                     this._width,
-                     this._height);
+    context.fillRect(paddingLeft,
+                     paddingTop,
+                     this._menuWidth,
+                     this._menuHeight);
     
     context.fillStyle = "blue";
     
     for(var i=0; i<this._pausemenu.getItems().length; i++)
     {
-        context.fillRect(this._paddingLeft + PAUSEMENU_HPADDING,
-                         this._paddingTop + PAUSEMENU_VPADDING + i*(textheight + PAUSEMENU_ITEMSDISTANCE),
+        context.fillRect(paddingLeft + PAUSEMENU_HPADDING,
+                         paddingTop + PAUSEMENU_VPADDING + i*(textheight + PAUSEMENU_ITEMSDISTANCE),
                          textmaxwidth,
                          textheight);
     }
@@ -703,8 +789,8 @@ PauseScreen.prototype.draw = function()
         }
         
         context.fillText(this._pausemenu.getItems()[i],
-                         this._paddingLeft + PAUSEMENU_HPADDING,
-                         this._paddingTop + PAUSEMENU_VPADDING + PAUSEMENU_FONT_SIZE + yval);
+                         paddingLeft + PAUSEMENU_HPADDING,
+                         paddingTop + PAUSEMENU_VPADDING + PAUSEMENU_FONT_SIZE + yval);
         
         yval += (textheight + PAUSEMENU_ITEMSDISTANCE);
     }
@@ -759,25 +845,36 @@ PauseMenu.prototype.changeToNextItem = function()
 
 var PlayingScreen = function()
 {
-    this._maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
-    
-    this._mazerects = [];        // rectangles that perfectly wrap the pacman on lines
-    this._generateMazeRects();
-    
-    this._mazeportalrects = []; // rectangles that will partially hide the pacman when it go towards a portal
-    this._generateMazePortalsRects();
-    
-    this._status = new Status();
-    
-    this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
-    
     this._width = 0;
     this._height = 0;
     
-    this._paddingTop = 0;
-    this._paddingLeft = 0;
+    this._status = new Status();
+    
+    this._maze = null;
+    this._pacman = null;
+    
+    this._mazerects = [];       // rectangles that perfectly wrap the pacman on lines
+    this._mazeportalrects = []; // rectangles that will partially hide the pacman when it go towards a portal
+    
+    this.loadMapFromArrayOfLitterals(MAZE_LINES);
+};
+
+PlayingScreen.prototype.loadMapFromArrayOfLitterals = function(mazelines)
+{
+    //TODO ne pas utiliser des coordonnees pour pacman_start, mais mettre un flag dans le maze_lines !
+    
+    this._maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
+    this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
+    
+    this._generateMazeRects();
+    this._generateMazePortalsRects();
     
     this._computeSize();
+    
+    var width = (PauseScreen.menuWidth() > this._width) ? PauseScreen.menuWidth() : this._width ;
+    var height = (PauseScreen.menuHeight() > this._height) ? PauseScreen.menuHeight() : this._height ;
+    changeCanvasDimensions(width, height);
+    
     this._normalizeCoordinates();
 };
 
@@ -856,20 +953,6 @@ PlayingScreen.prototype._computeSize = function()
     this._height = this._maze.getHeight() + LINE_WIDTH + 10 + statusheight;
 };
 
-PlayingScreen.prototype.addPaddingTop = function(paddingTop)
-{
-    assert((typeof paddingTop === "number"), "paddingTop is not a number");
-    
-    this._paddingTop += paddingTop;
-};
-
-PlayingScreen.prototype.addPaddingLeft = function(paddingLeft)
-{
-    assert((typeof paddingLeft === "number"), "paddingLeft is not a number");
-    
-    this._paddingLeft += paddingLeft;
-};
-
 PlayingScreen.prototype.getWidth = function()
 {
     return this._width;
@@ -890,8 +973,8 @@ PlayingScreen.prototype._statusMaxWidth = function()
 /*
     normalize all the coordinates of the maze lines and pacman, ghosts, ...
     => this function reposition all of the maze elements so that its upper
-    left corner match the canvas origin (0,0), or is centered horizontally if it
-    is smaller than the playingscreen width
+    left corner match the canvas origin (0,0), or is centered horizontally and
+    vertically if it is smaller than the canvas width
 */
 PlayingScreen.prototype._normalizeCoordinates = function()
 {
@@ -902,25 +985,15 @@ PlayingScreen.prototype._normalizeCoordinates = function()
     
     var xmin = mazerects[0].x;
     var ymin = mazerects[0].y;
-    var xmax = mazerects[0].x + mazerects[0].w;
-    var ymax = mazerects[0].y + mazerects[0].h;
     
     for(var i=1; i<mazerects.length; i++)
     {
         if (mazerects[i].x < xmin) {xmin = mazerects[i].x;}
         if (mazerects[i].y < ymin) {ymin = mazerects[i].y;}
-        if (mazerects[i].x + mazerects[i].w > xmax) {xmax = mazerects[i].x + mazerects[i].w;}
-        if (mazerects[i].y + mazerects[i].h > ymax) {ymax = mazerects[i].y + mazerects[i].h;}
     }
     
-    var xpadding = 0 - xmin;
-    var ypadding = 0 - ymin;
-    
-    /* if the width is the same of the status, it means that the maze is smaller, and then needs to be centered */
-    if (this._width === this._statusMaxWidth())
-    {
-        xpadding += this._width/2 - (this._maze.getWidth() + LINE_WIDTH)/2;
-    }
+    var xpadding = (canvas.width - this._width) / 2 - xmin;
+    var ypadding = (canvas.height - this._height) / 2 - ymin;
     
     for(var i=0; i<mazerects.length; i++)
     {
@@ -951,6 +1024,7 @@ PlayingScreen.prototype._normalizeCoordinates = function()
     this._pacman.setPosition(this._pacman.getPosition().getX() + xpadding,
                              this._pacman.getPosition().getY() + ypadding);
     
+    //TODO ne pas utiliser ce genre de truc pr position depart de pacman mais plutot des flags dans MAZE_LINES (du coup on n'aurait pas a modifier ces "macros" ci-dessous)
     PACMAN_STARTX += xpadding;
     PACMAN_STARTY += ypadding;
 };
@@ -1145,8 +1219,8 @@ PlayingScreen.prototype._drawMazeRects = function()
     
     for(var i=0;i<this._mazerects.length;i++)
     {
-        context.fillRect(this._mazerects[i].x + this._paddingLeft,
-                         this._mazerects[i].y + this._paddingTop,
+        context.fillRect(this._mazerects[i].x,
+                         this._mazerects[i].y,
                          this._mazerects[i].w,
                          this._mazerects[i].h);
     }
@@ -1161,8 +1235,8 @@ PlayingScreen.prototype._drawMazePacdots = function()
     for(var i=0;i<pacdots.length;i++)
     {
         context.beginPath();
-        context.arc(pacdots[i].getX() + this._paddingLeft,
-                    pacdots[i].getY() + this._paddingTop,
+        context.arc(pacdots[i].getX(),
+                    pacdots[i].getY(),
                     PACDOTS_RADIUS,
                     0,
                     2 * Math.PI);
@@ -1176,19 +1250,11 @@ PlayingScreen.prototype._drawMazePacdots = function()
 
 PlayingScreen.prototype._drawMaze = function()
 {
-    var xpadding = 0;
-    
-    /* if the width is the same of the status, it means that the maze is smaller, and then the background needs to be centered*/
-    if (this._width === this._statusMaxWidth())
-    {
-        xpadding += this._width/2 - (this._maze.getWidth() + LINE_WIDTH)/2;
-    }
-    
     context.fillStyle = "blue";
-    context.fillRect(this._paddingLeft + xpadding,
-                     this._paddingTop,
-                     this._maze.getWidth() + LINE_WIDTH,
-                     this._maze.getHeight() + LINE_WIDTH);
+    context.fillRect((canvas.width - this._width) / 2,
+                     (canvas.height - this._height) / 2,
+                     this._width,
+                     this._height);
     this._drawMazeRects();
     this._drawMazePacdots();
 };
@@ -1203,20 +1269,20 @@ PlayingScreen.prototype._drawStatus = function()
     var statusheight = 1.3 * STATUS_FONT_SIZE;
     var mapheight = this._maze.getHeight() + LINE_WIDTH;
     
-    context.fillRect(this._paddingLeft,
-                     this._paddingTop + mapheight + 10,
+    context.fillRect((canvas.width - this._width) / 2,
+                     (canvas.height - this._height) / 2 + mapheight + 10,
                      this._width,
                      statusheight);
     
     context.fillStyle = "white";
     
     context.fillText("Score : " + this._status.getScore(),
-                     this._paddingLeft + STATUS_PADDINGLEFT,
-                     this._paddingTop + mapheight + 10 + STATUS_FONT_SIZE);
+                     (canvas.width - this._width) / 2 + STATUS_PADDINGLEFT,
+                     (canvas.height - this._height) / 2 + mapheight + 10 + STATUS_FONT_SIZE);
     
     context.fillText("Lives : ",
-                     this._paddingLeft + STATUS_PADDINGLEFT + maxscorewidth + 50,
-                     this._paddingTop + mapheight + 10 + STATUS_FONT_SIZE);
+                     (canvas.width - this._width) / 2 + STATUS_PADDINGLEFT + maxscorewidth + 50,
+                     (canvas.height - this._height) / 2 + mapheight + 10 + STATUS_FONT_SIZE);
     
     context.fillStyle = "yellow";
     
@@ -1224,8 +1290,8 @@ PlayingScreen.prototype._drawStatus = function()
     {
         var distance = i*10 + (i-1)*2*STATUS_LIVES_RADIUS + (STATUS_LIVES_RADIUS/2);
         context.beginPath();
-        context.arc(this._paddingLeft + STATUS_PADDINGLEFT + maxscorewidth + 50 + context.measureText("Lives : ").width + distance,
-                    this._paddingTop + mapheight + 10 + statusheight/2,
+        context.arc((canvas.width - this._width) / 2 + STATUS_PADDINGLEFT + maxscorewidth + 50 + context.measureText("Lives : ").width + distance,
+                    (canvas.height - this._height) / 2 + mapheight + 10 + statusheight/2,
                     STATUS_LIVES_RADIUS,
                     0,
                     2 * Math.PI);
@@ -1237,16 +1303,16 @@ PlayingScreen.prototype._drawPacman = function()
 {
     context.fillStyle = "yellow";
     context.beginPath();
-    context.moveTo(this._pacman.getPosition().getX() + this._paddingLeft,
-                   this._pacman.getPosition().getY() + this._paddingTop);
+    context.moveTo(this._pacman.getPosition().getX(),
+                   this._pacman.getPosition().getY());
     
     //
     //    if arc() has the same start and end angles (mouth shutted), nothing is
     //    done ; a little trick to have a circle in this case is to use the fact
     //    that angles are modulo(2*PI)
     //
-    context.arc(this._paddingLeft + this._pacman.getPosition().getX(),
-                this._paddingTop + this._pacman.getPosition().getY(),
+    context.arc(this._pacman.getPosition().getX(),
+                this._pacman.getPosition().getY(),
                 PACMAN_RADIUS,
                 this._pacman.getMouthstartangle(),
                 this._pacman.getMouthendangle());
@@ -1259,8 +1325,8 @@ PlayingScreen.prototype._drawMazePortalsRects = function()
     
     for(var i=0;i<this._mazeportalrects.length;i++)
     {
-        context.fillRect(this._mazeportalrects[i].x + this._paddingLeft,
-                         this._mazeportalrects[i].y + this._paddingTop,
+        context.fillRect(this._mazeportalrects[i].x,
+                         this._mazeportalrects[i].y,
                          this._mazeportalrects[i].w,
                          this._mazeportalrects[i].h);
     }
@@ -1268,13 +1334,6 @@ PlayingScreen.prototype._drawMazePortalsRects = function()
 
 PlayingScreen.prototype.draw = function()
 {
-    context.fillStyle = "green";
-    
-    context.fillRect(this._paddingLeft,
-                     this._paddingTop,
-                     this._width,
-                     this._height);
-                     
     this._drawMaze();
     this._drawPacman();
     this._drawMazePortalsRects();
@@ -2106,11 +2165,10 @@ var logicLoop = function()
     - add ghosts : http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
     - add power pellets (a property of pacman)
     - inside checkConfiguration(), check for the menus if their size and size font are OK, ... check if each portal has one and only one other portal
-    - pausescreen et a fortiori les autres screen n'est pas fait de la bonne facon ; puisque il a un padding mais en fait c'est juste le padding du menu, pas de l'ecran complet de pause ! faudrait en realite commencer par trouver la taille du jeu ?
     - mettre currentline pas dans pacman ? (car demande de prendre maze en parametre)
 */
 
-var canvas = document.getElementById("gamecanvas");
+canvas = document.getElementById("gamecanvas");
 
 context = canvas.getContext("2d");
 
@@ -2118,26 +2176,10 @@ checkConfiguration();
 
 /* init the game */
 
-var maxheight = 0;
-var maxwidth = 0;
-
 playingscreen = new PlayingScreen();
 pausescreen = new PauseScreen();
 
-if (playingscreen.getHeight() > maxheight) {maxheight = playingscreen.getHeight();}
-if (playingscreen.getWidth() > maxwidth) {maxwidth = playingscreen.getWidth();}
-
-if (pausescreen.getHeight() > maxheight) {pausescreen = playingscreen.getHeight();}
-if (pausescreen.getWidth() > maxwidth) {pausescreen = playingscreen.getWidth();}
-
-canvas.height = maxheight;
-canvas.width = maxwidth;
-
-playingscreen.addPaddingLeft((maxwidth - playingscreen.getWidth())/2);
-playingscreen.addPaddingTop((maxheight - playingscreen.getHeight())/2);
-
-pausescreen.addPaddingLeft((maxwidth - pausescreen.getWidth())/2);
-pausescreen.addPaddingTop((maxheight - pausescreen.getHeight())/2);
+//TODO plus tard, mettre au depart le canvas a la taille prevue pour le menu principal (celles pour les menus avant de jouer) ; ensuite seulement quand on va jouer, verifier entre le playingscreen et le pausescreen pour mettre la bonne taille au canvas (via le loadmapfrom...())
 
 canvas.addEventListener("blur", blurEventListener);
 canvas.addEventListener("keydown", keyEventListener);
