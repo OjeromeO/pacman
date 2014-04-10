@@ -21,7 +21,6 @@ Object.defineProperties(PauseMenuItem,
     "RESUME":  {value: 0, writable: false, configurable: false, enumerable: true},
     "RESTART": {value: 1, writable: false, configurable: false, enumerable: true},
     "QUIT":    {value: 2, writable: false, configurable: false, enumerable: true}
-    //"count":   {value: 3, writable: false, configurable: false, enumerable: true},
 });
 
 
@@ -33,18 +32,28 @@ Object.defineProperties(GameState,
     "PLAYING": {value: 3, writable: false, configurable: false, enumerable: true}
 });
 
+var PacmanState = {};
+Object.defineProperties(PacmanState,
+{
+    "NORMAL":   {value: 1, writable: false, configurable: false, enumerable: true},
+    "PP_EATEN": {value: 2, writable: false, configurable: false, enumerable: true}
+});
+
+var GhostState = {};
+Object.defineProperties(GhostState,
+{
+    "NORMAL":   {value: 1, writable: false, configurable: false, enumerable: true},
+    "EATABLE":  {value: 2, writable: false, configurable: false, enumerable: true}
+});
+
 var canvas = null;
 var context = null;
 var pacman = null;
 var lastupdate = null;
 var newupdate = null;
-var maze = null;
-var mazeview = null;
 var pressedkeys = [];
 var pressedkeysdate = [];
-var pause = false;
 var state = null;
-var score = 0;
 var playingscreen = null;
 var pausescreen = null;
 
@@ -200,6 +209,32 @@ var isPortalID = function(id)
     }
 };
 
+var isPacmanState = function(state)
+{
+    if (state === PacmanState.NORMAL
+     || state === PacmanState.PP_EATEN)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+var isGhostState = function(state)
+{
+    if (state === GhostState.NORMAL
+     || state === GhostState.EATABLE)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
 var isPauseMenuItem = function(item)
 {
     if (item === PauseMenuItem.RESUME
@@ -268,6 +303,7 @@ var changeCanvasHeight = function(h)
 /* these function's assert() will not be removed on release */
 var checkConfiguration = function()
 {
+    //TODO check for the menus if their size and size font are OK, ... check if each portal has one and only one other portal
     assert((typeof LOGIC_REFRESH_RATE === "number" && LOGIC_REFRESH_RATE > 0), "LOGIC_REFRESH_RATE value not valid");
     assert((typeof PACDOT_POINT === "number" && PACDOT_POINT > 0), "PACDOT_POINT value not valid");
     assert((typeof LINE_WIDTH === "number" && LINE_WIDTH >= 2*PACMAN_RADIUS), "LINE_WIDTH value not valid");
@@ -599,6 +635,11 @@ var PauseScreen = function()
     this._computeSize();
 };
 
+PauseScreen.prototype.reinit = function()
+{
+    this._pausemenu.setCurrent(PauseMenuItem.RESUME);
+};
+
 PauseScreen.menuWidth = function()
 {
     var textmaxwidth = 0;
@@ -731,6 +772,7 @@ PauseScreen.prototype.handleInput = function(key)
         }
         else if (this._pausemenu.getCurrent() === PauseMenuItem.RESTART)
         {
+            this.reinit();
             playingscreen.reinit();
             
             return GameState.PLAYING;
@@ -861,8 +903,6 @@ var PlayingScreen = function()
 
 PlayingScreen.prototype.loadMapFromArrayOfLitterals = function(mazelines)
 {
-    //TODO ne pas utiliser des coordonnees pour pacman_start, mais mettre un flag dans le maze_lines !
-    
     this._maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
     this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
     
@@ -884,11 +924,7 @@ PlayingScreen.prototype.reinit = function()
     
     this._status.reinit();
     
-    this._pacman.setPosition(PACMAN_STARTX, PACMAN_STARTY);
-    this._pacman.setDirection(PACMAN_STARTDIRECTION);
-    this._pacman.setNextDirection(null);
-    this._pacman.setNextTurn(null);
-    this._pacman.setCurrentline(this._maze.mazeCurrentLine(this._pacman.getPosition(), this._pacman.getDirection()));
+    this._pacman.reinit(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
 };
 
 PlayingScreen.prototype._generateMazeRects = function()
@@ -1846,6 +1882,8 @@ var Pacman = function(x, y, direction, maze)
     assert((maze.containsPoint(new Point(x, y))), "coordinates are not inside the maze");
     assert((maze instanceof Maze), "maze is not a Maze");
     
+    this._state = PacmanState.NORMAL;
+    
     this._position = new Point(x, y);
     this._direction = direction;
     
@@ -1856,6 +1894,33 @@ var Pacman = function(x, y, direction, maze)
     this._mouthstartangle = 0;
     this._mouthendangle = 2 * Math.PI;
     
+    this._currentline = maze.mazeCurrentLine(this._position, this._direction);
+};
+
+Pacman.prototype.getState = function()
+{
+    return this._state;
+};
+
+Pacman.prototype.setState = function(state)
+{
+    assert((isPacmanState(state)), "state value is not valid");
+
+    this._state = state;
+};
+
+Pacman.prototype.reinit = function(x, y, direction, maze)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((isDirection(direction)), "direction value is not valid");
+    assert((maze.containsPoint(new Point(x, y))), "coordinates are not inside the maze");
+    assert((maze instanceof Maze), "maze is not a Maze");
+    
+    this._position.set(x, y);
+    this._direction = direction;
+    this._nextdirection = null;
+    this._nextturn = null;
     this._currentline = maze.mazeCurrentLine(this._position, this._direction);
 };
 
@@ -2161,11 +2226,15 @@ var logicLoop = function()
     to animate, like passing the timestamp ? or an other solution ?=> the static
     method update())
     - implement main screen
-    - a Game class
-    - add ghosts : http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
-    - add power pellets (a property of pacman)
-    - inside checkConfiguration(), check for the menus if their size and size font are OK, ... check if each portal has one and only one other portal
+    - implement a Game class
+    - implement ghosts : http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
+    - implement power pellets (a property of pacman)
+    - verifier ttes les verifs d'erreurs et ajouter les verifs manquantes, et aussi dans checkconfig()
+    - verif les bonnes utilisations de certaines fonctions : par exemple ne pas faire this._position.set() quand on peut faire this._setPosition() !
+    - verifier les prop et methodes privées/publiques et statiques
     - mettre currentline pas dans pacman ? (car demande de prendre maze en parametre)
+    - ne pas utiliser des coordonnees pour pacman_start, mais mettre un flag dans le maze_lines ! et pr direction de depart alors ? et ghost, faire pareil aussi ?
+        => eventuellement mettre ce genre de choses a part ! au lieu de juste utiliser un MAZE_LINES, utiliser un MAP (avec donc un playingscreen.loadmap()) contenant un MAZE_LINES + un PORTALS + un GHOSTS + un PACMANS (contenant donc coord de depart + direction de depart) ?
 */
 
 canvas = document.getElementById("gamecanvas");
