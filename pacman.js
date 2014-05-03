@@ -1,5 +1,7 @@
 
+/******************************************************************************/
 /************** global variables, "constants", and enumerations ***************/
+/******************************************************************************/
 
 var Direction = {};
 Object.defineProperties(Direction,
@@ -11,18 +13,20 @@ Object.defineProperties(Direction,
 });
 
 /*
-    - items for the pause menu ; they will appear in increasing order
+    - items for the pause menu ; they will appear in "idx" increasing order
     - values need to start at 0 and to be incremented by 1 each time
       as we use an array
 */
 var PauseMenuItem = {};
 Object.defineProperties(PauseMenuItem,
 {
-    "RESUME":  {value: 0, writable: false, configurable: false, enumerable: true},
-    "RESTART": {value: 1, writable: false, configurable: false, enumerable: true},
-    "QUIT":    {value: 2, writable: false, configurable: false, enumerable: true}
+    "RESUME":  {value: {idx: 0, str: "Resume game"},
+                writable: false, configurable: false, enumerable: true},
+    "RESTART": {value: {idx: 1, str: "Restart game"},
+                writable: false, configurable: false, enumerable: true},
+    "QUIT":    {value: {idx: 2, str: "Return to main menu"},
+                writable: false, configurable: false, enumerable: true}
 });
-
 
 var GameState = {};
 Object.defineProperties(GameState,
@@ -48,7 +52,6 @@ Object.defineProperties(GhostState,
 
 var canvas = null;
 var context = null;
-var pacman = null;
 var lastupdate = null;
 var newupdate = null;
 var pressedkeys = [];
@@ -59,9 +62,6 @@ var pausescreen = null;
 
 var LOGIC_REFRESH_RATE = 60;
 
-var PAUSEMENU_RESUMESTRING = "Resume game";
-var PAUSEMENU_QUITSTRING = "Return to main menu";
-var PAUSEMENU_RESTARTSTRING = "Restart game";
 var PAUSEMENU_FONT = "sans-serif";
 var PAUSEMENU_FONT_SIZE = 30;
 var PAUSEMENU_HPADDING = 20;
@@ -75,9 +75,6 @@ var PACDOTS_RADIUS = 2;
 var PACMAN_SPEED = 400;
 var LINE_WIDTH = 1.5 * 2 * PACMAN_RADIUS;
 var GRID_UNIT = 20;     // useful to set pacdots on the maze
-var PACMAN_STARTX = 50;
-var PACMAN_STARTY = 50;
-var PACMAN_STARTDIRECTION = Direction.UP;
 var PACDOT_POINT = 10;
 
 var STATUS_LIVES_RADIUS = 10;
@@ -85,86 +82,107 @@ var STATUS_FONT = "sans-serif";
 var STATUS_FONT_SIZE = 30;
 var STATUS_PADDINGLEFT = 20;
 
-/*
-    a "nopacdots" property means that the line will not have any pacdots on it
-    (except on an intersection with a line containing pacdots)
-*/
-var MAZE_LINES = [
-                 /* horizontal lines */
-                 
-                 {x1: 50,  y1: 50,  x2: 270, y2: 50},
-                 {x1: 330, y1: 50,  x2: 550, y2: 50},
-                 
-                 {x1: 50,  y1: 130, x2: 550, y2: 130},
-                 
-                 {x1: 50,  y1: 190, x2: 150, y2: 190},
-                 {x1: 210, y1: 190, x2: 270, y2: 190},
-                 {x1: 330, y1: 190, x2: 390, y2: 190},
-                 {x1: 450, y1: 190, x2: 550, y2: 190},
-                 
-                 {x1: 210, y1: 250, x2: 390, y2: 250, nopacdots: "defined"},
-                 
-                 {x1: 50,  y1: 310, x2: 210, y2: 310, nopacdots: "defined", portalid1: 1},
-                 {x1: 390, y1: 310, x2: 550, y2: 310, nopacdots: "defined", portalid2: 1},
-                 
-                 {x1: 210, y1: 370, x2: 390, y2: 370, nopacdots: "defined"},
-                 
-                 {x1: 50,  y1: 430, x2: 270, y2: 430},
-                 {x1: 330, y1: 430, x2: 550, y2: 430},
-                 
-                 {x1: 50,  y1: 490, x2: 90,  y2: 490},
-                 {x1: 150, y1: 490, x2: 450, y2: 490},
-                 {x1: 510, y1: 490, x2: 550, y2: 490},
-                 
-                 {x1: 50,  y1: 550, x2: 150, y2: 550},
-                 {x1: 210, y1: 550, x2: 270, y2: 550},
-                 {x1: 330, y1: 550, x2: 390, y2: 550},
-                 {x1: 450, y1: 550, x2: 550, y2: 550},
-                 
-                 {x1: 50,  y1: 610, x2: 550, y2: 610},
-                 
-                 /* vertical lines */
-                 
-                 {x1: 50,  y1: 50,  x2: 50,  y2: 190},
-                 {x1: 150, y1: 50,  x2: 150, y2: 550},
-                 {x1: 450, y1: 50,  x2: 450, y2: 550},
-                 {x1: 550, y1: 50,  x2: 550, y2: 190},
-                 
-                 {x1: 270, y1: 50,  x2: 270, y2: 130},
-                 {x1: 330, y1: 50,  x2: 330, y2: 130},
-                 
-                 {x1: 210, y1: 130, x2: 210, y2: 190},
-                 {x1: 390, y1: 130, x2: 390, y2: 190},
-                 
-                 {x1: 270, y1: 190, x2: 270, y2: 250, nopacdots: "defined"},
-                 {x1: 330, y1: 190, x2: 330, y2: 250, nopacdots: "defined"},
-                 
-                 {x1: 210, y1: 250, x2: 210, y2: 430, nopacdots: "defined"},
-                 {x1: 390, y1: 250, x2: 390, y2: 430, nopacdots: "defined"},
-                 
-                 {x1: 50,  y1: 430, x2: 50,  y2: 490},
-                 {x1: 270, y1: 430, x2: 270, y2: 490},
-                 {x1: 330, y1: 430, x2: 330, y2: 490},
-                 {x1: 550, y1: 430, x2: 550, y2: 490},
-                 
-                 {x1: 90,  y1: 490, x2: 90,  y2: 550},
-                 {x1: 210, y1: 490, x2: 210, y2: 550},
-                 {x1: 390, y1: 490, x2: 390, y2: 550},
-                 {x1: 510, y1: 490, x2: 510, y2: 550},
-                 
-                 {x1: 50,  y1: 550, x2: 50,  y2: 610},
-                 {x1: 270, y1: 550, x2: 270, y2: 610},
-                 {x1: 330, y1: 550, x2: 330, y2: 610},
-                 {x1: 550, y1: 550, x2: 550, y2: 610}
-                 ];
+
+
+var MAP_1 =
+{
+    /*
+        a "nopacdots" property means that the line will not have any pacdots on it
+        (except on an intersection with a line containing pacdots)
+    */
+    mazelines:  [
+                    /* horizontal lines */
+
+                    {x1: 50,  y1: 50,  x2: 270, y2: 50},
+                    {x1: 330, y1: 50,  x2: 550, y2: 50},
+
+                    {x1: 50,  y1: 130, x2: 550, y2: 130},
+
+                    {x1: 50,  y1: 190, x2: 150, y2: 190},
+                    {x1: 210, y1: 190, x2: 270, y2: 190},
+                    {x1: 330, y1: 190, x2: 390, y2: 190},
+                    {x1: 450, y1: 190, x2: 550, y2: 190},
+
+                    {x1: 210, y1: 250, x2: 390, y2: 250, nopacdots: "defined"},
+
+                    {x1: 50,  y1: 310, x2: 210, y2: 310, nopacdots: "defined"},
+                    {x1: 390, y1: 310, x2: 550, y2: 310, nopacdots: "defined"},
+
+                    {x1: 210, y1: 370, x2: 390, y2: 370, nopacdots: "defined"},
+
+                    {x1: 50,  y1: 430, x2: 270, y2: 430},
+                    {x1: 330, y1: 430, x2: 550, y2: 430},
+
+                    {x1: 50,  y1: 490, x2: 90,  y2: 490},
+                    {x1: 150, y1: 490, x2: 450, y2: 490},
+                    {x1: 510, y1: 490, x2: 550, y2: 490},
+
+                    {x1: 50,  y1: 550, x2: 150, y2: 550},
+                    {x1: 210, y1: 550, x2: 270, y2: 550},
+                    {x1: 330, y1: 550, x2: 390, y2: 550},
+                    {x1: 450, y1: 550, x2: 550, y2: 550},
+
+                    {x1: 50,  y1: 610, x2: 550, y2: 610},
+
+                    /* vertical lines */
+
+                    {x1: 50,  y1: 50,  x2: 50,  y2: 190},
+                    {x1: 150, y1: 50,  x2: 150, y2: 550},
+                    {x1: 450, y1: 50,  x2: 450, y2: 550},
+                    {x1: 550, y1: 50,  x2: 550, y2: 190},
+
+                    {x1: 270, y1: 50,  x2: 270, y2: 130},
+                    {x1: 330, y1: 50,  x2: 330, y2: 130},
+
+                    {x1: 210, y1: 130, x2: 210, y2: 190},
+                    {x1: 390, y1: 130, x2: 390, y2: 190},
+
+                    {x1: 270, y1: 190, x2: 270, y2: 250, nopacdots: "defined"},
+                    {x1: 330, y1: 190, x2: 330, y2: 250, nopacdots: "defined"},
+
+                    {x1: 210, y1: 250, x2: 210, y2: 430, nopacdots: "defined"},
+                    {x1: 390, y1: 250, x2: 390, y2: 430, nopacdots: "defined"},
+
+                    {x1: 50,  y1: 430, x2: 50,  y2: 490},
+                    {x1: 270, y1: 430, x2: 270, y2: 490},
+                    {x1: 330, y1: 430, x2: 330, y2: 490},
+                    {x1: 550, y1: 430, x2: 550, y2: 490},
+
+                    {x1: 90,  y1: 490, x2: 90,  y2: 550},
+                    {x1: 210, y1: 490, x2: 210, y2: 550},
+                    {x1: 390, y1: 490, x2: 390, y2: 550},
+                    {x1: 510, y1: 490, x2: 510, y2: 550},
+
+                    {x1: 50,  y1: 550, x2: 50,  y2: 610},
+                    {x1: 270, y1: 550, x2: 270, y2: 610},
+                    {x1: 330, y1: 550, x2: 330, y2: 610},
+                    {x1: 550, y1: 550, x2: 550, y2: 610}
+                ],
+    
+    portals:    [
+                    {x: 50,  y: 310, id: 1},
+                    {x: 550, y: 310, id: 1}
+                ],
+    
+    pacman:     {
+                    x:          50,
+                    y:          50,
+                    direction:  Direction.UP
+                }
+};
+
 /*
 var count1 = 0;
 var count2 = 0;
 var firstupdate = 0;
 */
+
 var tmp1 = 0;
 var tmp2 = 0;
+
+/******************************************************************************/
 /***************************** utilities functions ****************************/
+/******************************************************************************/
 
 var AssertError = function(message)
 {
@@ -181,12 +199,26 @@ var assert = function(condition, message)
     }
 };
 
+var isVirtualKeyCode = function(code)
+{
+    if (typeof code === "number"
+     && code >= 0)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
 var isDirection = function(direction)
 {
-    if (direction === Direction.UP
-     || direction === Direction.DOWN
-     || direction === Direction.RIGHT
-     || direction === Direction.LEFT)
+    if (typeof direction === "number"
+     && (direction === Direction.UP
+      || direction === Direction.DOWN
+      || direction === Direction.RIGHT
+      || direction === Direction.LEFT))
     {
         return true;
     }
@@ -211,8 +243,9 @@ var isPortalID = function(id)
 
 var isPacmanState = function(state)
 {
-    if (state === PacmanState.NORMAL
-     || state === PacmanState.PP_EATEN)
+    if (typeof state === "number"
+     && (state === PacmanState.NORMAL
+      || state === PacmanState.PP_EATEN))
     {
         return true;
     }
@@ -224,8 +257,9 @@ var isPacmanState = function(state)
 
 var isGhostState = function(state)
 {
-    if (state === GhostState.NORMAL
-     || state === GhostState.EATABLE)
+    if (typeof state === "number"
+     && (state === GhostState.NORMAL
+      || state === GhostState.EATABLE))
     {
         return true;
     }
@@ -237,9 +271,10 @@ var isGhostState = function(state)
 
 var isPauseMenuItem = function(item)
 {
-    if (item === PauseMenuItem.RESUME
-     || item === PauseMenuItem.QUIT
-     || item === PauseMenuItem.RESTART)
+    if (typeof item === "string"
+     && (item === PauseMenuItem.RESUME
+      || item === PauseMenuItem.QUIT
+      || item === PauseMenuItem.RESTART))
     {
         return true;
     }
@@ -249,7 +284,7 @@ var isPauseMenuItem = function(item)
     }
 };
 
-var isVertical = function(arg)      /* overloading powaaa ^^ */
+var isVertical = function(arg)
 {
     assert((arg instanceof Line || isDirection(arg)), "argument is not a Direction nor a Line");
     
@@ -311,33 +346,33 @@ var checkConfiguration = function()
     assert((typeof PACDOTS_RADIUS === "number" && PACDOTS_RADIUS < PACMAN_RADIUS), "PACDOTS_RADIUS value not valid");
     assert((typeof PACMAN_RADIUS === "number" && PACMAN_RADIUS > 0), "PACMAN_RADIUS value not valid");
     assert((typeof GRID_UNIT === "number" && GRID_UNIT > 0), "GRID_UNIT value not valid");
-    assert((typeof PACMAN_STARTX === "number" && PACMAN_STARTX > 0), "PACMAN_STARTX value not valid");
-    assert((typeof PACMAN_STARTY === "number" && PACMAN_STARTY > 0), "PACMAN_STARTY value not valid");
-    assert((isDirection(PACMAN_STARTDIRECTION)), "PACMAN_STARTDIRECTION value not valid");
-    assert((MAZE_LINES instanceof Array && MAZE_LINES.length > 0), "MAZE_LINES value not valid");
+    assert((typeof MAP_1.pacman.x === "number"), "MAP_1.pacman.x value not valid");
+    assert((typeof MAP_1.pacman.y === "number"), "MAP_1.pacman.y value not valid");
+    assert((isDirection(MAP_1.pacman.direction)), "MAP_1.pacman.direction value not valid");
+    assert((MAP_1.mazelines instanceof Array && MAP_1.mazelines.length > 0), "MAP_1.mazelines value not valid");
     
     /* 
         this will hold the X/Y "padding" for the maze the user gave us,
         and will allow us to check if the lines are on the game grid
         (cf GRID_UNIT)
     */
-    var xmin = MAZE_LINES[0].x1;
-    var ymin = MAZE_LINES[0].y1;
+    var xmin = MAP_1.mazelines[0].x1;
+    var ymin = MAP_1.mazelines[0].y1;
     
-    var pacman = new Point(PACMAN_STARTX, PACMAN_STARTY);
+    var pacman = new Point(MAP_1.pacman.x, MAP_1.pacman.y);
     var isPacmanInMaze = false;
 
-    for(var i=0; i<MAZE_LINES.length; i++)
+    for(var i=0; i<MAP_1.mazelines.length; i++)
     {
-        assert((typeof MAZE_LINES[i].x1 === "number"), "MAZE_LINES[" + i + "].x1 value not valid");
-        assert((typeof MAZE_LINES[i].y1 === "number"), "MAZE_LINES[" + i + "].y1 value not valid");
-        assert((typeof MAZE_LINES[i].x2 === "number"), "MAZE_LINES[" + i + "].x2 value not valid");
-        assert((typeof MAZE_LINES[i].y2 === "number"), "MAZE_LINES[" + i + "].y2 value not valid");
+        assert((typeof MAP_1.mazelines[i].x1 === "number"), "MAP_1.mazelines[" + i + "].x1 value not valid");
+        assert((typeof MAP_1.mazelines[i].y1 === "number"), "MAP_1.mazelines[" + i + "].y1 value not valid");
+        assert((typeof MAP_1.mazelines[i].x2 === "number"), "MAP_1.mazelines[" + i + "].x2 value not valid");
+        assert((typeof MAP_1.mazelines[i].y2 === "number"), "MAP_1.mazelines[" + i + "].y2 value not valid");
         
-        var p1 = new Point(MAZE_LINES[i].x1, MAZE_LINES[i].y1);
-        var p2 = new Point(MAZE_LINES[i].x2, MAZE_LINES[i].y2);
+        var p1 = new Point(MAP_1.mazelines[i].x1, MAP_1.mazelines[i].y1);
+        var p2 = new Point(MAP_1.mazelines[i].x2, MAP_1.mazelines[i].y2);
         
-        assert((p1.getX() === p2.getX() || p1.getY() === p2.getY()), "MAZE_LINES[" + i + "] points value will not create a horizontal nor a vertical line");
+        assert((p1.getX() === p2.getX() || p1.getY() === p2.getY()), "MAP_1.mazelines[" + i + "] points value will not create a horizontal nor a vertical line");
         
         var l = new Line(p1, p2);
         
@@ -347,39 +382,29 @@ var checkConfiguration = function()
         if (l.getPoint1().getY() < ymin) {ymin = l.getPoint1().getY();}
     }
     
-    assert((isPacmanInMaze === true), "PACMAN_START coordinates are not inside the maze");
+    assert((isPacmanInMaze === true), "MAP_1.pacman coordinates are not inside the maze");
     
-    for(var i=0; i<MAZE_LINES.length; i++)
+    for(var i=0; i<MAP_1.mazelines.length; i++)
     {
-        assert((((MAZE_LINES[i].x1-xmin) % GRID_UNIT) === 0
-             && ((MAZE_LINES[i].y1-ymin) % GRID_UNIT) === 0
-             && ((MAZE_LINES[i].x2-xmin) % GRID_UNIT) === 0
-             && ((MAZE_LINES[i].y2-ymin) % GRID_UNIT) === 0),
-             "MAZE_LINES[" + i +"] points are not on the game grid, using " + GRID_UNIT + " pixels unit");
+        assert((((MAP_1.mazelines[i].x1-xmin) % GRID_UNIT) === 0
+             && ((MAP_1.mazelines[i].y1-ymin) % GRID_UNIT) === 0
+             && ((MAP_1.mazelines[i].x2-xmin) % GRID_UNIT) === 0
+             && ((MAP_1.mazelines[i].y2-ymin) % GRID_UNIT) === 0),
+             "MAP_1.mazelines[" + i +"] points are not on the game grid, using " + GRID_UNIT + " pixels unit");
     }
 };
 
-/******************************** Point class *******************************/
+/******************************************************************************/
+/********************************* Point class ********************************/
+/******************************************************************************/
 
-var Point = function(x, y, portalid)
+var Point = function(x, y)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
-    assert((typeof portalid === "undefined" || isPortalID(portalid)), "portalid is not a portal ID");
     
     this._x = x;
     this._y = y;
-    this._portalid = (typeof portalid === "undefined") ? null : portalid ;
-};
-
-Point.prototype.isPortal = function()
-{
-    return isPortalID(this._portalid);
-};
-
-Point.prototype.getPortalID = function()
-{
-    return this._portalid;
 };
 
 Point.prototype.getX = function()
@@ -387,16 +412,16 @@ Point.prototype.getX = function()
     return this._x;
 };
 
-Point.prototype.getY = function()
-{
-    return this._y;
-};
-
 Point.prototype.setX = function(x)
 {
     assert((typeof x === "number"), "x is not a number");
     
     this._x = x;
+};
+
+Point.prototype.getY = function()
+{
+    return this._y;
 };
 
 Point.prototype.setY = function(y)
@@ -415,36 +440,393 @@ Point.prototype.set = function(x, y)
     this._y = y;
 };
 
-Point.prototype.equals = function(point)
+Point.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._x += x;
+    this._y += y;
+};
+
+Point.prototype.equals = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    return (this._x === x && this._y === y);
+};
+
+Point.prototype.equalsPoint = function(point)
 {
     assert((point instanceof Point), "point is not a Point");
     
     return (this._x === point.getX() && this._y === point.getY());
 };
 
-Point.prototype.distance = function(point)
+Point.prototype.distanceTo = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    return Math.sqrt(Math.pow(x-this._x, 2) + Math.pow(y-this._y, 2));
+};
+
+Point.prototype.distanceToPoint = function(point)
 {
     assert((point instanceof Point), "point is not a Point");
     
-    return Math.sqrt(Math.pow(point.getX()-this.getX(), 2) + Math.pow(point.getY()-this.getY(), 2));
+    return Math.sqrt(Math.pow(point.getX()-this._x, 2) + Math.pow(point.getY()-this._y, 2));
 };
 
-/******************************* Line class *******************************/
+/******************************************************************************/
+/**************************** DrawablePoint class *****************************/
+/******************************************************************************/
+
+var DrawablePoint = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    Point.call(this, x, y);
+};
+
+DrawablePoint.prototype = Object.create(Point.prototype);
+DrawablePoint.prototype.constructor = DrawablePoint;
+
+DrawablePoint.prototype.draw = function()
+{
+    context.fillRect(this._x, this._y, 1, 1);
+};
+
+/******************************************************************************/
+/********************************* Circle class *******************************/
+/******************************************************************************/
+
+var Circle = function(x, y, radius)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((typeof radius === "number"), "radius is not a number");
+    
+    this._position = new Point(x, y);
+    this._radius = radius;
+};
+
+Circle.prototype.getPosition = function()
+{
+    return this._position;
+};
+
+Circle.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.set(x, y);
+};
+
+Circle.prototype.getRadius = function()
+{
+    return this._radius;
+};
+
+Circle.prototype.setRadius = function(radius)
+{
+    assert((typeof radius === "number"), "radius is not a number");
+    
+    this._radius = radius;
+};
+
+Circle.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+};
+
+/******************************************************************************/
+/*************************** DrawableCircle class *****************************/
+/******************************************************************************/
+
+var DrawableCircle = function(x, y, radius, filled)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((typeof radius === "number"), "radius is not a number");
+    assert(((typeof filled === "undefined") || typeof filled === "boolean"), "filled is not a boolean");
+    
+    Circle.call(this, x, y, radius);
+    
+    this._filled = (typeof filled === "undefined") ? true : filled ;
+};
+
+DrawableCircle.prototype = Object.create(Circle.prototype);
+DrawableCircle.prototype.constructor = DrawableCircle;
+
+DrawableCircle.prototype.draw = function()
+{
+    context.beginPath();
+    context.arc(this._position.getX(),
+                this._position.getY(),
+                this._radius,
+                0,
+                2 * Math.PI);
+    
+    if (this._filled)
+    {
+        context.fill();
+    }
+    else
+    {
+        context.stroke();
+    }
+};
+
+DrawableCircle.prototype.drawInPath = function()
+{
+    context.arc(this._position.getX(),
+                this._position.getY(),
+                this._radius,
+                0,
+                2 * Math.PI);
+};
+
+/******************************************************************************/
+/******************************* CircleArc class ******************************/
+/******************************************************************************/
+
+var CircleArc = function(x, y, radius, startangle, endangle)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((typeof radius === "number"), "radius is not a number");
+    assert((typeof startangle === "number"), "startangle is not a number");
+    assert((typeof endangle === "number"), "endangle is not a number");
+    
+    this._position = new Point(x, y);
+    this._radius = radius;
+    this._startangle = startangle;
+    this._endangle = endangle;
+};
+
+CircleArc.prototype.getPosition = function()
+{
+    return this._position;
+};
+
+CircleArc.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.set(x, y);
+};
+
+CircleArc.prototype.getRadius = function()
+{
+    return this._radius;
+};
+
+CircleArc.prototype.setRadius = function(radius)
+{
+    assert((typeof radius === "number"), "radius is not a number");
+    
+    this._radius = radius;
+};
+
+CircleArc.prototype.getStartangle = function()
+{
+    return this._startangle;
+};
+
+CircleArc.prototype.setStartangle = function(startangle)
+{
+    assert((typeof startangle === "number"), "startangle is not a number");
+    
+    this._startangle = startangle;
+};
+
+CircleArc.prototype.getEndangle = function()
+{
+    return this._endangle;
+};
+
+CircleArc.prototype.setEndangle = function(endangle)
+{
+    assert((typeof endangle === "number"), "endangle is not a number");
+    
+    this._endangle = endangle;
+};
+
+CircleArc.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+};
+
+/******************************************************************************/
+/************************* DrawableCircleArc class ****************************/
+/******************************************************************************/
+
+var DrawableCircleArc = function(x, y, radius, startangle, endangle)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((typeof radius === "number"), "radius is not a number");
+    assert((typeof startangle === "number"), "startangle is not a number");
+    assert((typeof endangle === "number"), "endangle is not a number");
+    
+    CircleArc.call(this, x, y, radius, startangle, endangle);
+};
+
+DrawableCircleArc.prototype = Object.create(CircleArc.prototype);
+DrawableCircleArc.prototype.constructor = DrawableCircleArc;
+
+DrawableCircleArc.prototype.draw = function()
+{
+    context.beginPath();
+    context.arc(this._position.getX(),
+                this._position.getY(),
+                this._radius,
+                this._startangle,
+                this._endangle);
+    context.stroke();
+    context.closePath();
+};
+
+DrawableCircleArc.prototype.drawInPath = function()
+{
+    context.arc(this._position.getX(),
+                this._position.getY(),
+                this._radius,
+                this._startangle,
+                this._endangle);
+};
+
+/******************************************************************************/
+/******************************** Rectangle class *****************************/
+/******************************************************************************/
+
+var Rectangle = function(x, y, w, h)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((typeof w === "number"), "w is not a number");
+    assert((typeof h === "number"), "h is not a number");
+    
+    this._position = new Point(x, y);
+    this._w = w;
+    this._h = h;
+};
+
+Rectangle.prototype.getPosition = function()
+{
+    return this._position;
+};
+
+Rectangle.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.set(x, y);
+};
+
+Rectangle.prototype.getWidth = function()
+{
+    return this._w;
+};
+
+Rectangle.prototype.getHeight = function()
+{
+    return this._h;
+};
+
+Rectangle.prototype.setWidth = function(w)
+{
+    assert((typeof w === "number"), "w is not a number");
+    
+    this._w = w;
+};
+
+Rectangle.prototype.setHeight = function(h)
+{
+    assert((typeof h === "number"), "h is not a number");
+    
+    this._h = h;
+};
+
+Rectangle.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+};
+
+/******************************************************************************/
+/************************** DrawableRectangle class ***************************/
+/******************************************************************************/
+
+var DrawableRectangle = function(x, y, w, h, filled)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((typeof w === "number"), "w is not a number");
+    assert((typeof h === "number"), "h is not a number");
+    assert(((typeof filled === "undefined") || typeof filled === "boolean"), "filled is not a boolean");
+    
+    Rectangle.call(this, x, y, w, h);
+    
+    this._filled = (typeof filled === "undefined") ? true : filled ;
+};
+
+DrawableRectangle.prototype = Object.create(Rectangle.prototype);
+DrawableRectangle.prototype.constructor = DrawableRectangle;
+
+DrawableRectangle.prototype.getIsFilled = function()
+{
+    return this._filled;
+};
+
+DrawableRectangle.prototype.setIsFilled = function(filled)
+{
+    assert((typeof filled === "boolean"), "isfilled is not a boolean");
+    
+    this._filled = filled;
+};
+
+DrawableRectangle.prototype.draw = function()
+{
+    if (this._filled)
+    {
+        context.fillRect(this._position.getX(), this._position.getY(), this._w, this._h);
+    }
+    else
+    {
+        context.strokeRect(this._position.getX(), this._position.getY(), this._w, this._h);
+    }
+};
+
+/******************************************************************************/
+/********************************* Line class *********************************/
+/******************************************************************************/
 
 /*
     - Line creates horizontal or vertical lines
-    - the instances first point will be the nearest of the origin (the way the
-      constructor ensures that is only valid for horizontal or vertical lines)
+    - Line ensures that the first end is the left-most and the top-most (the way
+      the constructor ensures that is only valid for horizontal or vertical lines)
 */
-var Line = function(point1, point2, hasPacdots)
+var Line = function(point1, point2)
 {
     assert((point1 instanceof Point), "point1 is not a Point");
     assert((point2 instanceof Point), "point2 is not a Point");
     assert((point1.getX() === point2.getX() || point1.getY() === point2.getY()),
            "points will not create a horizontal nor a vertical line");
-    assert((typeof hasPacdots === "undefined" || typeof hasPacdots === "boolean"), "hasPacdots is not a boolean");
-    
-    //XXX   should we clone the "pointZ" objects instead of just referencing them ?
     
     if (point1.getX() <= point2.getX() && point1.getY() <= point2.getY())
     {
@@ -456,13 +838,6 @@ var Line = function(point1, point2, hasPacdots)
         this._point1 = point2;
         this._point2 = point1;
     }
-    
-    this._hasPacdots = (typeof hasPacdots === "undefined") ? true : hasPacdots ;
-};
-
-Line.prototype.getHasPacdots = function()
-{
-    return this._hasPacdots;
 };
 
 Line.prototype.getPoint1 = function()
@@ -473,6 +848,34 @@ Line.prototype.getPoint1 = function()
 Line.prototype.getPoint2 = function()
 {
     return this._point2;
+};
+
+Line.prototype.set = function(point1, point2)
+{
+    assert((point1 instanceof Point), "point1 is not a Point");
+    assert((point2 instanceof Point), "point2 is not a Point");
+    assert((point1.getX() === point2.getX() || point1.getY() === point2.getY()),
+           "points will not create a horizontal nor a vertical line");
+    
+    if (point1.getX() <= point2.getX() && point1.getY() <= point2.getY())
+    {
+        this._point1 = point1;
+        this._point2 = point2;
+    }
+    else
+    {
+        this._point1 = point2;
+        this._point2 = point1;
+    }
+};
+
+Line.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._point1.translate(x,y);
+    this._point2.translate(x,y);
 };
 
 Line.prototype.size = function()
@@ -493,7 +896,6 @@ Line.prototype.XAxis = function()
     {
         return this._point1.getX();
     }
-    /* else "undefined" */
 };
 
 Line.prototype.YAxis = function()
@@ -502,7 +904,6 @@ Line.prototype.YAxis = function()
     {
         return this._point1.getY();
     }
-    /* else "undefined" */
 };
 
 Line.prototype.isInXIntervalOf = function(line)
@@ -544,16 +945,18 @@ Line.prototype.isCrossing = function(line)
     {
         return true;
     }
-    
-    return false;
+    else
+    {
+        return false;
+    }
 };
 
 Line.prototype.containsPoint = function(point)
 {
     assert((point instanceof Point), "point is not a Point");
     
-    if (point.getY() >= this._point1.getY() && point.getY() <= this.getPoint2().getY()
-     && point.getX() >= this._point1.getX() && point.getX() <= this.getPoint2().getX())
+    if (point.getY() >= this._point1.getY() && point.getY() <= this._point2.getY()
+     && point.getX() >= this._point1.getX() && point.getX() <= this._point2.getX())
     {
         return true;
     }
@@ -621,7 +1024,431 @@ Line.prototype.containsYStrictly = function(y)
     }
 };
 
-/**************************** PauseScreen class *****************************/
+/******************************************************************************/
+/***************************** DrawableLine class *****************************/
+/******************************************************************************/
+
+var DrawableLine = function(point1, point2)
+{
+    assert((point1 instanceof Point), "point1 is not a Point");
+    assert((point2 instanceof Point), "point2 is not a Point");
+    assert((point1.getX() === point2.getX() || point1.getY() === point2.getY()),
+           "points will not create a horizontal nor a vertical line");
+    
+    Line.call(this, point1, point2);
+};
+
+DrawableLine.prototype = Object.create(Line.prototype);
+DrawableLine.prototype.constructor = DrawableLine;
+
+DrawableLine.prototype.draw = function()
+{
+    ctx.beginPath();
+    ctx.moveTo(this._point1.getX(), this._point1.getY());
+    ctx.lineTo(this._point2.getX(), this._point2.getY());
+    ctx.closePath();
+    ctx.stroke();
+};
+
+/******************************************************************************/
+/********************************* Portal class *******************************/
+/******************************************************************************/
+
+var Portal = function(x, y, id)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((isPortalID(id)), "id is not a portal ID");
+    
+    this._position = new Point(x, y);
+    this._id = id ;
+    
+    this._graphicsrect = null;
+    
+    this._generateGraphics();
+};
+
+Portal.prototype._generateGraphics = function()
+{
+    var rect = new DrawableRectangle(this._position.getX() - LINE_WIDTH/2,
+                                     this._position.getY() - LINE_WIDTH/2,
+                                     LINE_WIDTH,
+                                     LINE_WIDTH,
+                                     true);
+    
+    this._graphicsrect = rect;
+};
+
+Portal.prototype.getPosition = function()
+{
+    return this._position;
+};
+
+Portal.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.set(x, y);
+    
+    this._graphicsrect.setPosition(this._position.getX() - LINE_WIDTH/2,
+                                   this._position.getY() - LINE_WIDTH/2);
+};
+
+Portal.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+    this._graphicsrect.translate(x, y);
+};
+
+Portal.prototype.getID = function()
+{
+    return this._id;
+};
+
+Portal.prototype.setID = function(id)
+{
+    assert((isPortalID(id)), "id is not a portal ID");
+    
+    this._id = id;
+};
+
+Portal.prototype.draw = function()
+{
+    context.fillStyle = "green";
+    
+    this._graphicsrect.draw();
+};
+
+/******************************************************************************/
+/********************************* Pacdot class *******************************/
+/******************************************************************************/
+
+var Pacdot = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position = new Point(x, y);
+    
+    this._graphicscircle = null;
+    
+    this._generateGraphics();
+};
+
+Pacdot.prototype._generateGraphics = function()
+{
+    var circle = new DrawableCircle(this._position.getX(),
+                                    this._position.getY(),
+                                    PACDOTS_RADIUS,
+                                    true);
+    
+    this._graphicscircle = circle;
+};
+
+Pacdot.prototype.getPosition = function()
+{
+    return this._position;
+};
+
+Pacdot.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.set(x, y);
+    
+    this._graphicscircle.setPosition(this._position.getX(),
+                                     this._position.getY());
+};
+
+Pacdot.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+    this._graphicscircle.translate(x, y);
+};
+
+Pacdot.prototype.draw = function()
+{
+    context.fillStyle = "white";
+    
+    this._graphicscircle.draw();
+};
+
+/******************************************************************************/
+/******************************** Corridor class ******************************/
+/******************************************************************************/
+
+var Corridor = function(point1, point2)
+{
+    assert((point1 instanceof Point), "point1 is not a Point");
+    assert((point2 instanceof Point), "point2 is not a Point");
+    assert((point1.getX() === point2.getX() || point1.getY() === point2.getY()),
+           "points will not create a horizontal nor a vertical line");
+    
+    this._line = new Line(point1, point2);
+    
+    this._graphicsrect = null;
+    
+    this._generateGraphics();
+};
+
+Corridor.prototype._generateGraphics = function()
+{
+    var rect = new DrawableRectangle(this._line.getPoint1().getX() - LINE_WIDTH/2,
+                                     this._line.getPoint1().getY() - LINE_WIDTH/2,
+                                     (isVertical(this._line)) ? LINE_WIDTH : this._line.size() + LINE_WIDTH,
+                                     (isVertical(this._line)) ? this._line.size() + LINE_WIDTH : LINE_WIDTH,
+                                     true);
+    
+    this._graphicsrect = rect;
+};
+
+Corridor.prototype.getLine = function()
+{
+    return this._line;
+};
+
+Corridor.prototype.setLine = function(point1, point2)
+{
+    assert((point1 instanceof Point), "point1 is not a Point");
+    assert((point2 instanceof Point), "point2 is not a Point");
+    assert((point1.getX() === point2.getX() || point1.getY() === point2.getY()),
+           "points will not create a horizontal nor a vertical line");
+    
+    this._line.set(point1, point2);
+    
+    this._graphicsrect.setPosition(this._line.getPoint1().getX() - LINE_WIDTH/2,
+                                   this._line.getPoint1().getY() - LINE_WIDTH/2);
+};
+
+Corridor.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._line.translate(x, y);
+    
+    this._graphicsrect.translate(x, y);
+};
+
+Corridor.prototype.draw = function()
+{
+    context.fillStyle = "black";
+    
+    this._graphicsrect.draw();
+};
+
+/******************************************************************************/
+/********************************* Map class **********************************/
+/******************************************************************************/
+
+// TODO
+// ===> ulterieurement faire en sorte que Map puisse renvoyer un Pacman et un Maze ? (vu qu'on renvoie deja des Pacdot via le tableau)
+// ===> Map stocke des Portal, Pacdot, Corridor, ... (qui ont en propriete les formes de base et sur lesquelles ils appellent, ou non, draw()) et renvoie une copie
+// ==> utiliser des DrawableText pour Status ^^
+
+// ===> Corridor : dans Playingscreen et Maze, renommer divers trucs comme mazelines en corridors idem pr certaines fonctions (getmazelines() devrait etre getCorridors())
+
+// pour l'optimisation des perfs, etc, pr dessiner la meme image ou un truc d'un canvas cache, il suffira d'ajouter une methode drawFromXXX()
+
+/* XXX commentaire qui sera probablement a modifier ^^
+    Map returns only copy of the litteral data (for example, this means it
+    doesn't return its own pacdots array but create a new one) ; and it stores
+    only basic data (Point instead of Portal or Pacdot)
+*/
+var Map = function(litteral)
+{
+    // loaded data
+    this._lines = [];
+    this._pacdots = [];
+    this._portals = [];
+    this._pacmanX = 0;
+    this._pacmanY = 0;
+    this._pacmanDirection = null;
+    
+    //computed data
+    this._topleft = null;
+    this._bottomright = null;
+    this._height = 0;
+    this._width = 0;
+
+    /*
+        load pacman
+    */
+    
+    this._pacmanX = litteral.pacman.x;
+    this._pacmanY = litteral.pacman.y;
+    this._pacmanDirection = litteral.pacman.direction;
+
+    /*
+        load lines and pacdots, compute minimum and maximum coordinates
+    */
+    
+    var xmin = litteral.mazelines[0].x1;
+    var ymin = litteral.mazelines[0].y1;
+    var xmax = litteral.mazelines[0].x1;
+    var ymax = litteral.mazelines[0].y1;
+    
+    for(var i=0; i<litteral.mazelines.length; i++)
+    {
+        var line = new Line(new Point(litteral.mazelines[i].x1, litteral.mazelines[i].y1),
+                            new Point(litteral.mazelines[i].x2, litteral.mazelines[i].y2));
+        
+        // load lines
+        this._lines.push(line);
+        
+        // load pacdots
+        if (typeof litteral.mazelines[i].nopacdots === "undefined")
+        {
+            var start = 0;
+            var end = 0;
+            
+            if (isVertical(line))
+            {
+                start = line.getPoint1().getY();
+                end = line.getPoint2().getY();
+            }
+            else
+            {
+                start = line.getPoint1().getX();
+                end = line.getPoint2().getX();
+            }
+            
+            for(var j=start; j<=end; j+=GRID_UNIT)
+            {
+                var p = (isVertical(line)) ? new Point(line.XAxis(), j) : new Point(j, line.YAxis()) ;
+                var exists = false;
+                
+                for(var k=0; k<this._pacdots.length; k++)
+                {
+                    if (p.equalsPoint(this._pacdots[k]))
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+                
+                if (!exists)
+                {
+                    this._pacdots.push(p);
+                }
+            }
+        }
+        
+        // compute minimum and maximum coordinates
+        if (litteral.mazelines[i].x1 < xmin) {xmin = litteral.mazelines[i].x1;}
+        if (litteral.mazelines[i].x2 < xmin) {xmin = litteral.mazelines[i].x2;}
+        if (litteral.mazelines[i].y1 < ymin) {ymin = litteral.mazelines[i].y1;}
+        if (litteral.mazelines[i].y2 < ymin) {ymin = litteral.mazelines[i].y2;}
+        
+        if (litteral.mazelines[i].x1 > xmax) {xmax = litteral.mazelines[i].x1;}
+        if (litteral.mazelines[i].x2 > xmax) {xmax = litteral.mazelines[i].x2;}
+        if (litteral.mazelines[i].y1 > ymax) {ymax = litteral.mazelines[i].y1;}
+        if (litteral.mazelines[i].y2 > ymax) {ymax = litteral.mazelines[i].y2;}
+    }
+    
+    /*
+        load portals
+    */
+    
+    for(var i=0; i<litteral.portals.length; i++)
+    {
+        this._portals.push(new Portal(litteral.portals[i].x, litteral.portals[i].y, litteral.portals[i].id));
+    }
+    
+    /*
+        compute size and top left and bottom right corner
+    */
+    
+    this._height = ymax - ymin;
+    this._width = xmax - xmin;
+    
+    this._topleft = new Point(xmin,ymin);
+    this._bottomright = new Point(xmax,ymax);
+};
+
+Map.prototype.getPacmanX = function()
+{
+    return this._pacmanX;
+};
+
+Map.prototype.getPacmanY = function()
+{
+    return this._pacmanY;
+};
+
+Map.prototype.getPacmanDirection = function()
+{
+    return this._pacmanDirection;
+};
+
+Map.prototype.getTopLeft = function()
+{
+    return new Point(this._topleft.getX(), this._topleft.getY());
+};
+
+Map.prototype.getBottomRight = function()
+{
+    return new Point(this._bottomright.getX(), this._bottomright.getY());
+};
+
+Map.prototype.getHeight = function()
+{
+    return this._height;
+};
+
+Map.prototype.getWidth = function()
+{
+    return this._width;
+};
+
+Map.prototype.getCorridors = function()
+{
+    var corridors = [];
+    
+    for(var i=0;i<this._lines.length;i++)
+    {
+        corridors.push(new Corridor(new Point(this._lines[i].getPoint1().getX(), this._lines[i].getPoint1().getY()),
+                                    new Point(this._lines[i].getPoint2().getX(), this._lines[i].getPoint2().getY())));
+    }
+    
+    return corridors;
+};
+
+Map.prototype.getPacdots = function()
+{
+    var pacdots = [];
+    
+    for(var i=0;i<this._pacdots.length;i++)
+    {
+        pacdots.push(new Pacdot(this._pacdots[i].getX(), this._pacdots[i].getY()));
+    }
+    
+    return pacdots;
+};
+
+Map.prototype.getPortals = function()
+{
+    var portals = [];
+    
+    for(var i=0;i<this._portals.length;i++)
+    {
+        portals.push(new Portal(this._portals[i].getPosition().getX(), this._portals[i].getPosition().getY(), this._portals[i].getID()));
+    }
+    
+    return portals;
+};
+
+/******************************************************************************/
+/***************************** PauseScreen class ******************************/
+/******************************************************************************/
 
 var PauseScreen = function()
 {
@@ -632,12 +1459,7 @@ var PauseScreen = function()
     this._minWidth = 0;
     this._minHeight = 0;
     
-    this._computeSize();
-};
-
-PauseScreen.prototype.reinit = function()
-{
-    this._pausemenu.setCurrent(PauseMenuItem.RESUME);
+    this._computeDimensions();
 };
 
 PauseScreen.menuWidth = function()
@@ -649,7 +1471,7 @@ PauseScreen.menuWidth = function()
     
     for(var key in PauseMenuItem)
     {
-        var itemwidth = context.measureText(PauseMenuItem[key]).width;
+        var itemwidth = context.measureText(PauseMenuItem[key].str).width;
         
         if (itemwidth > textmaxwidth)
         {
@@ -681,53 +1503,31 @@ PauseScreen.menuHeight = function()
     return height;
 };
 
-PauseScreen.prototype._computeSize = function()
+PauseScreen.minWidth = function()
 {
-    this._menuWidth = this._computeMenuWidth();
-    this._menuHeight = this._computeMenuHeight();
-    this._minWidth = PAUSEMENU_HMARGIN + this._menuWidth + PAUSEMENU_HMARGIN;
-    this._minHeight = PAUSEMENU_VMARGIN + this._menuHeight + PAUSEMENU_VMARGIN;
+    return PauseScreen.menuWidth();
 };
 
-PauseScreen.prototype._computeMenuWidth = function()
+PauseScreen.minHeight = function()
 {
-    var textmaxwidth = 0;
-    var width = 0;
-    
-    context.font = PAUSEMENU_FONT_SIZE + "px " + PAUSEMENU_FONT;
-    
-    for(var i=0; i<this._pausemenu.getItems().length; i++)
-    {
-        var itemwidth = context.measureText(this._pausemenu.getItems()[i]).width;
-        
-        if (itemwidth > textmaxwidth)
-        {
-            textmaxwidth = itemwidth;
-        }
-    }
-    
-    width = PAUSEMENU_HPADDING + textmaxwidth + PAUSEMENU_HPADDING;
-    
-    return width;
+    return PauseScreen.menuHeight();
 };
 
-PauseScreen.prototype._computeMenuHeight = function()
+PauseScreen.prototype.reinit = function()
 {
-    var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
-    var height = 0;
+    this._pausemenu.setCurrent(PauseMenuItem.RESUME.idx);
+};
+
+PauseScreen.prototype._computeDimensions = function()
+{
+    this._menuWidth = PauseScreen.menuWidth();
+    this._menuHeight = PauseScreen.menuHeight();
     
-    height += PAUSEMENU_VPADDING;
-    
-    for(var i=0; i<this._pausemenu.getItems().length; i++)
-    {
-        height += textheight;
-        height += PAUSEMENU_ITEMSDISTANCE;
-    }
-    
-    height -= PAUSEMENU_ITEMSDISTANCE;
-    height += PAUSEMENU_VPADDING;
-    
-    return height;
+    /*
+        maybe later some amazing graphics or stats will be added here
+    */
+    this._minWidth = PauseScreen.minWidth();
+    this._minHeight = PauseScreen.minHeight();
 };
 
 PauseScreen.prototype.getMinWidth = function()
@@ -752,6 +1552,8 @@ PauseScreen.prototype.getMenuHeight = function()
 
 PauseScreen.prototype.handleInput = function(key)
 {
+    assert((isVirtualKeyCode(key)), "key is not a virtual key code");
+    
     if (key === 38)         /* up arrow */
     {
         this._pausemenu.changeToPreviousItem();
@@ -762,18 +1564,18 @@ PauseScreen.prototype.handleInput = function(key)
     }
     else if (key === 13)    /* enter key */
     {
-        if (this._pausemenu.getCurrent() === PauseMenuItem.RESUME)
+        if (this._pausemenu.getCurrent() === PauseMenuItem.RESUME.idx)
         {
             return GameState.PLAYING;
         }
-        else if (this._pausemenu.getCurrent() === PauseMenuItem.QUIT)
+        else if (this._pausemenu.getCurrent() === PauseMenuItem.QUIT.idx)
         {
             //TODO
         }
-        else if (this._pausemenu.getCurrent() === PauseMenuItem.RESTART)
+        else if (this._pausemenu.getCurrent() === PauseMenuItem.RESTART.idx)
         {
             this.reinit();
-            playingscreen.reinit();
+            playingscreen.restart();
             
             return GameState.PLAYING;
         }
@@ -782,10 +1584,11 @@ PauseScreen.prototype.handleInput = function(key)
     return GameState.PAUSE;
 };
 
+//TODO utiliser des tailles fixes pour la largeur des items du menu + centrer les textes dans leurs rectangles
 PauseScreen.prototype.draw = function()
 {
-    var paddingLeft = (canvas.width - this._menuWidth) / 2;
-    var paddingTop = (canvas.height - this._menuHeight) / 2;
+    var paddingLeft = (canvas.width - this._minWidth) / 2;
+    var paddingTop = (canvas.height - this._minHeight) / 2;
 
     var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
     var textmaxwidth = 0;
@@ -805,8 +1608,8 @@ PauseScreen.prototype.draw = function()
     
     context.fillRect(paddingLeft,
                      paddingTop,
-                     this._menuWidth,
-                     this._menuHeight);
+                     this._minWidth,
+                     this._minHeight);
     
     context.fillStyle = "blue";
     
@@ -838,16 +1641,18 @@ PauseScreen.prototype.draw = function()
     }
 };
 
+/******************************************************************************/
 /******************************* PauseMenu class ******************************/
+/******************************************************************************/
 
 var PauseMenu = function()
 {
-    this._current = PauseMenuItem.RESUME;
+    this._current = PauseMenuItem.RESUME.idx;
     
     this._items = [];
-    this._items[PauseMenuItem.RESUME] = PAUSEMENU_RESUMESTRING;
-    this._items[PauseMenuItem.RESTART] = PAUSEMENU_RESTARTSTRING;
-    this._items[PauseMenuItem.QUIT] = PAUSEMENU_QUITSTRING;
+    this._items[PauseMenuItem.RESUME.idx] = PauseMenuItem.RESUME.str;
+    this._items[PauseMenuItem.RESTART.idx] = PauseMenuItem.RESTART.str;
+    this._items[PauseMenuItem.QUIT.idx] = PauseMenuItem.QUIT.str;
 };
 
 PauseMenu.prototype.getCurrent = function()
@@ -855,11 +1660,11 @@ PauseMenu.prototype.getCurrent = function()
     return this._current;
 };
 
-PauseMenu.prototype.setCurrent = function(item)
+PauseMenu.prototype.setCurrent = function(index)
 {
-    assert((isPauseMenuItem(item) || item === null), "item value is not valid");
+    assert((index >= 0 && index < this._items.length), "index value is not valid");
     
-    this._current = item;
+    this._current = index;
 };
 
 PauseMenu.prototype.getItems = function()
@@ -883,110 +1688,146 @@ PauseMenu.prototype.changeToNextItem = function()
     }
 };
 
+/******************************************************************************/
 /**************************** PlayingScreen class *****************************/
+/******************************************************************************/
 
 var PlayingScreen = function()
 {
     this._width = 0;
     this._height = 0;
     
-    this._status = new Status();
+    this._map = null;
     
+    this._status = new Status();
     this._maze = null;
     this._pacman = null;
     
-    this._mazerects = [];       // rectangles that perfectly wrap the pacman on lines
-    this._mazeportalrects = []; // rectangles that will partially hide the pacman when it go towards a portal
+    this.loadMap(MAP_1);
     
-    this.loadMapFromArrayOfLitterals(MAZE_LINES);
+    //TODO au final quand on aura un PlayingState, on aura ptetre plutot juste un new Status() et un new Maze(MAP_1) ; apres, faudra savoir ou mettre le Map (ou seulement le MAP_1, car c ptetre moins pire de devoir tout rechopper a partir du litteral, plutot que de tout stocker tt le temps et de tte façon quand meme choper les infos par copie de ce qu'a chopé Map), soit dans Playingstate soit dans Maze
 };
 
-PlayingScreen.prototype.loadMapFromArrayOfLitterals = function(mazelines)
+/*
+    compute the x and y padding between the map coordinates used for the
+    definition and the coordinates wanted for the final position (so we
+    compute the difference between the desired position of the map top left
+    corner for the game, and the original position of this corner in the map
+    definition)
+*/
+PlayingScreen.prototype._getMapPaddingX = function()
 {
-    this._maze = Maze.createFromArrayOfLitterals(MAZE_LINES);
-    this._pacman = new Pacman(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
-    
-    this._generateMazeRects();
-    this._generateMazePortalsRects();
-    
-    this._computeSize();
-    
-    var width = (PauseScreen.menuWidth() > this._width) ? PauseScreen.menuWidth() : this._width ;
-    var height = (PauseScreen.menuHeight() > this._height) ? PauseScreen.menuHeight() : this._height ;
-    changeCanvasDimensions(width, height);
-    
-    this._normalizeCoordinates();
+    return (canvas.width - this._width) / 2 + LINE_WIDTH/2 - this._map.getTopLeft().getX();
 };
 
-PlayingScreen.prototype.reinit = function()
+PlayingScreen.prototype._getMapPaddingY = function()
 {
-    this._maze.reinit();
-    
-    this._status.reinit();
-    
-    this._pacman.reinit(PACMAN_STARTX, PACMAN_STARTY, PACMAN_STARTDIRECTION, this._maze);
+    return (canvas.height - this._height) / 2 + LINE_WIDTH/2 - this._map.getTopLeft().getY();
 };
 
-PlayingScreen.prototype._generateMazeRects = function()
+PlayingScreen.prototype.loadMap = function(litteral)
 {
-    var mazelines = this._maze.getMazeLines();
+    this._map = new Map(litteral);
     
-    for(var i=0; i<mazelines.length; i++)
-    {
-        var line = mazelines[i];
-        var rect = {};
-        
-        rect.x = line.getPoint1().getX() - LINE_WIDTH/2;
-        rect.y = line.getPoint1().getY() - LINE_WIDTH/2;
-        rect.w = (isVertical(line)) ? LINE_WIDTH : line.size() + LINE_WIDTH ;
-        rect.h = (isVertical(line)) ? line.size() + LINE_WIDTH : LINE_WIDTH ;
-        
-        this._mazerects.push(rect);
-    }
-};
-
-PlayingScreen.prototype._generateMazePortalsRects = function()
-{
-    var mazelines = this._maze.getMazeLines();
+    /*
+        load original map data
+    */
     
-    for(var i=0; i<mazelines.length; i++)
-    {
-        var line = mazelines[i];
-        var p1 = line.getPoint1();
-        var p2 = line.getPoint2();
-        
-        if (p1.isPortal())
-        {
-            var rect = {};
-            
-            rect.x = p1.getX() - LINE_WIDTH/2;
-            rect.y = p1.getY() - LINE_WIDTH/2;
-            rect.w = (isVertical(line)) ? LINE_WIDTH : LINE_WIDTH/2 + PACMAN_RADIUS ;
-            rect.h = (isVertical(line)) ? LINE_WIDTH/2 + PACMAN_RADIUS : LINE_WIDTH ;
-            
-            this._mazeportalrects.push(rect);
-        }
-        
-        if (p2.isPortal())
-        {
-            var rect = {};
-            
-            rect.x = (isVertical(line)) ? p2.getX() - LINE_WIDTH/2 : p2.getX() - PACMAN_RADIUS ;
-            rect.y = (isVertical(line)) ? p2.getY() - PACMAN_RADIUS : p2.getY() - LINE_WIDTH/2 ;
-            rect.w = (isVertical(line)) ? LINE_WIDTH : LINE_WIDTH/2 + PACMAN_RADIUS ;
-            rect.h = (isVertical(line)) ? LINE_WIDTH/2 + PACMAN_RADIUS : LINE_WIDTH ;
-            
-            this._mazeportalrects.push(rect);
-        }
-    }
-};
-
-PlayingScreen.prototype._computeSize = function()
-{
+    //var lines = this._map.getLines();
+    var lines = this._map.getCorridors();
+    var pacdots = this._map.getPacdots();
+    var portals = this._map.getPortals();
+    var pacmanX = this._map.getPacmanX();
+    var pacmanY = this._map.getPacmanY();
+    var pacmanDirection = this._map.getPacmanDirection();
+    
+    var mapheight = this._map.getHeight();
+    var mapwidth = this._map.getWidth();
+    var maptopleft = this._map.getTopLeft();
+    
+    /*
+        compute the main game size
+    */
+    
+    //TODO - devrait ptetre etre mis dans un getheight() de Status (pas un truc statique ! car si jamais on devait pouvoir changer...)
+    //     - le this._statusMaxWidth() devrait etre dans Status lui aussi, et pas en statique non plus
     var statusheight = 1.3 * STATUS_FONT_SIZE;
     
-    this._width = (this._maze.getWidth() + LINE_WIDTH > this._statusMaxWidth()) ? this._maze.getWidth() + LINE_WIDTH : this._statusMaxWidth() ;
-    this._height = this._maze.getHeight() + LINE_WIDTH + 10 + statusheight;
+    this._width = (mapwidth + LINE_WIDTH > this._statusMaxWidth()) ? mapwidth + LINE_WIDTH : this._statusMaxWidth() ;
+    this._height = mapheight + LINE_WIDTH + 10 + statusheight;
+    
+    /*
+        update loaded original map data using padding to the desired position
+    */
+    
+    var xmappadding = this._getMapPaddingX();
+    var ymappadding = this._getMapPaddingY();
+    
+    for(var i=0; i<lines.length; i++)
+    {
+        lines[i].translate(xmappadding, ymappadding);
+    }
+    
+    for(var i=0; i<pacdots.length; i++)
+    {
+        pacdots[i].translate(xmappadding, ymappadding);
+    }
+    
+    for(var i=0; i<portals.length; i++)
+    {
+        portals[i].translate(xmappadding, ymappadding);
+    }
+    
+    pacmanX += xmappadding;
+    pacmanY += ymappadding;
+    
+    /*
+        create game elements
+    */
+    
+    // TODO renommer width et height en mainwidth/mainheight ? ou mainzonewidth/height ?
+    
+    //TODO TODO TODO dans drawmaze() et drawstatus() on utilise encore this._width et this._height, on pourrait ptetre les enlever en utilisant tte la largeur a chaque fois, etc... ; et aussi, comment faire si on veut elargir la zone de jeu principale, est-ce qu'on fait un degrade pr le reste ou non, est-ce que le status prend tte la largeur... ; et mettre une bordure tt autour de la zone de jeu
+    // ==========================> on prend tt l'ecran, mais :
+    //          => on utilise une largeur et hauteur de base pour le jeu, qu'on utilise si la taille de la map + contours, etc... est egale ou inferieure, et on centre la map dans le cadre contenant la map, et on a le cadre contenant le status en-dessous, de la meme largeur que la largeur de base
+    //          => si la taille de la map + contours, etc... depasse le truc de largeur de base, alors on agrandit la largeur/hauteur de la zone de jeu, et le cadre du status prendra la meme largeur
+    //          => cette largeur/hauteur de base est utilisée pour le menu principal
+    //          => pour le menu principal, et pour la zone de jeu, on fait un degradé vers le bord du canvas
+    //  =================> afficher d'abord le jeu avec une taille de base, celle qui permet d'afficher le menu principal et le menu de pause et la map originale du jeu pacman ; puis mettre option "toggle fullscreen", avec dans la liste des maps des indications que fo plein ecran sinon taille actuelle du jeu trop petite
+    // ==========> PENSER A TOUJOURS FAIRE PAR RAPPORT A LA TAILLE DU CANVAS ET TOUJOURS CENTRER LE CADRE PRINCIPAL DE JEU (garder ses mesures et coords ds un truc global, ou alors le mettre en propriete de chaque etat, vu que sa peut changer entre le menu principal et playing avec des grosses maps)
+    // ===========> dessiner le maze avec des marges a droite/gauche et en haut/bas puis un strokerect(), ce sera un bon moyen de revoir comment sont faites toutes les mesures
+    
+    this._maze = new Maze(lines, pacdots, portals);
+    this._pacman = new Pacman(pacmanX, pacmanY, pacmanDirection, this._maze);
+};
+
+PlayingScreen.prototype.restart = function()
+{
+    var xmappadding = this._getMapPaddingX();
+    var ymappadding = this._getMapPaddingY();
+    
+    // reinit maze
+    var pacdots = this._map.getPacdots();
+    
+    for(i=0; i<pacdots.length; i++)
+    {
+        pacdots[i].translate(xmappadding, ymappadding);
+    }
+    
+    this._maze.reinit(pacdots);
+    
+    // reinit status
+    this._status.reinit();
+    
+    // reinit pacman
+    var pacmanX = this._map.getPacmanX();
+    var pacmanY = this._map.getPacmanY();
+    var pacmanDirection = this._map.getPacmanDirection();
+    
+    pacmanX += xmappadding;
+    pacmanY += ymappadding;
+    
+    this._pacman.reinit(pacmanX, pacmanY, pacmanDirection, this._maze);
 };
 
 PlayingScreen.prototype.getWidth = function()
@@ -1003,70 +1844,13 @@ PlayingScreen.prototype._statusMaxWidth = function()
 {
     context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
     
-    return context.measureText("Score : 9 999 999").width + 50 + context.measureText("Lives : ").width + 3 * (10 + 2*STATUS_LIVES_RADIUS);
-};
-
-/*
-    normalize all the coordinates of the maze lines and pacman, ghosts, ...
-    => this function reposition all of the maze elements so that its upper
-    left corner match the canvas origin (0,0), or is centered horizontally and
-    vertically if it is smaller than the canvas width
-*/
-PlayingScreen.prototype._normalizeCoordinates = function()
-{
-    var mazerects = this._mazerects;
-    var mazeportalrects = this._mazeportalrects;
-    var pacdots = this._maze.getPacdots();
-    var mazelines = this._maze.getMazeLines();
-    
-    var xmin = mazerects[0].x;
-    var ymin = mazerects[0].y;
-    
-    for(var i=1; i<mazerects.length; i++)
-    {
-        if (mazerects[i].x < xmin) {xmin = mazerects[i].x;}
-        if (mazerects[i].y < ymin) {ymin = mazerects[i].y;}
-    }
-    
-    var xpadding = (canvas.width - this._width) / 2 - xmin;
-    var ypadding = (canvas.height - this._height) / 2 - ymin;
-    
-    for(var i=0; i<mazerects.length; i++)
-    {
-        mazerects[i].x += xpadding;
-        mazerects[i].y += ypadding;
-    }
-    
-    for(var i=0; i<mazeportalrects.length; i++)
-    {
-        mazeportalrects[i].x += xpadding;
-        mazeportalrects[i].y += ypadding;
-    }
-    
-    for(var i=0; i<pacdots.length; i++)
-    {
-        pacdots[i].set(pacdots[i].getX() + xpadding,
-                       pacdots[i].getY() + ypadding);
-    }
-    
-    for(var i=0; i<mazelines.length; i++)
-    {
-        mazelines[i].getPoint1().set(mazelines[i].getPoint1().getX() + xpadding,
-                                     mazelines[i].getPoint1().getY() + ypadding);
-        mazelines[i].getPoint2().set(mazelines[i].getPoint2().getX() + xpadding,
-                                     mazelines[i].getPoint2().getY() + ypadding);
-    }
-    
-    this._pacman.setPosition(this._pacman.getPosition().getX() + xpadding,
-                             this._pacman.getPosition().getY() + ypadding);
-    
-    //TODO ne pas utiliser ce genre de truc pr position depart de pacman mais plutot des flags dans MAZE_LINES (du coup on n'aurait pas a modifier ces "macros" ci-dessous)
-    PACMAN_STARTX += xpadding;
-    PACMAN_STARTY += ypadding;
+    return STATUS_PADDINGLEFT + context.measureText("Score : 9 999 999").width + 50 + context.measureText("Lives : ").width + 3 * (10 + 2*STATUS_LIVES_RADIUS);
 };
 
 PlayingScreen.prototype.handleInput = function(key)
 {
+    assert((isVirtualKeyCode(key)), "key is not a virtual key code");
+    
     if (key === 37)         /* left arrow */
     {
         this._pacman.changeDirection(Direction.LEFT, this._maze);
@@ -1091,15 +1875,6 @@ PlayingScreen.prototype.handleInput = function(key)
     return GameState.PLAYING;
 };
 
-
-
-
-
-
-
-
-
-
 PlayingScreen.prototype.move = function(elapsed)
 {
     assert((elapsed > 0), "elapsed value is not valid");
@@ -1110,7 +1885,7 @@ PlayingScreen.prototype.move = function(elapsed)
     
     if (this._pacman.getNextDirection() !== null && this._pacman.getNextTurn() !== null)
     {
-        turndistance = this._pacman.getNextTurn().distance(this._pacman.getPosition());
+        turndistance = this._pacman.getNextTurn().distanceToPoint(this._pacman.getPosition());
     }
     
     /* if we will have to turn */
@@ -1126,7 +1901,7 @@ PlayingScreen.prototype.move = function(elapsed)
         
         for(var i=0; i<this._maze.pacdotsCount(); i++)
         {
-            if (travelled1.containsPoint(this._maze.getPacdot(i)))
+            if (travelled1.containsPoint(this._maze.getPacdot(i).getPosition()))
             {
                 this._status.increaseScore(PACDOT_POINT);
                 eatenpacdots.push(i);
@@ -1194,7 +1969,7 @@ PlayingScreen.prototype.move = function(elapsed)
     
     for(var i=0; i<this._maze.pacdotsCount(); i++)
     {
-        if (travelled2.containsPoint(this._maze.getPacdot(i)))
+        if (travelled2.containsPoint(this._maze.getPacdot(i).getPosition()))
         {
             this._status.increaseScore(PACDOT_POINT);
             eatenpacdots.push(i);
@@ -1213,9 +1988,9 @@ PlayingScreen.prototype.move = function(elapsed)
     if (this._maze.isPortal(this._pacman.getPosition().getX(), this._pacman.getPosition().getY()))
     {
         var p = this._maze.associatedPortal(this._pacman.getPosition().getX(), this._pacman.getPosition().getY());
-        var newline = this._maze.mazeCurrentLine(p, this._pacman.getDirection());
+        var newline = this._maze.mazeCurrentLine(p.getPosition(), this._pacman.getDirection());
         
-        this._pacman.setPosition(p.getX(), p.getY());
+        this._pacman.setPosition(p.getPosition().getX(), p.getPosition().getY());
         this._pacman.setCurrentline(newline);
         
         /* search if we can now turn after the teleportation */
@@ -1248,17 +2023,25 @@ PlayingScreen.prototype.move = function(elapsed)
 
 
 
-
-PlayingScreen.prototype._drawMazeRects = function()
+PlayingScreen.prototype._drawMazeBackground = function()
 {
-    context.fillStyle = "black";
+    context.fillStyle = "blue";
     
-    for(var i=0;i<this._mazerects.length;i++)
+    //TODO normalement faudrait pas utiliser this._width/height (tte facon ca sera modifie), mais plutot des coordonnees generees par maze dans son constructeur et stocke par exemple dans un this._backgroundrect
+    //TODO est-ce que faudrait pas plutot que le width et height de Maze soit les largeurs incluant line_width ?
+    context.fillRect((canvas.width - this._width) / 2,
+                     (canvas.height - this._height) / 2,
+                     this._maze.getWidth() + LINE_WIDTH,
+                     this._maze.getHeight() + LINE_WIDTH);
+};
+
+PlayingScreen.prototype._drawMazeLines = function()
+{
+    var corridors = this._maze.getMazeLines();
+    
+    for(var i=0;i<corridors.length;i++)
     {
-        context.fillRect(this._mazerects[i].x,
-                         this._mazerects[i].y,
-                         this._mazerects[i].w,
-                         this._mazerects[i].h);
+        corridors[i].draw();
     }
 };
 
@@ -1266,17 +2049,9 @@ PlayingScreen.prototype._drawMazePacdots = function()
 {
     var pacdots = this._maze.getPacdots();
     
-    context.fillStyle = "silver";
-    
     for(var i=0;i<pacdots.length;i++)
     {
-        context.beginPath();
-        context.arc(pacdots[i].getX(),
-                    pacdots[i].getY(),
-                    PACDOTS_RADIUS,
-                    0,
-                    2 * Math.PI);
-        context.fill();
+        pacdots[i].draw();
     }
     
     // TODO
@@ -1286,12 +2061,8 @@ PlayingScreen.prototype._drawMazePacdots = function()
 
 PlayingScreen.prototype._drawMaze = function()
 {
-    context.fillStyle = "blue";
-    context.fillRect((canvas.width - this._width) / 2,
-                     (canvas.height - this._height) / 2,
-                     this._width,
-                     this._height);
-    this._drawMazeRects();
+    this._drawMazeBackground();
+    this._drawMazeLines();
     this._drawMazePacdots();
 };
 
@@ -1337,34 +2108,16 @@ PlayingScreen.prototype._drawStatus = function()
 
 PlayingScreen.prototype._drawPacman = function()
 {
-    context.fillStyle = "yellow";
-    context.beginPath();
-    context.moveTo(this._pacman.getPosition().getX(),
-                   this._pacman.getPosition().getY());
-    
-    //
-    //    if arc() has the same start and end angles (mouth shutted), nothing is
-    //    done ; a little trick to have a circle in this case is to use the fact
-    //    that angles are modulo(2*PI)
-    //
-    context.arc(this._pacman.getPosition().getX(),
-                this._pacman.getPosition().getY(),
-                PACMAN_RADIUS,
-                this._pacman.getMouthstartangle(),
-                this._pacman.getMouthendangle());
-    context.fill();
+    this._pacman.draw();
 };
 
-PlayingScreen.prototype._drawMazePortalsRects = function()
+PlayingScreen.prototype._drawMazePortals = function()
 {
-    context.fillStyle = "green";
+    var portals = this._maze.getPortals();
     
-    for(var i=0;i<this._mazeportalrects.length;i++)
+    for(var i=0;i<portals.length;i++)
     {
-        context.fillRect(this._mazeportalrects[i].x,
-                         this._mazeportalrects[i].y,
-                         this._mazeportalrects[i].w,
-                         this._mazeportalrects[i].h);
+        portals[i].draw();
     }
 };
 
@@ -1372,11 +2125,14 @@ PlayingScreen.prototype.draw = function()
 {
     this._drawMaze();
     this._drawPacman();
-    this._drawMazePortalsRects();
+    this._drawMazePortals();
+    
     this._drawStatus();
 };
 
+/******************************************************************************/
 /********************************* Status class *******************************/
+/******************************************************************************/
 
 var Status = function()
 {
@@ -1435,116 +2191,52 @@ Status.prototype.decrementLives = function()
     this._lives--;
 };
 
+/******************************************************************************/
 /********************************* Maze class *********************************/
+/******************************************************************************/
 
-var Maze = function(mazelines)
+var Maze = function(mazelines, pacdots, portals)
 {
-    //XXX   should we clone the "mazelines" object instead of just referencing it ?
-    
     //TODO  check if lines don't overlap with one another => if overlap, create
     //      a new one containing the two lines overlapping (they need to be of
     //      the same type : the 2 with pacdots, or the 2 without pacdots)
-    assert((mazelines instanceof Array && mazelines.length > 0), "mazelines is not an array");
+    //assert((mazelines instanceof Array && mazelines.length > 0), "mazelines is not an array");
     
-    var xmin = mazelines[0].getPoint1().getX();
-    var ymin = mazelines[0].getPoint1().getY();
+    var xmin = mazelines[0].getLine().getPoint1().getX();
+    var ymin = mazelines[0].getLine().getPoint1().getY();
 
     for(var i=1; i<mazelines.length; i++)
     {
-        if (mazelines[i].getPoint1().getX() < xmin) {xmin = mazelines[i].getPoint1().getX();}
-        if (mazelines[i].getPoint1().getY() < ymin) {ymin = mazelines[i].getPoint1().getY();}
+        if (mazelines[i].getLine().getPoint1().getX() < xmin) {xmin = mazelines[i].getLine().getPoint1().getX();}
+        if (mazelines[i].getLine().getPoint1().getY() < ymin) {ymin = mazelines[i].getLine().getPoint1().getY();}
     }
     
     for(var i=0; i<mazelines.length; i++)
     {
-        assert((mazelines[i] instanceof Line), "line " + i +" is not a Line");
-        assert((((mazelines[i].getPoint1().getX()-xmin) % GRID_UNIT) === 0
-             && ((mazelines[i].getPoint1().getY()-ymin) % GRID_UNIT) === 0
-             && ((mazelines[i].getPoint2().getX()-xmin) % GRID_UNIT) === 0
-             && ((mazelines[i].getPoint2().getY()-ymin) % GRID_UNIT) === 0),
+        assert((mazelines[i] instanceof Corridor), "line " + i +" is not a Line");
+        assert((((mazelines[i].getLine().getPoint1().getX()-xmin) % GRID_UNIT) === 0
+             && ((mazelines[i].getLine().getPoint1().getY()-ymin) % GRID_UNIT) === 0
+             && ((mazelines[i].getLine().getPoint2().getX()-xmin) % GRID_UNIT) === 0
+             && ((mazelines[i].getLine().getPoint2().getY()-ymin) % GRID_UNIT) === 0),
              "line n°" + i +" points are not on the game grid, using " + GRID_UNIT + " pixels unit");
     }
     
     this._mazelines = mazelines; // lines on which the pacman center can move
-    this._pacdots = [];
+    this._pacdots = pacdots;
     this._powerpellets = [];
+    this._portals = portals;
     
     this._width = 0;
     this._height = 0;
     
-    this._computeSize();
-    this._generatePacdots();
+    this._computeDimensions();
 };
 
-Maze.prototype.reinit = function()
+Maze.prototype.reinit = function(pacdots)
 {
     this._pacdots.length = 0;
+    this._pacdots = pacdots;
     this._powerpellets.length = 0;
-    this._generatePacdots();
-};
-
-Maze.createFromArrayOfLitterals = function(mazelines)
-{
-    assert((mazelines instanceof Array && mazelines.length > 0), "mazelines is not an array");
-    
-    var xmin = mazelines[0].x1;
-    var ymin = mazelines[0].y1;
-
-    for(var i=1; i<mazelines.length; i++)
-    {
-        if (mazelines[i].x1 < xmin) {xmin = mazelines[i].x1;}
-        if (mazelines[i].y1 < ymin) {ymin = mazelines[i].y1;}
-    }
-    
-    for(var i=0; i<mazelines.length; i++)
-    {
-        assert((typeof mazelines[i].x1 === "number"), "mazelines[" + i + "].x1 value not valid");
-        assert((typeof mazelines[i].y1 === "number"), "mazelines[" + i + "].y1 value not valid");
-        assert((typeof mazelines[i].x2 === "number"), "mazelines[" + i + "].x2 value not valid");
-        assert((typeof mazelines[i].y2 === "number"), "mazelines[" + i + "].y2 value not valid");
-        
-        var p1 = new Point(mazelines[i].x1, mazelines[i].y1);
-        var p2 = new Point(mazelines[i].x2, mazelines[i].y2);
-        
-        assert((p1.getX() === p2.getX() || p1.getY() === p2.getY()), "mazelines[" + i + "] points value will not create a horizontal nor a vertical line");
-        
-        assert((((p1.getX()-xmin) % GRID_UNIT) === 0
-             && ((p1.getY()-ymin) % GRID_UNIT) === 0
-             && ((p2.getX()-xmin) % GRID_UNIT) === 0
-             && ((p2.getY()-ymin) % GRID_UNIT) === 0),
-             "line n°" + i +" points will not be on the game grid, using " + GRID_UNIT + " pixels unit");
-    }
-    
-    var lines = [];
-
-    for(var i=0; i<mazelines.length; i++)
-    {
-        var hasPacdots = (typeof mazelines[i].nopacdots === "undefined") ? true : false ;
-        var p1 = null;
-        var p2 = null;
-        
-        if (typeof mazelines[i].portalid1 === "undefined")
-        {
-            p1 = new Point(mazelines[i].x1, mazelines[i].y1);
-        }
-        else
-        {
-            p1 = new Point(mazelines[i].x1, mazelines[i].y1, mazelines[i].portalid1);
-        }
-        
-        if (typeof mazelines[i].portalid2 === "undefined")
-        {
-            p2 = new Point(mazelines[i].x2, mazelines[i].y2);
-        }
-        else
-        {
-            p2 = new Point(mazelines[i].x2, mazelines[i].y2, mazelines[i].portalid2);
-        }
-        
-        lines.push(new Line(p1, p2, hasPacdots));
-    }
-    
-    return new Maze(lines);
 };
 
 Maze.prototype.getWidth = function()
@@ -1557,83 +2249,28 @@ Maze.prototype.getHeight = function()
     return this._height;
 };
 
-Maze.prototype._computeSize = function()
+Maze.prototype._computeDimensions = function()
 {
-    var xmin = this._mazelines[0].getPoint1().getX();
-    var ymin = this._mazelines[0].getPoint1().getY();
-    var xmax = this._mazelines[0].getPoint2().getX();
-    var ymax = this._mazelines[0].getPoint2().getY();
+    var xmin = this._mazelines[0].getLine().getPoint1().getX();
+    var ymin = this._mazelines[0].getLine().getPoint1().getY();
+    var xmax = this._mazelines[0].getLine().getPoint1().getX();
+    var ymax = this._mazelines[0].getLine().getPoint1().getY();
 
-    for(var i=1; i<this._mazelines.length; i++)
+    for(var i=0; i<this._mazelines.length; i++)
     {
-        if (this._mazelines[i].getPoint1().getX() < xmin) {xmin = this._mazelines[i].getPoint1().getX();}
-        if (this._mazelines[i].getPoint1().getY() < ymin) {ymin = this._mazelines[i].getPoint1().getY();}
-        if (this._mazelines[i].getPoint2().getX() > xmax) {xmax = this._mazelines[i].getPoint2().getX();}
-        if (this._mazelines[i].getPoint2().getY() > ymax) {ymax = this._mazelines[i].getPoint2().getY();}
+        if (this._mazelines[i].getLine().getPoint1().getX() < xmin) {xmin = this._mazelines[i].getLine().getPoint1().getX();}
+        if (this._mazelines[i].getLine().getPoint2().getX() < xmin) {xmin = this._mazelines[i].getLine().getPoint2().getX();}
+        if (this._mazelines[i].getLine().getPoint1().getY() < ymin) {ymin = this._mazelines[i].getLine().getPoint1().getY();}
+        if (this._mazelines[i].getLine().getPoint2().getY() < ymin) {ymin = this._mazelines[i].getLine().getPoint2().getY();}
+        
+        if (this._mazelines[i].getLine().getPoint1().getX() > xmax) {xmax = this._mazelines[i].getLine().getPoint1().getX();}
+        if (this._mazelines[i].getLine().getPoint2().getX() > xmax) {xmax = this._mazelines[i].getLine().getPoint2().getX();}
+        if (this._mazelines[i].getLine().getPoint1().getY() > ymax) {ymax = this._mazelines[i].getLine().getPoint1().getY();}
+        if (this._mazelines[i].getLine().getPoint2().getY() > ymax) {ymax = this._mazelines[i].getLine().getPoint2().getY();}
     }
 
     this._width = xmax - xmin;
     this._height = ymax - ymin;
-};
-
-Maze.prototype._generatePacdots = function()
-{
-    if (!(this._mazelines.length > 0))
-    {
-        return;
-    }
-    
-    for(var i=0; i<this._mazelines.length; i++)
-    {
-        if (this._mazelines[i].getHasPacdots() === true)
-        {
-            var line = this._mazelines[i];
-            var start = 0;
-            var end = 0;
-            
-            if (isVertical(line))
-            {
-                start = line.getPoint1().getY();
-                end = line.getPoint2().getY();
-                
-                for(var j=start; j<=end; j+=GRID_UNIT)
-                {
-                    this._pacdots.push(new Point(line.XAxis(), j));
-                }
-            }
-            else
-            {
-                start = line.getPoint1().getX();
-                end = line.getPoint2().getX();
-                
-                for(var j=start; j<=end; j+=GRID_UNIT)
-                {
-                    this._pacdots.push(new Point(j, line.YAxis()));
-                }
-            }
-        }
-    }
-    
-    /* delete all pacdots duplicates */
-    
-    var p1 = null;
-    var p2 = null
-    
-    for(var i=0; i<this._pacdots.length; i++)
-    {
-        p1 = this._pacdots[i];
-        
-        for(var j=i+1; j < this._pacdots.length; j++)
-        {
-            p2 = this._pacdots[j];
-            
-            if (p1.getX() === p2.getX()
-             && p1.getY() === p2.getY())
-            {
-                this._pacdots.splice(j, 1);
-            }
-        }
-    }
 };
 
 Maze.prototype.getMazeLines = function()
@@ -1653,18 +2290,19 @@ Maze.prototype.getPacdots = function()
     return this._pacdots;
 };
 
+Maze.prototype.getPortals = function()
+{
+    return this._portals;
+};
+
 Maze.prototype.isPortal = function(x, y)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     
-    for(var i=0; i<this._mazelines.length; i++)
+    for(var i=0; i<this._portals.length; i++)
     {
-        var p1 = this._mazelines[i].getPoint1();
-        var p2 = this._mazelines[i].getPoint2();
-        
-        if ((p1.equals(new Point(x,y)) && p1.isPortal())
-         || (p2.equals(new Point(x,y)) && p2.isPortal()))
+        if (this._portals[i].getPosition().equals(x,y))
         {
             return true;
         }
@@ -1680,37 +2318,21 @@ Maze.prototype.associatedPortal = function(x, y)
     
     var portalid = 0;
     
-    for(var i=0; i<this._mazelines.length; i++)
+    for(var i=0; i<this._portals.length; i++)
     {
-        var p1 = this._mazelines[i].getPoint1();
-        var p2 = this._mazelines[i].getPoint2();
-        
-        if (p1.equals(new Point(x,y)) && p1.isPortal())
+        if (this._portals[i].getPosition().equals(x,y))
         {
-            portalid = p1.getPortalID();
-            break;
-        }
-        
-        if (p2.equals(new Point(x,y)) && p2.isPortal())
-        {
-            portalid = p2.getPortalID();
-            break;
+            portalid = this._portals[i].getID();
         }
     }
     
-    for(var i=0; i<this._mazelines.length; i++)
+    for(var i=0; i<this._portals.length; i++)
     {
-        var p1 = this._mazelines[i].getPoint1();
-        var p2 = this._mazelines[i].getPoint2();
+        var p = this._portals[i].getPosition();
         
-        if (!p1.equals(new Point(x,y)) && p1.getPortalID() === portalid)
+        if (!p.equals(x,y) && this._portals[i].getID() === portalid)
         {
-            return p1;
-        }
-        
-        if (!p2.equals(new Point(x,y)) && p2.getPortalID() === portalid)
-        {
-            return p2;
+            return this._portals[i];
         }
     }
 };
@@ -1745,7 +2367,7 @@ Maze.prototype.containsPoint = function(point)
     
     for(var i=0;i<this._mazelines.length;i++)
     {
-        if (this._mazelines[i].containsPoint(point))
+        if (this._mazelines[i].getLine().containsPoint(point))
         {
             return true;
         }
@@ -1764,7 +2386,7 @@ Maze.prototype.mazeCurrentLine = function(point, direction)
     
     for(var i=0; i<this._mazelines.length; i++)
     {
-        line = this._mazelines[i];
+        line = this._mazelines[i].getLine();
         
         if (((isVertical(direction) && isVertical(line))
           || (isHorizontal(direction) && isHorizontal(line)))
@@ -1782,7 +2404,7 @@ Maze.prototype.mazeCurrentLine = function(point, direction)
     
     for(var i=0; i<this._mazelines.length; i++)
     {
-        line = this._mazelines[i];
+        line = this._mazelines[i].getLine();
         
         if (line.containsPoint(point))
         {
@@ -1817,18 +2439,18 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
     
     for(var i=0;i<this._mazelines.length;i++)
     {
-        var line = this._mazelines[i];
+        var l = this._mazelines[i].getLine();
         
         /* if this line is crossing ours */
-        if (line.isCrossing(new Line(point, new Point(xlimit, ylimit))))
+        if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
         {
             /* if there is some place to turn */
-            if ((nextdirection === Direction.LEFT && line.containsX(point.getX()-1))
-             || (nextdirection === Direction.RIGHT && line.containsX(point.getX()+1))
-             || (nextdirection === Direction.UP && line.containsY(point.getY()-1))
-             || (nextdirection === Direction.DOWN && line.containsY(point.getY()+1)))
+            if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
+             || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
+             || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
+             || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
             {
-                lines.push(this._mazelines[i]);
+                lines.push(l);
             }
         }
     }
@@ -1841,9 +2463,7 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
     {
         /* find the nearest line */
         
-        var line = null;
         var nearest = (isVertical(nextdirection)) ? lines[0].XAxis() : lines[0].YAxis() ;
-        var index = 0;
         
         for(var i=1;i<lines.length;i++)
         {
@@ -1853,11 +2473,8 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
              || (direction === Direction.DOWN && lines[i].YAxis() < nearest))
             {
                 nearest = (isVertical(nextdirection)) ? lines[i].XAxis() : lines[i].YAxis() ;
-                index = i;
             }
         }
-        
-        line = lines[index];
         
         /* return the intersection */
         
@@ -1872,7 +2489,9 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
     }
 };
 
+/******************************************************************************/
 /******************************** Pacman class ********************************/
+/******************************************************************************/
 
 var Pacman = function(x, y, direction, maze)
 {
@@ -1892,9 +2511,35 @@ var Pacman = function(x, y, direction, maze)
     
     this._animtime = 0;
     this._mouthstartangle = 0;
-    this._mouthendangle = 2 * Math.PI;
+    this._mouthendangle = 0;
+    
+    this._graphicscirclearc = null;
+    
+    this._generateGraphics();
     
     this._currentline = maze.mazeCurrentLine(this._position, this._direction);
+};
+
+Pacman.prototype._generateGraphics = function()
+{
+    var circlearc = new DrawableCircleArc(this._position.getX(),
+                                          this._position.getY(),
+                                          PACMAN_RADIUS,
+                                          this._mouthstartangle,
+                                          this._mouthendangle);
+    
+    this._graphicscirclearc = circlearc;
+};
+
+Pacman.prototype.draw = function()
+{
+    context.fillStyle = "yellow";
+    
+    context.beginPath();
+    context.moveTo(this._graphicscirclearc.getPosition().getX(),
+                   this._graphicscirclearc.getPosition().getY());
+    this._graphicscirclearc.drawInPath();
+    context.fill();
 };
 
 Pacman.prototype.getState = function()
@@ -1922,6 +2567,9 @@ Pacman.prototype.reinit = function(x, y, direction, maze)
     this._nextdirection = null;
     this._nextturn = null;
     this._currentline = maze.mazeCurrentLine(this._position, this._direction);
+    
+    this._graphicscirclearc.setPosition(this._position.getX(),
+                                        this._position.getY());
 };
 
 Pacman.prototype.getMouthstartangle = function()
@@ -1993,20 +2641,9 @@ Pacman.prototype.setPosition = function(x, y)
     assert((typeof y === "number"), "y is not a number");
 
     this._position.set(x, y);
-};
-
-Pacman.prototype.setPositionX = function(x)
-{
-    assert((typeof x === "number"), "x is not a number");
-
-    this._position.setX(x);
-};
-
-Pacman.prototype.setPositionY = function(y)
-{
-    assert((typeof y === "number"), "y is not a number");
-
-    this._position.setY(y);
+    
+    this._graphicscirclearc.setPosition(this._position.getX(),
+                                        this._position.getY());
 };
 
 Pacman.prototype.changeDirection = function(direction, maze)
@@ -2079,13 +2716,14 @@ Pacman.prototype.animate = function(elapsed)
     
     this._mouthstartangle = baseangle + mouthhalfangle;
     this._mouthendangle = baseangle - mouthhalfangle;
+    
+    this._graphicscirclearc.setStartangle(this._mouthstartangle);
+    this._graphicscirclearc.setEndangle(this._mouthendangle);
 };
 
-/******************************* game functions *******************************/
-
-
-
+/******************************************************************************/
 /**************************** game event listeners ****************************/
+/******************************************************************************/
 
 /*
     we also save when the key was pressed, to be able, if there is some system
@@ -2106,7 +2744,9 @@ var blurEventListener= function(e)
     }
 };
 
+/******************************************************************************/
 /**************************** game loop functions *****************************/
+/******************************************************************************/
 
 var graphicsLoop = function()
 {
@@ -2210,7 +2850,9 @@ var logicLoop = function()
     setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
 };
 
+/******************************************************************************/
 /********************************* game main **********************************/
+/******************************************************************************/
 
 /* TODO
     - utiliser getImageData() et putImageData() pour les boutons ingame et les
@@ -2233,8 +2875,39 @@ var logicLoop = function()
     - verif les bonnes utilisations de certaines fonctions : par exemple ne pas faire this._position.set() quand on peut faire this._setPosition() !
     - verifier les prop et methodes privées/publiques et statiques
     - mettre currentline pas dans pacman ? (car demande de prendre maze en parametre)
-    - ne pas utiliser des coordonnees pour pacman_start, mais mettre un flag dans le maze_lines ! et pr direction de depart alors ? et ghost, faire pareil aussi ?
-        => eventuellement mettre ce genre de choses a part ! au lieu de juste utiliser un MAZE_LINES, utiliser un MAP (avec donc un playingscreen.loadmap()) contenant un MAZE_LINES + un PORTALS + un GHOSTS + un PACMANS (contenant donc coord de depart + direction de depart) ?
+    - le loadmapfromarray...() de playingscreeen pourrap tetre etre fait par Game, et du coup plus de prob d'etre obligé d'avoir un truc statique de pausescreen pr avoir la largeur et comparer ? et aussi ptetre mettre des trucs statiques a playingscreen ? et mettre des proprs statiques dans le constructeur de pausescreen permettrait d'avoir tt le temps les valeurs et d'y acceder comme on veut sans avoir a recalculer ; mais et si jamais on devait modif le menu, genre avec un god mode ?=> faudrait alors pouvoir modifier sa taille et donc faudrait garder les props comme props d'instance...
+    - ======> creer classe Game : faire des etats et meme des sous-états (ex: pendant playing, quand on commmence, genre avec compte a rebours ; ou quand on a gagne, genre cinematique ; ...) ; lire truc de lazyfoo et cie sur machines a etats : chaque etat a sa methode update(), et init() ? ; et a priori y'aura plu le prob de devoir utiliser truc statique ou nonn pr creer taille ecran jeu, vu que game pourrait creer direct le pause+playingscreen et donc avoir leurs mesures (le menu peut donc changer de taille, ce serait pas grave)
+    - mettre dans les constantes (en haut) tout truc codé en dur (valeur, couleur, ...)
+    - utiliser un genre d'automate a etats, comme ça on se souvient des etats précédents, genre menu, playing, pause, ... et une variable du style current_state qu'on utilise et sur laquelle on appelle draw(), update(), ...
+    
+    - on pourrait utiliser une fonction qui lors de l'initialisation detecte taille du browser/mobile et utilise une taille predefinie pr le jeu, genre : petit, moyen, normal, conservant les rapports de distance etc... et faudrait des constantes prefixees par S(mall), M(edium), N(ormal)
+    
+    - y'aura un prob a un moment puisque maze devrait faire un draw() qui englobe le draw() des pacdots et lines et portals, or les portals doivent etre fait apres le pacman => soit tt mettre lines et tt, et meme tt le contenu de Maze, a la "racine" du playingscreen, SOIT mettre pacman dans maze, ce qui serait ptetre plus logique...
+*/
+
+/*
+=> chaque etat possede alors une largeur/hauteur minimale pour son affichage ; + les tailles pour son contenu, ou alors les mettre dans ce contenu...
+
+chaque etat doit avoir :
+ - son propre draw()
+ - son propre handle_events()
+ - son propre update()
+
+MenuState
+{}
+
+PauseState
+{}
+
+PlayingState(mapToLoad)
+{}
+
+faudrait ptetre finalement remettre dans leurs classes les trucs graphiques, genre dans maze les mazerects, ... ou pas ? histoire de faire mypacdot/myportal/myline.draw() ?
+et par exemple pr pacman, faudrait ptetre mieux mettre en propriété son radius, auquel on se referera avec this, au lieu de tjrs utiliser la pseudo macro, ou pas ? et du coup faire une classe pacdot, avec meme une animation qui fait "briler" ?
+
+chaque etat peut avoir des sous-etats ?
+
+dans logicloop, faut a un moment un truc pr changer l'etat si necessaire ; chaque etat pouvant dans une de ses fonctions modifier une variable nextstate ?
 */
 
 canvas = document.getElementById("gamecanvas");
@@ -2243,12 +2916,45 @@ context = canvas.getContext("2d");
 
 checkConfiguration();
 
-/* init the game */
+/*
+    compute and set the base size of the game canvas
+    //TODO - il faudra plus tard verifier aussi avec la taille du menu principal et du menu de pause
+    //     - englober tout ca dans un initCanvasSize()
+*/
+
+// compute the size of the original Pacman map
+var mainmap = MAP_1
+var lines = [];
+
+for(var i=0; i<mainmap.mazelines.length; i++)
+{
+    lines.push(new Corridor(new Point(mainmap.mazelines[i].x1, mainmap.mazelines[i].y1),
+                            new Point(mainmap.mazelines[i].x2, mainmap.mazelines[i].y2)));
+}
+
+var m = new Maze(lines, [], []);
+var mainmap_h = m.getHeight();
+var mainmap_w = m.getWidth();
+
+// compute the size of the status bar
+context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
+var status_w = STATUS_PADDINGLEFT + context.measureText("Score : 9 999 999").width + 50 + context.measureText("Lives : ").width + 3 * (10 + 2*STATUS_LIVES_RADIUS);
+var status_h = 1.3 * STATUS_FONT_SIZE;
+
+// compute the total size
+var width = (mainmap_w + LINE_WIDTH > status_w) ? mainmap_w + LINE_WIDTH : status_w ;
+var height = mainmap_h + LINE_WIDTH + 10 + status_h;
+
+// set the canvas size to the game base size
+//changeCanvasDimensions(window.innerWidth-15, window.innerHeight-15);  /* -15 is for scrollbars */
+changeCanvasDimensions(width, height);
+
+/*
+    init the game
+*/
 
 playingscreen = new PlayingScreen();
 pausescreen = new PauseScreen();
-
-//TODO plus tard, mettre au depart le canvas a la taille prevue pour le menu principal (celles pour les menus avant de jouer) ; ensuite seulement quand on va jouer, verifier entre le playingscreen et le pausescreen pour mettre la bonne taille au canvas (via le loadmapfrom...())
 
 canvas.addEventListener("blur", blurEventListener);
 canvas.addEventListener("keydown", keyEventListener);
@@ -2259,7 +2965,9 @@ state = GameState.PLAYING;
 lastupdate = performance.now();
 firstupdate = lastupdate;
 
-/* start the game */
+/*
+    start the game
+*/
 
 graphicsLoop();
 logicLoop();
