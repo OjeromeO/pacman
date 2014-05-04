@@ -1095,15 +1095,6 @@ Portal.prototype.setPosition = function(x, y)
                                    this._position.getY() - LINE_WIDTH/2);
 };
 
-Portal.prototype.translate = function(x, y)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    
-    this._position.translate(x, y);
-    this._graphicsrect.translate(x, y);
-};
-
 Portal.prototype.getID = function()
 {
     return this._id;
@@ -1114,6 +1105,15 @@ Portal.prototype.setID = function(id)
     assert((isPortalID(id)), "id is not a portal ID");
     
     this._id = id;
+};
+
+Portal.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+    this._graphicsrect.translate(x, y);
 };
 
 Portal.prototype.draw = function()
@@ -1251,17 +1251,12 @@ Corridor.prototype.draw = function()
 
 // TODO
 // ===> ulterieurement faire en sorte que Map puisse renvoyer un Pacman et un Maze ? (vu qu'on renvoie deja des Pacdot via le tableau)
-// ===> Map stocke des Portal, Pacdot, Corridor, ... (qui ont en propriete les formes de base et sur lesquelles ils appellent, ou non, draw()) et renvoie une copie
-// ==> utiliser des DrawableText pour Status ^^
+// ===> Map stocke et renvoie une copie des Portal, Pacdot, Corridor, ...
+// ===> utiliser des DrawableText pour Status ^^
+// ===> pour l'optimisation des perfs, etc, pr dessiner la meme image ou un truc d'un canvas cache, il suffira d'ajouter une methode drawFromXXX()
 
-// ===> Corridor : dans Playingscreen et Maze, renommer divers trucs comme mazelines en corridors idem pr certaines fonctions (getmazelines() devrait etre getCorridors())
-
-// pour l'optimisation des perfs, etc, pr dessiner la meme image ou un truc d'un canvas cache, il suffira d'ajouter une methode drawFromXXX()
-
-/* XXX commentaire qui sera probablement a modifier ^^
-    Map returns only copy of the litteral data (for example, this means it
-    doesn't return its own pacdots array but create a new one) ; and it stores
-    only basic data (Point instead of Portal or Pacdot)
+/*
+    Map returns only a copy of the loaded data
 */
 var Map = function(litteral)
 {
@@ -2037,7 +2032,7 @@ PlayingScreen.prototype._drawMazeBackground = function()
 
 PlayingScreen.prototype._drawMazeLines = function()
 {
-    var corridors = this._maze.getMazeLines();
+    var corridors = this._maze.getCorridors();
     
     for(var i=0;i<corridors.length;i++)
     {
@@ -2195,33 +2190,33 @@ Status.prototype.decrementLives = function()
 /********************************* Maze class *********************************/
 /******************************************************************************/
 
-var Maze = function(mazelines, pacdots, portals)
+var Maze = function(corridors, pacdots, portals)
 {
     //TODO  check if lines don't overlap with one another => if overlap, create
     //      a new one containing the two lines overlapping (they need to be of
     //      the same type : the 2 with pacdots, or the 2 without pacdots)
-    //assert((mazelines instanceof Array && mazelines.length > 0), "mazelines is not an array");
+    assert((corridors instanceof Array && corridors.length > 0), "corridors is not an array");
     
-    var xmin = mazelines[0].getLine().getPoint1().getX();
-    var ymin = mazelines[0].getLine().getPoint1().getY();
+    var xmin = corridors[0].getLine().getPoint1().getX();
+    var ymin = corridors[0].getLine().getPoint1().getY();
 
-    for(var i=1; i<mazelines.length; i++)
+    for(var i=1; i<corridors.length; i++)
     {
-        if (mazelines[i].getLine().getPoint1().getX() < xmin) {xmin = mazelines[i].getLine().getPoint1().getX();}
-        if (mazelines[i].getLine().getPoint1().getY() < ymin) {ymin = mazelines[i].getLine().getPoint1().getY();}
+        if (corridors[i].getLine().getPoint1().getX() < xmin) {xmin = corridors[i].getLine().getPoint1().getX();}
+        if (corridors[i].getLine().getPoint1().getY() < ymin) {ymin = corridors[i].getLine().getPoint1().getY();}
     }
     
-    for(var i=0; i<mazelines.length; i++)
+    for(var i=0; i<corridors.length; i++)
     {
-        assert((mazelines[i] instanceof Corridor), "line " + i +" is not a Line");
-        assert((((mazelines[i].getLine().getPoint1().getX()-xmin) % GRID_UNIT) === 0
-             && ((mazelines[i].getLine().getPoint1().getY()-ymin) % GRID_UNIT) === 0
-             && ((mazelines[i].getLine().getPoint2().getX()-xmin) % GRID_UNIT) === 0
-             && ((mazelines[i].getLine().getPoint2().getY()-ymin) % GRID_UNIT) === 0),
+        assert((corridors[i] instanceof Corridor), "line " + i +" is not a Line");
+        assert((((corridors[i].getLine().getPoint1().getX()-xmin) % GRID_UNIT) === 0
+             && ((corridors[i].getLine().getPoint1().getY()-ymin) % GRID_UNIT) === 0
+             && ((corridors[i].getLine().getPoint2().getX()-xmin) % GRID_UNIT) === 0
+             && ((corridors[i].getLine().getPoint2().getY()-ymin) % GRID_UNIT) === 0),
              "line n°" + i +" points are not on the game grid, using " + GRID_UNIT + " pixels unit");
     }
     
-    this._mazelines = mazelines; // lines on which the pacman center can move
+    this._corridors = corridors; // lines on which the pacman center can move
     this._pacdots = pacdots;
     this._powerpellets = [];
     this._portals = portals;
@@ -2251,38 +2246,31 @@ Maze.prototype.getHeight = function()
 
 Maze.prototype._computeDimensions = function()
 {
-    var xmin = this._mazelines[0].getLine().getPoint1().getX();
-    var ymin = this._mazelines[0].getLine().getPoint1().getY();
-    var xmax = this._mazelines[0].getLine().getPoint1().getX();
-    var ymax = this._mazelines[0].getLine().getPoint1().getY();
+    var xmin = this._corridors[0].getLine().getPoint1().getX();
+    var ymin = this._corridors[0].getLine().getPoint1().getY();
+    var xmax = this._corridors[0].getLine().getPoint1().getX();
+    var ymax = this._corridors[0].getLine().getPoint1().getY();
 
-    for(var i=0; i<this._mazelines.length; i++)
+    for(var i=0; i<this._corridors.length; i++)
     {
-        if (this._mazelines[i].getLine().getPoint1().getX() < xmin) {xmin = this._mazelines[i].getLine().getPoint1().getX();}
-        if (this._mazelines[i].getLine().getPoint2().getX() < xmin) {xmin = this._mazelines[i].getLine().getPoint2().getX();}
-        if (this._mazelines[i].getLine().getPoint1().getY() < ymin) {ymin = this._mazelines[i].getLine().getPoint1().getY();}
-        if (this._mazelines[i].getLine().getPoint2().getY() < ymin) {ymin = this._mazelines[i].getLine().getPoint2().getY();}
+        if (this._corridors[i].getLine().getPoint1().getX() < xmin) {xmin = this._corridors[i].getLine().getPoint1().getX();}
+        if (this._corridors[i].getLine().getPoint2().getX() < xmin) {xmin = this._corridors[i].getLine().getPoint2().getX();}
+        if (this._corridors[i].getLine().getPoint1().getY() < ymin) {ymin = this._corridors[i].getLine().getPoint1().getY();}
+        if (this._corridors[i].getLine().getPoint2().getY() < ymin) {ymin = this._corridors[i].getLine().getPoint2().getY();}
         
-        if (this._mazelines[i].getLine().getPoint1().getX() > xmax) {xmax = this._mazelines[i].getLine().getPoint1().getX();}
-        if (this._mazelines[i].getLine().getPoint2().getX() > xmax) {xmax = this._mazelines[i].getLine().getPoint2().getX();}
-        if (this._mazelines[i].getLine().getPoint1().getY() > ymax) {ymax = this._mazelines[i].getLine().getPoint1().getY();}
-        if (this._mazelines[i].getLine().getPoint2().getY() > ymax) {ymax = this._mazelines[i].getLine().getPoint2().getY();}
+        if (this._corridors[i].getLine().getPoint1().getX() > xmax) {xmax = this._corridors[i].getLine().getPoint1().getX();}
+        if (this._corridors[i].getLine().getPoint2().getX() > xmax) {xmax = this._corridors[i].getLine().getPoint2().getX();}
+        if (this._corridors[i].getLine().getPoint1().getY() > ymax) {ymax = this._corridors[i].getLine().getPoint1().getY();}
+        if (this._corridors[i].getLine().getPoint2().getY() > ymax) {ymax = this._corridors[i].getLine().getPoint2().getY();}
     }
 
     this._width = xmax - xmin;
     this._height = ymax - ymin;
 };
 
-Maze.prototype.getMazeLines = function()
+Maze.prototype.getCorridors = function()
 {
-    return this._mazelines;
-};
-
-Maze.prototype.getMazeLine = function(index)
-{
-    assert((index >= 0 && index < this._mazelines.length), "index value is not valid");
-    
-    return this._mazelines[index];
+    return this._corridors;
 };
 
 Maze.prototype.getPacdots = function()
@@ -2351,11 +2339,6 @@ Maze.prototype.deletePacdot = function(index)
     this._pacdots.splice(index, 1);
 };
 
-Maze.prototype.mazeLinesCount = function()
-{
-    return this._mazelines.length;
-};
-
 Maze.prototype.pacdotsCount = function()
 {
     return this._pacdots.length;
@@ -2365,9 +2348,9 @@ Maze.prototype.containsPoint = function(point)
 {
     assert((point instanceof Point), "point is not a Point");
     
-    for(var i=0;i<this._mazelines.length;i++)
+    for(var i=0;i<this._corridors.length;i++)
     {
-        if (this._mazelines[i].getLine().containsPoint(point))
+        if (this._corridors[i].getLine().containsPoint(point))
         {
             return true;
         }
@@ -2384,9 +2367,9 @@ Maze.prototype.mazeCurrentLine = function(point, direction)
     
     var line = null;
     
-    for(var i=0; i<this._mazelines.length; i++)
+    for(var i=0; i<this._corridors.length; i++)
     {
-        line = this._mazelines[i].getLine();
+        line = this._corridors[i].getLine();
         
         if (((isVertical(direction) && isVertical(line))
           || (isHorizontal(direction) && isHorizontal(line)))
@@ -2402,9 +2385,9 @@ Maze.prototype.mazeCurrentLine = function(point, direction)
         pacman on the maze at the beginning
     */
     
-    for(var i=0; i<this._mazelines.length; i++)
+    for(var i=0; i<this._corridors.length; i++)
     {
-        line = this._mazelines[i].getLine();
+        line = this._corridors[i].getLine();
         
         if (line.containsPoint(point))
         {
@@ -2437,9 +2420,9 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
     
     /* find all the lines on which we could turn */
     
-    for(var i=0;i<this._mazelines.length;i++)
+    for(var i=0;i<this._corridors.length;i++)
     {
-        var l = this._mazelines[i].getLine();
+        var l = this._corridors[i].getLine();
         
         /* if this line is crossing ours */
         if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
@@ -2883,6 +2866,9 @@ var logicLoop = function()
     - on pourrait utiliser une fonction qui lors de l'initialisation detecte taille du browser/mobile et utilise une taille predefinie pr le jeu, genre : petit, moyen, normal, conservant les rapports de distance etc... et faudrait des constantes prefixees par S(mall), M(edium), N(ormal)
     
     - y'aura un prob a un moment puisque maze devrait faire un draw() qui englobe le draw() des pacdots et lines et portals, or les portals doivent etre fait apres le pacman => soit tt mettre lines et tt, et meme tt le contenu de Maze, a la "racine" du playingscreen, SOIT mettre pacman dans maze, ce qui serait ptetre plus logique...
+    
+    - pr pacman, faudrait ptetre mieux mettre en propriété son radius, auquel on se referera avec this, au lieu de tjrs utiliser la pseudo macro, ou pas ?
+      pr pacdot, faire une animation qui fait "briler" ?
 */
 
 /*
@@ -2901,9 +2887,6 @@ PauseState
 
 PlayingState(mapToLoad)
 {}
-
-faudrait ptetre finalement remettre dans leurs classes les trucs graphiques, genre dans maze les mazerects, ... ou pas ? histoire de faire mypacdot/myportal/myline.draw() ?
-et par exemple pr pacman, faudrait ptetre mieux mettre en propriété son radius, auquel on se referera avec this, au lieu de tjrs utiliser la pseudo macro, ou pas ? et du coup faire une classe pacdot, avec meme une animation qui fait "briler" ?
 
 chaque etat peut avoir des sous-etats ?
 
