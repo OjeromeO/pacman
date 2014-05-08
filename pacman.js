@@ -83,6 +83,7 @@ var STATUS_FONT_SIZE = 30;
 var STATUS_PADDINGLEFT = 20;
 
 
+var maps = [];
 
 var MAP_1 =
 {
@@ -170,6 +171,8 @@ var MAP_1 =
                     direction:  Direction.UP
                 }
 };
+
+maps.push(MAP_1);
 
 /*
 var count1 = 0;
@@ -1249,23 +1252,17 @@ Corridor.prototype.draw = function()
 /********************************* Map class **********************************/
 /******************************************************************************/
 
-// TODO
-// ===> ulterieurement faire en sorte que Map puisse renvoyer un Pacman et un Maze ? (vu qu'on renvoie deja des Pacdot via le tableau)
-// ===> Map stocke et renvoie une copie des Portal, Pacdot, Corridor, ...
-// ===> utiliser des DrawableText pour Status ^^
-// ===> pour l'optimisation des perfs, etc, pr dessiner la meme image ou un truc d'un canvas cache, il suffira d'ajouter une methode drawFromXXX()
-
 /*
     Map returns only a copy of the loaded data
 */
 var Map = function(litteral)
 {
     // loaded data
-    this._lines = [];
-    this._pacdots = [];
-    this._portals = [];
-    this._pacmanX = 0;
-    this._pacmanY = 0;
+    this._corridorlines = [];
+    this._pacdotsposition = [];
+    this._portalsposition = [];
+    this._portalsid = [];
+    this._pacmanPosition = null;
     this._pacmanDirection = null;
     
     //computed data
@@ -1278,8 +1275,7 @@ var Map = function(litteral)
         load pacman
     */
     
-    this._pacmanX = litteral.pacman.x;
-    this._pacmanY = litteral.pacman.y;
+    this._pacmanPosition = new Point(litteral.pacman.x, litteral.pacman.y);
     this._pacmanDirection = litteral.pacman.direction;
 
     /*
@@ -1297,7 +1293,7 @@ var Map = function(litteral)
                             new Point(litteral.mazelines[i].x2, litteral.mazelines[i].y2));
         
         // load lines
-        this._lines.push(line);
+        this._corridorlines.push(line);
         
         // load pacdots
         if (typeof litteral.mazelines[i].nopacdots === "undefined")
@@ -1321,9 +1317,9 @@ var Map = function(litteral)
                 var p = (isVertical(line)) ? new Point(line.XAxis(), j) : new Point(j, line.YAxis()) ;
                 var exists = false;
                 
-                for(var k=0; k<this._pacdots.length; k++)
+                for(var k=0; k<this._pacdotsposition.length; k++)
                 {
-                    if (p.equalsPoint(this._pacdots[k]))
+                    if (p.equalsPoint(this._pacdotsposition[k]))
                     {
                         exists = true;
                         break;
@@ -1332,7 +1328,7 @@ var Map = function(litteral)
                 
                 if (!exists)
                 {
-                    this._pacdots.push(p);
+                    this._pacdotsposition.push(p);
                 }
             }
         }
@@ -1355,7 +1351,8 @@ var Map = function(litteral)
     
     for(var i=0; i<litteral.portals.length; i++)
     {
-        this._portals.push(new Portal(litteral.portals[i].x, litteral.portals[i].y, litteral.portals[i].id));
+        this._portalsposition.push(new Point(litteral.portals[i].x, litteral.portals[i].y));
+        this._portalsid.push(litteral.portals[i].id);
     }
     
     /*
@@ -1367,21 +1364,6 @@ var Map = function(litteral)
     
     this._topleft = new Point(xmin,ymin);
     this._bottomright = new Point(xmax,ymax);
-};
-
-Map.prototype.getPacmanX = function()
-{
-    return this._pacmanX;
-};
-
-Map.prototype.getPacmanY = function()
-{
-    return this._pacmanY;
-};
-
-Map.prototype.getPacmanDirection = function()
-{
-    return this._pacmanDirection;
 };
 
 Map.prototype.getTopLeft = function()
@@ -1408,10 +1390,10 @@ Map.prototype.getCorridors = function()
 {
     var corridors = [];
     
-    for(var i=0;i<this._lines.length;i++)
+    for(var i=0;i<this._corridorlines.length;i++)
     {
-        corridors.push(new Corridor(new Point(this._lines[i].getPoint1().getX(), this._lines[i].getPoint1().getY()),
-                                    new Point(this._lines[i].getPoint2().getX(), this._lines[i].getPoint2().getY())));
+        corridors.push(new Corridor(new Point(this._corridorlines[i].getPoint1().getX(), this._corridorlines[i].getPoint1().getY()),
+                                    new Point(this._corridorlines[i].getPoint2().getX(), this._corridorlines[i].getPoint2().getY())));
     }
     
     return corridors;
@@ -1421,9 +1403,9 @@ Map.prototype.getPacdots = function()
 {
     var pacdots = [];
     
-    for(var i=0;i<this._pacdots.length;i++)
+    for(var i=0;i<this._pacdotsposition.length;i++)
     {
-        pacdots.push(new Pacdot(this._pacdots[i].getX(), this._pacdots[i].getY()));
+        pacdots.push(new Pacdot(this._pacdotsposition[i].getX(), this._pacdotsposition[i].getY()));
     }
     
     return pacdots;
@@ -1433,12 +1415,17 @@ Map.prototype.getPortals = function()
 {
     var portals = [];
     
-    for(var i=0;i<this._portals.length;i++)
+    for(var i=0;i<this._portalsposition.length;i++)
     {
-        portals.push(new Portal(this._portals[i].getPosition().getX(), this._portals[i].getPosition().getY(), this._portals[i].getID()));
+        portals.push(new Portal(this._portalsposition[i].getX(), this._portalsposition[i].getY(), this._portalsid[i]));
     }
     
     return portals;
+};
+
+Map.prototype.getPacman = function()
+{
+    return new Pacman(this._pacmanPosition.getX(), this._pacmanPosition.getY(), this._pacmanDirection);
 };
 
 /******************************************************************************/
@@ -1687,7 +1674,7 @@ PauseMenu.prototype.changeToNextItem = function()
 /**************************** PlayingScreen class *****************************/
 /******************************************************************************/
 
-var PlayingScreen = function()
+var PlayingScreen = function(litteral)
 {
     this._width = 0;
     this._height = 0;
@@ -1698,9 +1685,9 @@ var PlayingScreen = function()
     this._maze = null;
     this._pacman = null;
     
-    this.loadMap(MAP_1);
+    this.loadMap(litteral);
     
-    //TODO au final quand on aura un PlayingState, on aura ptetre plutot juste un new Status() et un new Maze(MAP_1) ; apres, faudra savoir ou mettre le Map (ou seulement le MAP_1, car c ptetre moins pire de devoir tout rechopper a partir du litteral, plutot que de tout stocker tt le temps et de tte façon quand meme choper les infos par copie de ce qu'a chopé Map), soit dans Playingstate soit dans Maze
+    //TODO au final quand on aura un PlayingState, faudra savoir si mettre le Map ou seulement le MAP_1, car c ptetre moins pire de devoir tout rechopper a partir du litteral, plutot que de tout stocker tt le temps et de tte façon quand meme choper les infos par copie de ce qu'a chopé Map
 };
 
 /*
@@ -1728,13 +1715,10 @@ PlayingScreen.prototype.loadMap = function(litteral)
         load original map data
     */
     
-    //var lines = this._map.getLines();
     var lines = this._map.getCorridors();
     var pacdots = this._map.getPacdots();
     var portals = this._map.getPortals();
-    var pacmanX = this._map.getPacmanX();
-    var pacmanY = this._map.getPacmanY();
-    var pacmanDirection = this._map.getPacmanDirection();
+    var pacman = this._map.getPacman();
     
     var mapheight = this._map.getHeight();
     var mapwidth = this._map.getWidth();
@@ -1773,8 +1757,7 @@ PlayingScreen.prototype.loadMap = function(litteral)
         portals[i].translate(xmappadding, ymappadding);
     }
     
-    pacmanX += xmappadding;
-    pacmanY += ymappadding;
+    pacman.translate(xmappadding, ymappadding);
     
     /*
         create game elements
@@ -1782,18 +1765,37 @@ PlayingScreen.prototype.loadMap = function(litteral)
     
     // TODO renommer width et height en mainwidth/mainheight ? ou mainzonewidth/height ?
     
-    //TODO TODO TODO dans drawmaze() et drawstatus() on utilise encore this._width et this._height, on pourrait ptetre les enlever en utilisant tte la largeur a chaque fois, etc... ; et aussi, comment faire si on veut elargir la zone de jeu principale, est-ce qu'on fait un degrade pr le reste ou non, est-ce que le status prend tte la largeur... ; et mettre une bordure tt autour de la zone de jeu
-    // ==========================> on prend tt l'ecran, mais :
-    //          => on utilise une largeur et hauteur de base pour le jeu, qu'on utilise si la taille de la map + contours, etc... est egale ou inferieure, et on centre la map dans le cadre contenant la map, et on a le cadre contenant le status en-dessous, de la meme largeur que la largeur de base
-    //          => si la taille de la map + contours, etc... depasse le truc de largeur de base, alors on agrandit la largeur/hauteur de la zone de jeu, et le cadre du status prendra la meme largeur
-    //          => cette largeur/hauteur de base est utilisée pour le menu principal
-    //          => pour le menu principal, et pour la zone de jeu, on fait un degradé vers le bord du canvas
-    //  =================> afficher d'abord le jeu avec une taille de base, celle qui permet d'afficher le menu principal et le menu de pause et la map originale du jeu pacman ; puis mettre option "toggle fullscreen", avec dans la liste des maps des indications que fo plein ecran sinon taille actuelle du jeu trop petite
+    //TODO TODO TODO dans drawmaze() et drawstatus() on utilise encore this._width et this._height, on pourrait ptetre les enlever en utilisant tte la largeur a chaque fois, etc... ; et mettre une bordure tt autour de la zone de jeu
+    
+    /*
+    - afficher d'abord le jeu/canvas avec une taille de base, celle qui permet d'afficher le menu principal et le menu de pause et la map originale du jeu pacman
+    - mettre dans le menu d'accueil, en bas, des "liens" pour elargir la taille du jeu a telle ou telle resolution ("some maps may be too large for the current game size")
+    - la taille des menus (accueil, pause, ...) restera TOUJOURS la même
+    - le cadre du jeu est centré dans le canvas
+    - le cadre du Maze a une taille de base (celle pour la Map originelle pacman), une Map trop petite est centrée ; si on charge une Map plus grande, on elargit ce cadre autant que necessaire (toute façon le canvas sera mis a la bonne taille ailleurs)
+    - pour la taille de base du jeu, le statut prend toute la largeur, le score est aligné a gauche et les vies sont alignées à droite ; si le canvas/jeu doit être élargi, alors tout le statut est aligné à gauche, et l'écartement entre le score et les vies doit rester le même que pour la taille de base
+    - pour le menu principal, et pour la zone de jeu, on fait un degradé vers le bord du canvas
+    */
+    
+    /*
+    - au debut du jeu, parcourir les maps pour trouver la taille max / ou pas, mettre la taille de base / tester les 2
+    - comment faire pour les screeen/state et leur position/dimension, et pour maze et Status, et pour les menus qui devraient ptetre etre une classe avec position/dimension aussi, et pausescreen qui devrait etre un pausestate a part et avec ses postiiosn/dimensions
+    - Pause/MainMenuState possèdent en fait juste un Menu
+    - Maze n'a pas ses dimensions mais celle de la map en fait...
+    - Maze devrait avoir sa position et ses dimensions (incluant toute bordure qu'il voudrait mettre)
+    - Status devrait avoir sa position et ses dimensions (incluant toute bordure qu'il voudrait mettre) ; composé de lives (classe LifeStatus composée de nblives de type entier + 1 graphics DrawableString du texte + 1 array de graphics DrawableCircle) et score (classe ScoreStatus composée de score + 1 DrawableString du texte + 1 DrawableStringText du score) ; un drawableString possède une position et un String (en fait, le faire heriter de String, tt comme les autres Drawable heritent de leur truc) ; euh sauf que contrairement a maze on ne balance pas des infos avec deja des coord, comment faire ? faudrait donner ces positions en argument du constructeur ?
+    - Maze, Status, Menu devraient tous 2 avoir une propriété frame de type Rectangle
+    - PlayingState fait un loadMap(), et grace à ça il créé le Maze et le Status ; il leur envoie leur position avec un Rectangle frame en argument (il peut le faire pr Status vu que on aura la taille de la Map) ; mouais pas terrible, ce serait mieux si on donnait a status sa frame a partir des dimensions de Maze, or pr ça faut creer Maze, or pr ça faut lui envoyer une frame, or pr ça faut connaitre sa position, or pr ça faut calculer avec la taille de la Map + LINE etc... pas cool de faire manuellement ça ??!
+        ===> en fait, Maze et Status font eux-meme dans le constructeur le calcul du frame, puisque c tjrs possible.... arf mais non nimporte quoi
+        ======> tant pis, peut pas faire autrement : on donne a maze les pacdots et tt, sans frame puisqu'il le calcule seul ; puis on fait un getFrame() pr pouvoir créer Status en lui envoyant en argument une copie de ce Rectangle ; en fait c même plutôt logique, on est obligé de faire comme ça ! euh mais par contre comment on fait pr le padding du litteral ??? (vu qu'on le faisait avant d'envoyer les trucs a Maze, or là, Maze peut pas le faire tt seul si ?) => du coup vaudrait pas mieux refaire Maze.fromlitteral() ? ======> ou alors non, on envoie les trucs a Maze sans frame, du coup Maze genere les graphics et tt, puis ensuite on get la frame de Maze puis on l'utilise pr créer Status, puis a partir de la frame des 2 on peut centrer le tt avec un translate() ! mais ptetre pas utile d'envoyer une largeur/hauteur a Status ou Menu, un topleftcorner suffirait non ? puisqu'il peut générer le reste par lui-même ds sa propriete frame ?
+    */
+    
     // ==========> PENSER A TOUJOURS FAIRE PAR RAPPORT A LA TAILLE DU CANVAS ET TOUJOURS CENTRER LE CADRE PRINCIPAL DE JEU (garder ses mesures et coords ds un truc global, ou alors le mettre en propriete de chaque etat, vu que sa peut changer entre le menu principal et playing avec des grosses maps)
     // ===========> dessiner le maze avec des marges a droite/gauche et en haut/bas puis un strokerect(), ce sera un bon moyen de revoir comment sont faites toutes les mesures
     
     this._maze = new Maze(lines, pacdots, portals);
-    this._pacman = new Pacman(pacmanX, pacmanY, pacmanDirection, this._maze);
+    
+    this._pacman = pacman;
 };
 
 PlayingScreen.prototype.restart = function()
@@ -1815,14 +1817,11 @@ PlayingScreen.prototype.restart = function()
     this._status.reinit();
     
     // reinit pacman
-    var pacmanX = this._map.getPacmanX();
-    var pacmanY = this._map.getPacmanY();
-    var pacmanDirection = this._map.getPacmanDirection();
+    var pacman = this._map.getPacman();
     
-    pacmanX += xmappadding;
-    pacmanY += ymappadding;
+    pacman.translate(xmappadding, ymappadding);
     
-    this._pacman.reinit(pacmanX, pacmanY, pacmanDirection, this._maze);
+    this._pacman.reinit(pacman.getPosition().getX(), pacman.getPosition().getY(), pacman.getDirection());
 };
 
 PlayingScreen.prototype.getWidth = function()
@@ -1894,7 +1893,7 @@ PlayingScreen.prototype.move = function(elapsed)
         
         var eatenpacdots = [];
         
-        for(var i=0; i<this._maze.pacdotsCount(); i++)
+        for(var i=0; i<this._maze.getPacdots().length; i++)
         {
             if (travelled1.containsPoint(this._maze.getPacdot(i).getPosition()))
             {
@@ -1917,13 +1916,10 @@ PlayingScreen.prototype.move = function(elapsed)
         
         /* move towards the intersection point */
         
-        var nextline = this._maze.mazeCurrentLine(this._pacman.getNextTurn(), this._pacman.getNextDirection());
-        
         this._pacman.setPosition(this._pacman.getNextTurn().getX(), this._pacman.getNextTurn().getY());
         this._pacman.setDirection(this._pacman.getNextDirection());
         this._pacman.setNextDirection(null);
         this._pacman.setNextTurn(null);
-        this._pacman.setCurrentline(nextline);
         
         movement -= turndistance;
     }
@@ -1931,27 +1927,29 @@ PlayingScreen.prototype.move = function(elapsed)
     var newx = 0;
     var newy = 0;
     
+    var currentline = this._maze.currentLine(this._pacman.getPosition(), this._pacman.getDirection());
+    
     if (this._pacman.getDirection() === Direction.UP)
     {
-        limit = this._pacman.getCurrentline().getPoint1().getY();
+        limit = currentline.getPoint1().getY();
         newx = this._pacman.getPosition().getX();
         newy = (this._pacman.getPosition().getY()-movement > limit) ? this._pacman.getPosition().getY()-movement : limit ;
     }
     else if (this._pacman.getDirection() === Direction.DOWN)
     {
-        limit = this._pacman.getCurrentline().getPoint2().getY();
+        limit = currentline.getPoint2().getY();
         newx = this._pacman.getPosition().getX();
         newy = (this._pacman.getPosition().getY()+movement < limit) ? this._pacman.getPosition().getY()+movement : limit ;
     }
     else if (this._pacman.getDirection() === Direction.LEFT)
     {
-        limit = this._pacman.getCurrentline().getPoint1().getX();
+        limit = currentline.getPoint1().getX();
         newx = (this._pacman.getPosition().getX()-movement > limit) ? this._pacman.getPosition().getX()-movement : limit ;
         newy = this._pacman.getPosition().getY();
     }
     else
     {
-        limit = this._pacman.getCurrentline().getPoint2().getX();
+        limit = currentline.getPoint2().getX();
         newx = (this._pacman.getPosition().getX()+movement < limit) ? this._pacman.getPosition().getX()+movement : limit ;
         newy = this._pacman.getPosition().getY();
     }
@@ -1962,7 +1960,7 @@ PlayingScreen.prototype.move = function(elapsed)
     
     var eatenpacdots = [];
     
-    for(var i=0; i<this._maze.pacdotsCount(); i++)
+    for(var i=0; i<this._maze.getPacdots().length; i++)
     {
         if (travelled2.containsPoint(this._maze.getPacdot(i).getPosition()))
         {
@@ -1983,17 +1981,15 @@ PlayingScreen.prototype.move = function(elapsed)
     if (this._maze.isPortal(this._pacman.getPosition().getX(), this._pacman.getPosition().getY()))
     {
         var p = this._maze.associatedPortal(this._pacman.getPosition().getX(), this._pacman.getPosition().getY());
-        var newline = this._maze.mazeCurrentLine(p.getPosition(), this._pacman.getDirection());
         
         this._pacman.setPosition(p.getPosition().getX(), p.getPosition().getY());
-        this._pacman.setCurrentline(newline);
         
         /* search if we can now turn after the teleportation */
         
         if (this._pacman.getNextDirection() !== null
          && this._pacman.getNextTurn() === null)
         {
-            var nt = this._maze.mazeNextTurn(this._pacman.getCurrentline(), this._pacman.getPosition(), this._pacman.getDirection(), this._pacman.getNextDirection());
+            var nt = this._maze.nextTurn(this._pacman.getPosition(), this._pacman.getDirection(), this._pacman.getNextDirection());
             
             this._pacman.setNextTurn(nt);
         }
@@ -2339,11 +2335,6 @@ Maze.prototype.deletePacdot = function(index)
     this._pacdots.splice(index, 1);
 };
 
-Maze.prototype.pacdotsCount = function()
-{
-    return this._pacdots.length;
-};
-
 Maze.prototype.containsPoint = function(point)
 {
     assert((point instanceof Point), "point is not a Point");
@@ -2359,7 +2350,7 @@ Maze.prototype.containsPoint = function(point)
     return false;
 };
 
-Maze.prototype.mazeCurrentLine = function(point, direction)
+Maze.prototype.currentLine = function(point, direction)
 {
     assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
@@ -2396,9 +2387,8 @@ Maze.prototype.mazeCurrentLine = function(point, direction)
     }
 };
 
-Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
+Maze.prototype.nextTurn = function(point, direction, nextdirection)
 {
-    assert((line instanceof Line), "line is not a Line");
     assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
     assert((isDirection(nextdirection)), "nextdirection value is not valid");
@@ -2408,6 +2398,8 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
     {
         return;     /* "undefined" */
     }
+    
+    var line = this.currentLine(point, direction);
     
     var lines = [];
     var xlimit = null;
@@ -2476,13 +2468,11 @@ Maze.prototype.mazeNextTurn = function(line, point, direction, nextdirection)
 /******************************** Pacman class ********************************/
 /******************************************************************************/
 
-var Pacman = function(x, y, direction, maze)
+var Pacman = function(x, y, direction)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
-    assert((maze.containsPoint(new Point(x, y))), "coordinates are not inside the maze");
-    assert((maze instanceof Maze), "maze is not a Maze");
     
     this._state = PacmanState.NORMAL;
     
@@ -2499,8 +2489,6 @@ var Pacman = function(x, y, direction, maze)
     this._graphicscirclearc = null;
     
     this._generateGraphics();
-    
-    this._currentline = maze.mazeCurrentLine(this._position, this._direction);
 };
 
 Pacman.prototype._generateGraphics = function()
@@ -2537,19 +2525,16 @@ Pacman.prototype.setState = function(state)
     this._state = state;
 };
 
-Pacman.prototype.reinit = function(x, y, direction, maze)
+Pacman.prototype.reinit = function(x, y, direction)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
-    assert((maze.containsPoint(new Point(x, y))), "coordinates are not inside the maze");
-    assert((maze instanceof Maze), "maze is not a Maze");
     
     this._position.set(x, y);
     this._direction = direction;
     this._nextdirection = null;
     this._nextturn = null;
-    this._currentline = maze.mazeCurrentLine(this._position, this._direction);
     
     this._graphicscirclearc.setPosition(this._position.getX(),
                                         this._position.getY());
@@ -2563,18 +2548,6 @@ Pacman.prototype.getMouthstartangle = function()
 Pacman.prototype.getMouthendangle = function()
 {
     return this._mouthendangle;
-};
-
-Pacman.prototype.getCurrentline = function()
-{
-    return this._currentline;
-};
-
-Pacman.prototype.setCurrentline = function(currentline)
-{
-    assert((currentline instanceof Line), "currentline value is not valid");
-
-    this._currentline = currentline;
 };
 
 Pacman.prototype.getPosition = function()
@@ -2629,6 +2602,33 @@ Pacman.prototype.setPosition = function(x, y)
                                         this._position.getY());
 };
 
+Pacman.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+    
+    this._graphicscirclearc.translate(x, y);
+};
+
+
+
+
+
+
+/* TODO
+- on aura des pacman.move(maze) et ghost.move(maze, pacman) et des .handle_collision(maze, ghosts), ...
+- ne pas mettre pacman dans maze, histoire de separer truc qui bougent
+- tte facon soit on a des move(maze, ...) soit on a dans playingscreen un gros move() qui utilisera le maze et le pacman et les ghosts en propriétés
+- mais pr les collisions, comment faire ? et meme pr les deplacements ? enregistrer le trajet effectué pr chacun (chacun ayant un array de lignes representatn ce chemin) pendant le move() (sans tenir compte des collisions durant le move()), puis appeler pr chacun un handle_collisions() ? mais quand même, faut trouver comment detecter a quel endroit/moment a eu lieu la collision et tt, et agir en consequence...
+*/
+
+
+
+
+
+
 Pacman.prototype.changeDirection = function(direction, maze)
 {
     assert((isDirection(direction)), "direction value is not valid");
@@ -2651,7 +2651,7 @@ Pacman.prototype.changeDirection = function(direction, maze)
     {
         this._nextdirection = direction;
         
-        var point = maze.mazeNextTurn(this._currentline, this._position, this._direction, this._nextdirection);
+        var point = maze.nextTurn(this._position, this._direction, this._nextdirection);
         
         this._nextturn = (typeof point === "undefined") ? null : point ;
     }
@@ -2857,7 +2857,6 @@ var logicLoop = function()
     - verifier ttes les verifs d'erreurs et ajouter les verifs manquantes, et aussi dans checkconfig()
     - verif les bonnes utilisations de certaines fonctions : par exemple ne pas faire this._position.set() quand on peut faire this._setPosition() !
     - verifier les prop et methodes privées/publiques et statiques
-    - mettre currentline pas dans pacman ? (car demande de prendre maze en parametre)
     - le loadmapfromarray...() de playingscreeen pourrap tetre etre fait par Game, et du coup plus de prob d'etre obligé d'avoir un truc statique de pausescreen pr avoir la largeur et comparer ? et aussi ptetre mettre des trucs statiques a playingscreen ? et mettre des proprs statiques dans le constructeur de pausescreen permettrait d'avoir tt le temps les valeurs et d'y acceder comme on veut sans avoir a recalculer ; mais et si jamais on devait modif le menu, genre avec un god mode ?=> faudrait alors pouvoir modifier sa taille et donc faudrait garder les props comme props d'instance...
     - ======> creer classe Game : faire des etats et meme des sous-états (ex: pendant playing, quand on commmence, genre avec compte a rebours ; ou quand on a gagne, genre cinematique ; ...) ; lire truc de lazyfoo et cie sur machines a etats : chaque etat a sa methode update(), et init() ? ; et a priori y'aura plu le prob de devoir utiliser truc statique ou nonn pr creer taille ecran jeu, vu que game pourrait creer direct le pause+playingscreen et donc avoir leurs mesures (le menu peut donc changer de taille, ce serait pas grave)
     - mettre dans les constantes (en haut) tout truc codé en dur (valeur, couleur, ...)
@@ -2866,9 +2865,14 @@ var logicLoop = function()
     - on pourrait utiliser une fonction qui lors de l'initialisation detecte taille du browser/mobile et utilise une taille predefinie pr le jeu, genre : petit, moyen, normal, conservant les rapports de distance etc... et faudrait des constantes prefixees par S(mall), M(edium), N(ormal)
     
     - y'aura un prob a un moment puisque maze devrait faire un draw() qui englobe le draw() des pacdots et lines et portals, or les portals doivent etre fait apres le pacman => soit tt mettre lines et tt, et meme tt le contenu de Maze, a la "racine" du playingscreen, SOIT mettre pacman dans maze, ce qui serait ptetre plus logique...
+        ===> ou bien plutot rester comme on est et : enlever le draw des portals du draw() de maze, de facon a avoir maze.draw() puis pacman.draw() puis ghosts.draw() puis maze.drawPortals()
     
     - pr pacman, faudrait ptetre mieux mettre en propriété son radius, auquel on se referera avec this, au lieu de tjrs utiliser la pseudo macro, ou pas ?
-      pr pacdot, faire une animation qui fait "briler" ?
+    - pr pacdot, faire une animation qui fait "briler" ?
+    
+    - idée pour les Portal/Pacdot/Corridor : tjrs avoir une methode _updateGraphicsPosition(), sans arguments, qui update la position des graphics Drawable a partir des infos de position de l'objet => de cette façon on n'a plus a copier-coller le meme code de positionnement avec LINE_WIDTH ou autre, on appelle cette methode chaque fois qu'une methode modifie la position de l'objet (et dans generategraphics on peut tt a fait mettre a 0 la position, et ensuite appeler cette methode ; voire meme faire en sorte que pour les formes et drawable de base, la position ne soit pas obligatoire, elle serait initialisee par defaut a (0,0))
+    
+    - pour l'optimisation des perfs, etc, pr dessiner la meme image ou un truc d'un canvas cache, il suffira d'ajouter une methode drawFromXXX()
 */
 
 /*
@@ -2906,7 +2910,7 @@ checkConfiguration();
 */
 
 // compute the size of the original Pacman map
-var mainmap = MAP_1
+var mainmap = maps[0];
 var lines = [];
 
 for(var i=0; i<mainmap.mazelines.length; i++)
@@ -2936,7 +2940,7 @@ changeCanvasDimensions(width, height);
     init the game
 */
 
-playingscreen = new PlayingScreen();
+playingscreen = new PlayingScreen(maps[0]);
 pausescreen = new PauseScreen();
 
 canvas.addEventListener("blur", blurEventListener);
