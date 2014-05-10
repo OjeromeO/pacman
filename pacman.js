@@ -1786,9 +1786,6 @@ PauseMenu.prototype.changeToNextItem = function()
 
 var PlayingScreen = function(litteral)
 {
-    this._width = 0;
-    this._height = 0;
-    
     this._map = null;
     
     this._status = new Status();
@@ -1797,7 +1794,25 @@ var PlayingScreen = function(litteral)
     
     this.loadMap(litteral);
     
+    this._graphicsborder = null;
+    this._graphicsbackground = null;
+    
+    this._generateGraphics();
+    
     //TODO au final quand on aura un PlayingState, faudra savoir si mettre le Map ou seulement le MAP_1, car c ptetre moins pire de devoir tout rechopper a partir du litteral, plutot que de tout stocker tt le temps et de tte façon quand meme choper les infos par copie de ce qu'a chopé Map
+};
+
+PlayingScreen.prototype._generateGraphics = function()
+{
+    this._graphicsborder = new DrawableRectangle(0,
+                                                 0,
+                                                 canvas.width,
+                                                 canvas.height);
+    
+    this._graphicsbackground = new DrawableRectangle(CANVAS_BORDER_SIZE,
+                                                     CANVAS_BORDER_SIZE,
+                                                     canvas.width - 2 * CANVAS_BORDER_SIZE,
+                                                     canvas.height - 2 * CANVAS_BORDER_SIZE);
 };
 
 /*
@@ -1809,13 +1824,11 @@ var PlayingScreen = function(litteral)
 */
 PlayingScreen.prototype._getMapPaddingX = function()
 {
-    //return (canvas.width - this._width) / 2 + LINE_WIDTH/2 - this._map.getTopLeft().getX();
     return (canvas.width - this._map.getWidth()) / 2 - this._map.getTopLeft().getX();
 };
 
 PlayingScreen.prototype._getMapPaddingY = function()
 {
-    //return (canvas.height - this._height) / 2 + LINE_WIDTH/2 - this._map.getTopLeft().getY();
     return (canvas.height - STATUS_HEIGHT - this._map.getHeight()) / 2 - this._map.getTopLeft().getY();
 };
 
@@ -1835,17 +1848,6 @@ PlayingScreen.prototype.loadMap = function(litteral)
     var mapheight = this._map.getHeight();
     var mapwidth = this._map.getWidth();
     var maptopleft = this._map.getTopLeft();
-    
-    /*
-        compute the main game size
-    */
-    
-    //TODO - devrait ptetre etre mis dans un getheight() de Status (pas un truc statique ! car si jamais on devait pouvoir changer...)
-    //     - le this._statusMaxWidth() devrait etre dans Status lui aussi, et pas en statique non plus
-    var statusheight = 1.3 * STATUS_FONT_SIZE;
-    
-    this._width = (mapwidth + LINE_WIDTH > this._statusMaxWidth()) ? mapwidth + LINE_WIDTH : this._statusMaxWidth() ;
-    this._height = mapheight + LINE_WIDTH + 10 + statusheight;
     
     /*
         update loaded original map data using padding to the desired position
@@ -1875,42 +1877,18 @@ PlayingScreen.prototype.loadMap = function(litteral)
         create game elements
     */
     
-    // TODO renommer width et height en mainwidth/mainheight ? ou mainzonewidth/height ?
-    
-    //TODO TODO TODO dans drawmaze() et drawstatus() on utilise encore this._width et this._height, on pourrait ptetre les enlever en utilisant tte la largeur a chaque fois, etc... ; et mettre une bordure tt autour de la zone de jeu
+    //TODO TODO TODO
     
     /*
-    - afficher d'abord le jeu/canvas avec une taille de base, celle qui permet d'afficher le menu principal et le menu de pause et la map originale du jeu pacman
-    - mettre dans le menu d'accueil, en bas, des "liens" pour elargir la taille du jeu a telle ou telle resolution ("some maps may be too large for the current game size")
-    - la taille des menus (accueil, pause, ...) restera TOUJOURS la même
-    - le cadre du jeu est centré dans le canvas
-    - le cadre du Maze a une taille de base (celle pour la Map originelle pacman), une Map trop petite est centrée ; si on charge une Map plus grande, on elargit ce cadre autant que necessaire (toute façon le canvas sera mis a la bonne taille ailleurs)
-    - pour la taille de base du jeu, le statut prend toute la largeur, le score est aligné a gauche et les vies sont alignées à droite ; si le canvas/jeu doit être élargi, alors tout le statut est aligné à gauche, et l'écartement entre le score et les vies doit rester le même que pour la taille de base
-    - pour le menu principal, et pour la zone de jeu, on fait un degradé vers le bord du canvas
-    */
-    
-    /*
-    - au debut du jeu, parcourir les maps pour trouver la taille max / ou pas, mettre la taille de base / tester les 2
-    - comment faire pour les screeen/state et leur position/dimension, et pour maze et Status, et pour les menus qui devraient ptetre etre une classe avec position/dimension aussi, et pausescreen qui devrait etre un pausestate a part et avec ses postiiosn/dimensions
+    - comment faire pour les menus qui devraient ptetre etre une classe avec position/dimension aussi, et pausescreen qui devrait etre un pausestate a part et avec ses postiiosn/dimensions
     - Pause/MainMenuState possèdent en fait juste un Menu
-    - Maze n'a pas ses dimensions mais celle de la map en fait...
-    - Maze devrait avoir sa position et ses dimensions (incluant toute bordure qu'il voudrait mettre)
-    - Status devrait avoir sa position et ses dimensions (incluant toute bordure qu'il voudrait mettre) ; composé de lives (classe LifeStatus composée de nblives de type entier + 1 graphics DrawableString du texte + 1 array de graphics DrawableCircle) et score (classe ScoreStatus composée de score + 1 DrawableString du texte + 1 DrawableStringText du score) ; un drawableString possède une position et un String (en fait, le faire heriter de String, tt comme les autres Drawable heritent de leur truc) ; euh sauf que contrairement a maze on ne balance pas des infos avec deja des coord, comment faire ? faudrait donner ces positions en argument du constructeur ?
-    - Maze, Status, Menu devraient tous 2 avoir une propriété frame de type Rectangle
-    - PlayingState fait un loadMap(), et grace à ça il créé le Maze et le Status ; il leur envoie leur position avec un Rectangle frame en argument (il peut le faire pr Status vu que on aura la taille de la Map) ; mouais pas terrible, ce serait mieux si on donnait a status sa frame a partir des dimensions de Maze, or pr ça faut creer Maze, or pr ça faut lui envoyer une frame, or pr ça faut connaitre sa position, or pr ça faut calculer avec la taille de la Map + LINE etc... pas cool de faire manuellement ça ??!
-        ===> en fait, Maze et Status font eux-meme dans le constructeur le calcul du frame, puisque c tjrs possible.... arf mais non nimporte quoi
-        ======> tant pis, peut pas faire autrement : on donne a maze les pacdots et tt, sans frame puisqu'il le calcule seul ; puis on fait un getFrame() pr pouvoir créer Status en lui envoyant en argument une copie de ce Rectangle ; en fait c même plutôt logique, on est obligé de faire comme ça ! euh mais par contre comment on fait pr le padding du litteral ??? (vu qu'on le faisait avant d'envoyer les trucs a Maze, or là, Maze peut pas le faire tt seul si ?) => du coup vaudrait pas mieux refaire Maze.fromlitteral() ? ======> ou alors non, on envoie les trucs a Maze sans frame, du coup Maze genere les graphics et tt, puis ensuite on get la frame de Maze puis on l'utilise pr créer Status, puis a partir de la frame des 2 on peut centrer le tt avec un translate() ! mais ptetre pas utile d'envoyer une largeur/hauteur a Status ou Menu, un topleftcorner suffirait non ? puisqu'il peut générer le reste par lui-même ds sa propriete frame ?
-    
-    
-    
-    ================================> les xxxState auront une var maincontentframe (rectangle) ; Maze,Status,Menu auront une var frame (Rectangle) ; ou pas, c ptetre pas utile, on peut aussi bien faire juste par rapport au width/height du canvas, surtout qu'on a les graphics et tt, et qu'on utilise une taille fixe pr le jeu !!!
+    - Status devrait etre composé de lives (classe LifeStatus composée de nblives de type entier + 1 graphics DrawableString du texte + 1 array de graphics DrawableCircle) et score (classe ScoreStatus composée de score + 1 DrawableString du texte + 1 DrawableStringText du score) ; un drawableString possède une position et un String (en fait, le faire heriter de String, tt comme les autres Drawable heritent de leur truc)
+    - on a besoin de la map pr ses getwidth(), utilisé notamment dans le getmappadding()... ou mettre direct dans Maze... ??!?
     */
     
-    // ==========> PENSER A TOUJOURS FAIRE PAR RAPPORT A LA TAILLE DU CANVAS ET TOUJOURS CENTRER LE CADRE PRINCIPAL DE JEU (garder ses mesures et coords ds un truc global, ou alors le mettre en propriete de chaque etat, vu que sa peut changer entre le menu principal et playing avec des grosses maps)
-    // ===========> dessiner le maze avec des marges a droite/gauche et en haut/bas puis un strokerect(), ce sera un bon moyen de revoir comment sont faites toutes les mesures
+    //TODO ici, creer direct le this._maze et this._pacman, puis faire un maze.translate() et un pacman.translate() (creer ces fonctions en pensant a translater les graphics aussi)
     
     this._maze = new Maze(lines, pacdots, portals);
-    
     this._pacman = pacman;
 };
 
@@ -1938,16 +1916,6 @@ PlayingScreen.prototype.restart = function()
     pacman.translate(xmappadding, ymappadding);
     
     this._pacman.reinit(pacman.getPosition().getX(), pacman.getPosition().getY(), pacman.getDirection());
-};
-
-PlayingScreen.prototype.getWidth = function()
-{
-    return this._width;
-};
-
-PlayingScreen.prototype.getHeight = function()
-{
-    return this._height;
 };
 
 PlayingScreen.prototype._statusMaxWidth = function()
@@ -2121,156 +2089,18 @@ PlayingScreen.prototype.move = function(elapsed)
     this._pacman.animate(elapsed);
 };
 
-
-
-
-
-
-
-
-
-//TODO TODO TODO TODO TODO a faire comme il faut en priorite le drawMazeBackground(), puis le loadMap() (et ptetre pas besoin de width/height, verifier si on les get() quelque part, etc... => this._width est seulement dans ce drawmazebackground, idem pr this._height)
-/*
-maze a besoin de avoir en propriete ses top left et bottom right, ou un truc du genre, pr dessiner le background
-on a besoin de la map pr ses getwidth(), utilisé notamment dans le getmappadding()... ou mettre direct dans Maze... ??!?
-*/
-
-
-
-
-
-
-
-
-PlayingScreen.prototype._drawMazeBackground = function()
-{
-    context.fillStyle = "blue";
-    
-    //TODO normalement faudrait pas utiliser this._width/height (tte facon ca sera modifie), mais plutot des coordonnees generees par maze dans son constructeur et stocke par exemple dans un this._backgroundrect
-    //TODO est-ce que faudrait pas plutot que le width et height de Maze soit les largeurs incluant line_width ?
-    context.fillRect((canvas.width - this._width) / 2,
-                     (canvas.height - this._height) / 2,
-                     this._maze.getWidth() + LINE_WIDTH,
-                     this._maze.getHeight() + LINE_WIDTH);
-};
-
-PlayingScreen.prototype._drawMazeLines = function()
-{
-    var corridors = this._maze.getCorridors();
-    
-    for(var i=0;i<corridors.length;i++)
-    {
-        corridors[i].draw();
-    }
-};
-
-PlayingScreen.prototype._drawMazePacdots = function()
-{
-    var pacdots = this._maze.getPacdots();
-    
-    for(var i=0;i<pacdots.length;i++)
-    {
-        pacdots[i].draw();
-    }
-    
-    // TODO
-    //  better performances : draw in a hidden canvas and then drawImage() or putimagedata()
-    //  cf: http://stackoverflow.com/questions/13916066/speed-up-the-drawing-of-many-points-on-a-html5-canvas-element
-};
-
-PlayingScreen.prototype._drawMaze = function()
-{
-    this._drawMazeBackground();
-    this._drawMazeLines();
-    this._drawMazePacdots();
-};
-
-//TODO mettre dans Status, avec des Drawable et tout...
-PlayingScreen.prototype._drawStatus = function()
-{
-    context.fillStyle = "blue";
-    
-    context.fillRect(CANVAS_BORDER_SIZE + STATUS_HMARGIN,
-                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN,
-                     STATUS_SCORE_CONTENT_WIDTH + 2 * STATUS_HPADDING + 2 * STATUS_BORDER_SIZE,
-                     STATUS_HEIGHT - 2 * STATUS_VMARGIN);
-    
-    context.fillRect(CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH,
-                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN,
-                     STATUS_LIVES_CONTENT_WIDTH + 2 * STATUS_HPADDING + 2 * STATUS_BORDER_SIZE,
-                     STATUS_HEIGHT - 2 * STATUS_VMARGIN);
-    
-    context.fillStyle = "gray";
-    
-    context.fillRect(CANVAS_BORDER_SIZE + STATUS_HMARGIN + STATUS_BORDER_SIZE,
-                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE,
-                     STATUS_SCORE_CONTENT_WIDTH + 2 * STATUS_HPADDING,
-                     STATUS_HEIGHT - 2 * STATUS_VMARGIN - 2 * STATUS_BORDER_SIZE);
-    
-    context.fillRect(CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_BORDER_SIZE,
-                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE,
-                     STATUS_LIVES_CONTENT_WIDTH + 2 * STATUS_HPADDING,
-                     STATUS_HEIGHT - 2 * STATUS_VMARGIN - 2 * STATUS_BORDER_SIZE);
-    
-    
-    context.font = STATUS_FONT;
-    context.fillStyle = "white";
-    
-    context.fillText("Score : " + this._status.getScore(),
-                     CANVAS_BORDER_SIZE + STATUS_HMARGIN + STATUS_BORDER_SIZE + STATUS_HPADDING,
-                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE + STATUS_VPADDING + 3/4 * STATUS_CONTENT_HEIGHT);
-    
-    context.fillText("Lives : ",
-                     CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_BORDER_SIZE + STATUS_HPADDING,
-                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE + STATUS_VPADDING + 3/4 * STATUS_CONTENT_HEIGHT);
-    
-    
-    context.fillStyle = "yellow";
-    
-    for(var i=1; i<=this._status.getLives(); i++)
-    {
-        var distance = i*STATUS_LIVES_INTERSPACE + (i-1)*2*STATUS_LIVES_RADIUS + (STATUS_LIVES_RADIUS/2);
-        context.beginPath();
-        context.arc(CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_BORDER_SIZE + STATUS_HPADDING + context.measureText("Lives : ").width + distance,
-                    canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE + STATUS_VPADDING + STATUS_CONTENT_HEIGHT/2,
-                    STATUS_LIVES_RADIUS,
-                    0,
-                    2 * Math.PI);
-        context.fill();
-    }
-};
-
-PlayingScreen.prototype._drawMazePortals = function()
-{
-    var portals = this._maze.getPortals();
-    
-    for(var i=0;i<portals.length;i++)
-    {
-        portals[i].draw();
-    }
-};
-
 PlayingScreen.prototype.draw = function()
 {
     context.fillStyle = "blue";
-    
-    context.fillRect(0,
-                     0,
-                     canvas.width,
-                     canvas.height);
-    
+    this._graphicsborder.draw();
     context.fillStyle = "white";
+    this._graphicsbackground.draw();
     
-    context.fillRect(CANVAS_BORDER_SIZE,
-                     CANVAS_BORDER_SIZE,
-                     canvas.width - 2 * CANVAS_BORDER_SIZE,
-                     canvas.height - 2 * CANVAS_BORDER_SIZE);
-    
-    this._drawMaze();
+    this._maze.draw();
     this._pacman.draw();
-    this._drawMazePortals();
+    this._maze.drawPortals();
     
-    this._drawStatus();
+    this._status.draw();
 };
 
 /******************************************************************************/
@@ -2282,6 +2112,36 @@ var Status = function()
     this._score = 0;
     this._lives = 3;
     this._level = 1;
+    
+    this._graphicsscoreborder = null;
+    this._graphicsscorebackground = null;
+    this._graphicslivesborder = null;
+    this._graphicslivesbackground = null;
+    
+    this._generateGraphics();
+};
+
+Status.prototype._generateGraphics = function()
+{
+    this._graphicsscoreborder = new DrawableRectangle(CANVAS_BORDER_SIZE + STATUS_HMARGIN,
+                                                      canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN,
+                                                      STATUS_SCORE_CONTENT_WIDTH + 2 * STATUS_HPADDING + 2 * STATUS_BORDER_SIZE,
+                                                      STATUS_HEIGHT - 2 * STATUS_VMARGIN);
+    
+    this._graphicslivesborder = new DrawableRectangle(CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH,
+                                                      canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN,
+                                                      STATUS_LIVES_CONTENT_WIDTH + 2 * STATUS_HPADDING + 2 * STATUS_BORDER_SIZE,
+                                                      STATUS_HEIGHT - 2 * STATUS_VMARGIN);
+    
+    this._graphicsscorebackground = new DrawableRectangle(CANVAS_BORDER_SIZE + STATUS_HMARGIN + STATUS_BORDER_SIZE,
+                                                          canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE,
+                                                          STATUS_SCORE_CONTENT_WIDTH + 2 * STATUS_HPADDING,
+                                                          STATUS_HEIGHT - 2 * STATUS_VMARGIN - 2 * STATUS_BORDER_SIZE);
+    
+    this._graphicslivesbackground = new DrawableRectangle(CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_BORDER_SIZE,
+                                                          canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE,
+                                                          STATUS_LIVES_CONTENT_WIDTH + 2 * STATUS_HPADDING,
+                                                          STATUS_HEIGHT - 2 * STATUS_VMARGIN - 2 * STATUS_BORDER_SIZE);
 };
 
 Status.prototype.reinit = function()
@@ -2334,6 +2194,45 @@ Status.prototype.decrementLives = function()
     this._lives--;
 };
 
+Status.prototype.draw = function()
+{
+    context.fillStyle = "blue";
+    this._graphicsscoreborder.draw();
+    this._graphicslivesborder.draw();
+    
+    context.fillStyle = "gray";
+    this._graphicsscorebackground.draw();
+    this._graphicslivesbackground.draw();
+    
+    //TODO utiliser des Drawable
+    
+    context.font = STATUS_FONT;
+    context.fillStyle = "white";
+    
+    context.fillText("Score : " + this._score,
+                     CANVAS_BORDER_SIZE + STATUS_HMARGIN + STATUS_BORDER_SIZE + STATUS_HPADDING,
+                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE + STATUS_VPADDING + 3/4 * STATUS_CONTENT_HEIGHT);
+    
+    context.fillText("Lives : ",
+                     CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_BORDER_SIZE + STATUS_HPADDING,
+                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE + STATUS_VPADDING + 3/4 * STATUS_CONTENT_HEIGHT);
+    
+    
+    context.fillStyle = "yellow";
+    
+    for(var i=1; i<=this._lives; i++)
+    {
+        var distance = i*STATUS_LIVES_INTERSPACE + (i-1)*2*STATUS_LIVES_RADIUS + (STATUS_LIVES_RADIUS/2);
+        context.beginPath();
+        context.arc(CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_BORDER_SIZE + STATUS_HPADDING + context.measureText("Lives : ").width + distance,
+                    canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE + STATUS_VPADDING + STATUS_CONTENT_HEIGHT/2,
+                    STATUS_LIVES_RADIUS,
+                    0,
+                    2 * Math.PI);
+        context.fill();
+    }
+};
+
 /******************************************************************************/
 /********************************* Maze class *********************************/
 /******************************************************************************/
@@ -2345,34 +2244,32 @@ var Maze = function(corridors, pacdots, portals)
     //      the same type : the 2 with pacdots, or the 2 without pacdots)
     assert((corridors instanceof Array && corridors.length > 0), "corridors is not an array");
     
-    var xmin = corridors[0].getLine().getPoint1().getX();
-    var ymin = corridors[0].getLine().getPoint1().getY();
-
-    for(var i=1; i<corridors.length; i++)
-    {
-        if (corridors[i].getLine().getPoint1().getX() < xmin) {xmin = corridors[i].getLine().getPoint1().getX();}
-        if (corridors[i].getLine().getPoint1().getY() < ymin) {ymin = corridors[i].getLine().getPoint1().getY();}
-    }
-    
-    /*for(var j=0; j<corridors.length; j++)
-    {
-        assert((corridors[j] instanceof Corridor), "line " + j +" is not a Line");
-        assert((((corridors[j].getLine().getPoint1().getX()-xmin) % GRID_UNIT) === 0
-             && ((corridors[j].getLine().getPoint1().getY()-ymin) % GRID_UNIT) === 0
-             && ((corridors[j].getLine().getPoint2().getX()-xmin) % GRID_UNIT) === 0
-             && ((corridors[j].getLine().getPoint2().getY()-ymin) % GRID_UNIT) === 0),
-             "line n°" + j +" points are not on the game grid, using " + GRID_UNIT + " pixels unit");
-    }*/
-    
-    this._corridors = corridors; // lines on which the pacman center can move
+    this._corridors = corridors;    // lines on which the pacman center can move
     this._pacdots = pacdots;
     this._powerpellets = [];
     this._portals = portals;
     
-    this._width = 0;
+    this._graphicsborder = null;
+    this._graphicsbackground = null;
+    
+    this._width = 0;    // same thing than the width/height of the Map loaded
     this._height = 0;
     
     this._computeDimensions();
+    
+    this._generateGraphics();
+};
+
+Maze.prototype._generateGraphics = function()
+{
+    this._graphicsborder = new DrawableRectangle((canvas.width - this._width - LINE_WIDTH) / 2 - MAZE_BORDER_SIZE,
+                                                 (canvas.height - STATUS_HEIGHT - this._height - LINE_WIDTH) / 2 - MAZE_BORDER_SIZE,
+                                                 this._width + LINE_WIDTH + 2 * MAZE_BORDER_SIZE,
+                                                 this._height + LINE_WIDTH + 2 * MAZE_BORDER_SIZE);
+    this._graphicsbackground = new DrawableRectangle((canvas.width - this._width - LINE_WIDTH) / 2,
+                                                     (canvas.height - STATUS_HEIGHT - this._height - LINE_WIDTH) / 2,
+                                                     this._width + LINE_WIDTH,
+                                                     this._height + LINE_WIDTH);
 };
 
 Maze.prototype.reinit = function(pacdots)
@@ -2616,6 +2513,33 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection)
     }
 };
 
+Maze.prototype.draw = function()
+{
+    context.fillStyle = "gray";
+    this._graphicsborder.draw();
+    
+    context.fillStyle = "blue";
+    this._graphicsbackground.draw();
+    
+    for(var i=0; i<this._corridors.length; i++)
+    {
+        this._corridors[i].draw();
+    }
+    
+    for(var i=0; i<this._pacdots.length; i++)
+    {
+        this._pacdots[i].draw();
+    }
+};
+
+Maze.prototype.drawPortals = function()
+{
+    for(var i=0; i<this._portals.length; i++)
+    {
+        this._portals[i].draw();
+    }
+};
+
 /******************************************************************************/
 /******************************** Pacman class ********************************/
 /******************************************************************************/
@@ -2773,7 +2697,7 @@ Pacman.prototype.translate = function(x, y)
 - on aura des pacman.move(maze) et ghost.move(maze, pacman) et des .handle_collision(maze, ghosts), ...
 - ne pas mettre pacman dans maze, histoire de separer truc qui bougent
 - tte facon soit on a des move(maze, ...) soit on a dans playingscreen un gros move() qui utilisera le maze et le pacman et les ghosts en propriétés
-- mais pr les collisions, comment faire ? et meme pr les deplacements ? enregistrer le trajet effectué pr chacun (chacun ayant un array de lignes representatn ce chemin) pendant le move() (sans tenir compte des collisions durant le move()), puis appeler pr chacun un handle_collisions() ? mais quand même, faut trouver comment detecter a quel endroit/moment a eu lieu la collision et tt, et agir en consequence...
+- mais pr les collisions, comment faire ? et meme pr les deplacements ? enregistrer le trajet effectué pr chacun (chacun ayant un array de lignes representatn ce chemin) pendant le move() (sans tenir compte des collisions durant le move()), puis appeler pr chacun un handle_collisions() ? mais quand même, faut trouver comment detecter a quel endroit/moment a eu lieu la collision et tt, et agir en consequence... ; ou plutot un handle_collisions() global dans playingscreen
 */
 
 
@@ -2990,6 +2914,10 @@ var logicLoop = function()
 /******************************************************************************/
 
 /* TODO
+
+    //  better performances : draw in a hidden canvas and then drawImage() or putimagedata()
+    //  cf: http://stackoverflow.com/questions/13916066/speed-up-the-drawing-of-many-points-on-a-html5-canvas-element
+    
     - utiliser getImageData() et putImageData() pour les boutons ingame et les
     faire changer de couleur/forme, ou simplement redessiner si ça pose pas de
     probleme de faire un fillrect() d'une zone un peu plus large
@@ -3019,7 +2947,6 @@ var logicLoop = function()
     - y'aura un prob a un moment puisque maze devrait faire un draw() qui englobe le draw() des pacdots et lines et portals, or les portals doivent etre fait apres le pacman => soit tt mettre lines et tt, et meme tt le contenu de Maze, a la "racine" du playingscreen, SOIT mettre pacman dans maze, ce qui serait ptetre plus logique...
         ===> ou bien plutot rester comme on est et : enlever le draw des portals du draw() de maze, de facon a avoir maze.draw() puis pacman.draw() puis ghosts.draw() puis maze.drawPortals()
     
-    - pr pacman, faudrait ptetre mieux mettre en propriété son radius, auquel on se referera avec this, au lieu de tjrs utiliser la pseudo macro, ou pas ?
     - pr pacdot, faire une animation qui fait "briler" ?
     
     - idée pour les Portal/Pacdot/Corridor : tjrs avoir une methode _updateGraphicsPosition(), sans arguments, qui update la position des graphics Drawable a partir des infos de position de l'objet => de cette façon on n'a plus a copier-coller le meme code de positionnement avec LINE_WIDTH ou autre, on appelle cette methode chaque fois qu'une methode modifie la position de l'objet (et dans generategraphics on peut tt a fait mettre a 0 la position, et ensuite appeler cette methode ; voire meme faire en sorte que pour les formes et drawable de base, la position ne soit pas obligatoire, elle serait initialisee par defaut a (0,0))
