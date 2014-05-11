@@ -70,29 +70,53 @@ var PAUSEMENU_HMARGIN = 30;
 var PAUSEMENU_VMARGIN = 30;
 var PAUSEMENU_ITEMSDISTANCE = 30;
 
-var PACMAN_RADIUS = 15;
+var PACMAN_RADIUS = 12;
 var PACDOTS_RADIUS = 2;
 var PACMAN_SPEED = 400;
-var LINE_WIDTH = 1.5 * 2 * PACMAN_RADIUS;
-var GRID_UNIT = 20;     // useful to set pacdots on the maze
+var LINE_WIDTH = 2 * PACMAN_RADIUS + 8;
+var GRID_UNIT = 16;
 var PACDOT_POINT = 10;
 
+var CANVAS_BORDER_SIZE = 20;
+
+var MAZE_BORDER_SIZE = 10;
+
 var STATUS_LIVES_RADIUS = 10;
-var STATUS_FONT = "sans-serif";
+var STATUS_FONT_FAMILY = "sans-serif";
 var STATUS_FONT_SIZE = 30;
+var STATUS_FONT = STATUS_FONT_SIZE + "px " + STATUS_FONT_FAMILY;
 var STATUS_PADDINGLEFT = 20;
+
+var STATUS_BORDER_SIZE = 10;
+var STATUS_VMARGIN = 5;
+var STATUS_VPADDING = 5;
+var STATUS_CONTENT_HEIGHT = (1.3 * STATUS_FONT_SIZE > 2 * STATUS_LIVES_RADIUS) ? 1.3 * STATUS_FONT_SIZE : 2 * STATUS_LIVES_RADIUS ;
+var STATUS_HEIGHT = 2 * STATUS_VMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_VPADDING + STATUS_CONTENT_HEIGHT;
+
+var STATUS_HMARGIN = 5;
+var STATUS_HPADDING = 15;
+
+var tmpcanvas = document.getElementById("gamecanvas");
+var tmpcontext = tmpcanvas.getContext("2d");
+tmpcontext.font = STATUS_FONT;
+
+var STATUS_LIVES_INTERSPACE = 10;   // distance between them, and between them and the text
+var STATUS_SCORE_CONTENT_WIDTH = tmpcontext.measureText("Score : 9 999 999").width;
+var STATUS_LIVES_CONTENT_WIDTH = tmpcontext.measureText("Lives : ").width + 3 * STATUS_LIVES_INTERSPACE + 3 * 2 * STATUS_LIVES_RADIUS;
+var STATUS_WIDTH = STATUS_HMARGIN + STATUS_BORDER_SIZE + STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_HPADDING + STATUS_BORDER_SIZE + STATUS_HMARGIN + STATUS_BORDER_SIZE + STATUS_HPADDING + STATUS_LIVES_CONTENT_WIDTH + STATUS_HPADDING + STATUS_BORDER_SIZE + STATUS_HMARGIN;
+
 
 
 var maps = [];
 
-var MAP_1 =
+/*var MAP_1 =
 {
-    /*
-        a "nopacdots" property means that the line will not have any pacdots on it
-        (except on an intersection with a line containing pacdots)
-    */
+    //
+    //    a "nopacdots" property means that the line will not have any pacdots on it
+    //    (except on an intersection with a line containing pacdots)
+    //
     mazelines:  [
-                    /* horizontal lines */
+                    // horizontal lines
 
                     {x1: 50,  y1: 50,  x2: 270, y2: 50},
                     {x1: 330, y1: 50,  x2: 550, y2: 50},
@@ -125,7 +149,7 @@ var MAP_1 =
 
                     {x1: 50,  y1: 610, x2: 550, y2: 610},
 
-                    /* vertical lines */
+                    // vertical lines
 
                     {x1: 50,  y1: 50,  x2: 50,  y2: 190},
                     {x1: 150, y1: 50,  x2: 150, y2: 550},
@@ -168,6 +192,92 @@ var MAP_1 =
     pacman:     {
                     x:          50,
                     y:          50,
+                    direction:  Direction.UP
+                }
+};*/
+var MAP_1 =
+{
+    /*
+        a "nopacdots" property means that the line will not have any pacdots on it
+        (except on an intersection with a line containing pacdots)
+    */
+    mazelines:  [
+                    /* horizontal lines */
+
+                    {x1: 0,  y1: 0,  x2: 11, y2: 0},
+                    {x1: 14, y1: 0,  x2: 25, y2: 0},
+
+                    {x1: 0,  y1: 4, x2: 25, y2: 4},
+
+                    {x1: 0,  y1: 7, x2: 5, y2: 7},
+                    {x1: 8, y1: 7, x2: 11, y2: 7},
+                    {x1: 14, y1: 7, x2: 17, y2: 7},
+                    {x1: 20, y1: 7, x2: 25, y2: 7},
+
+                    {x1: 8, y1: 10, x2: 17, y2: 10, nopacdots: "defined"},
+
+                    {x1: 0,  y1: 13, x2: 8, y2: 13, nopacdots: "defined"},
+                    {x1: 17, y1: 13, x2: 25, y2: 13, nopacdots: "defined"},
+
+                    {x1: 8, y1: 16, x2: 17, y2: 16, nopacdots: "defined"},
+
+                    {x1: 0,  y1: 19, x2: 11, y2: 19},
+                    {x1: 14, y1: 19, x2: 25, y2: 19},
+
+                    {x1: 0,  y1: 22, x2: 2,  y2: 22},
+                    {x1: 5, y1: 22, x2: 20, y2: 22},
+                    {x1: 23, y1: 22, x2: 25, y2: 22},
+
+                    {x1: 0,  y1: 25, x2: 5, y2: 25},
+                    {x1: 8, y1: 25, x2: 11, y2: 25},
+                    {x1: 14, y1: 25, x2: 17, y2: 25},
+                    {x1: 20, y1: 25, x2: 25, y2: 25},
+
+                    {x1: 0,  y1: 28, x2: 25, y2: 28},
+
+                    /* vertical lines */
+
+                    {x1: 0,  y1: 0,  x2: 0,  y2: 7},
+                    {x1: 5, y1: 0,  x2: 5, y2: 25},
+                    {x1: 20, y1: 0,  x2: 20, y2: 25},
+                    {x1: 25, y1: 0,  x2: 25, y2: 7},
+
+                    {x1: 11, y1: 0,  x2: 11, y2: 4},
+                    {x1: 14, y1: 0,  x2: 14, y2: 4},
+
+                    {x1: 8, y1: 4, x2: 8, y2: 7},
+                    {x1: 17, y1: 4, x2: 17, y2: 7},
+
+                    {x1: 11, y1: 7, x2: 11, y2: 10, nopacdots: "defined"},
+                    {x1: 14, y1: 7, x2: 14, y2: 10, nopacdots: "defined"},
+
+                    {x1: 8, y1: 10, x2: 8, y2: 19, nopacdots: "defined"},
+                    {x1: 17, y1: 10, x2: 17, y2: 19, nopacdots: "defined"},
+
+                    {x1: 0,  y1: 19, x2: 0,  y2: 22},
+                    {x1: 11, y1: 19, x2: 11, y2: 22},
+                    {x1: 14, y1: 19, x2: 14, y2: 22},
+                    {x1: 25, y1: 19, x2: 25, y2: 22},
+
+                    {x1: 2,  y1: 22, x2: 2,  y2: 25},
+                    {x1: 8, y1: 22, x2: 8, y2: 25},
+                    {x1: 17, y1: 22, x2: 17, y2: 25},
+                    {x1: 23, y1: 22, x2: 23, y2: 25},
+
+                    {x1: 0,  y1: 25, x2: 0,  y2: 28},
+                    {x1: 11, y1: 25, x2: 11, y2: 28},
+                    {x1: 14, y1: 25, x2: 14, y2: 28},
+                    {x1: 25, y1: 25, x2: 25, y2: 28}
+                ],
+    
+    portals:    [
+                    {x: 0,  y: 13, id: 1},
+                    {x: 25, y: 13, id: 1}
+                ],
+    
+    pacman:     {
+                    x:          0,
+                    y:          0,
                     direction:  Direction.UP
                 }
 };
@@ -1275,22 +1385,22 @@ var Map = function(litteral)
         load pacman
     */
     
-    this._pacmanPosition = new Point(litteral.pacman.x, litteral.pacman.y);
+    this._pacmanPosition = new Point(litteral.pacman.x * GRID_UNIT, litteral.pacman.y * GRID_UNIT);
     this._pacmanDirection = litteral.pacman.direction;
 
     /*
         load lines and pacdots, compute minimum and maximum coordinates
     */
     
-    var xmin = litteral.mazelines[0].x1;
-    var ymin = litteral.mazelines[0].y1;
-    var xmax = litteral.mazelines[0].x1;
-    var ymax = litteral.mazelines[0].y1;
+    var xmin = litteral.mazelines[0].x1 * GRID_UNIT;
+    var ymin = litteral.mazelines[0].y1 * GRID_UNIT;
+    var xmax = litteral.mazelines[0].x1 * GRID_UNIT;
+    var ymax = litteral.mazelines[0].y1 * GRID_UNIT;
     
     for(var i=0; i<litteral.mazelines.length; i++)
     {
-        var line = new Line(new Point(litteral.mazelines[i].x1, litteral.mazelines[i].y1),
-                            new Point(litteral.mazelines[i].x2, litteral.mazelines[i].y2));
+        var line = new Line(new Point(litteral.mazelines[i].x1 * GRID_UNIT, litteral.mazelines[i].y1 * GRID_UNIT),
+                            new Point(litteral.mazelines[i].x2 * GRID_UNIT, litteral.mazelines[i].y2 * GRID_UNIT));
         
         // load lines
         this._corridorlines.push(line);
@@ -1334,15 +1444,15 @@ var Map = function(litteral)
         }
         
         // compute minimum and maximum coordinates
-        if (litteral.mazelines[i].x1 < xmin) {xmin = litteral.mazelines[i].x1;}
-        if (litteral.mazelines[i].x2 < xmin) {xmin = litteral.mazelines[i].x2;}
-        if (litteral.mazelines[i].y1 < ymin) {ymin = litteral.mazelines[i].y1;}
-        if (litteral.mazelines[i].y2 < ymin) {ymin = litteral.mazelines[i].y2;}
+        if (litteral.mazelines[i].x1 * GRID_UNIT < xmin) {xmin = litteral.mazelines[i].x1 * GRID_UNIT;}
+        if (litteral.mazelines[i].x2 * GRID_UNIT < xmin) {xmin = litteral.mazelines[i].x2 * GRID_UNIT;}
+        if (litteral.mazelines[i].y1 * GRID_UNIT < ymin) {ymin = litteral.mazelines[i].y1 * GRID_UNIT;}
+        if (litteral.mazelines[i].y2 * GRID_UNIT < ymin) {ymin = litteral.mazelines[i].y2 * GRID_UNIT;}
         
-        if (litteral.mazelines[i].x1 > xmax) {xmax = litteral.mazelines[i].x1;}
-        if (litteral.mazelines[i].x2 > xmax) {xmax = litteral.mazelines[i].x2;}
-        if (litteral.mazelines[i].y1 > ymax) {ymax = litteral.mazelines[i].y1;}
-        if (litteral.mazelines[i].y2 > ymax) {ymax = litteral.mazelines[i].y2;}
+        if (litteral.mazelines[i].x1 * GRID_UNIT > xmax) {xmax = litteral.mazelines[i].x1 * GRID_UNIT;}
+        if (litteral.mazelines[i].x2 * GRID_UNIT > xmax) {xmax = litteral.mazelines[i].x2 * GRID_UNIT;}
+        if (litteral.mazelines[i].y1 * GRID_UNIT > ymax) {ymax = litteral.mazelines[i].y1 * GRID_UNIT;}
+        if (litteral.mazelines[i].y2 * GRID_UNIT > ymax) {ymax = litteral.mazelines[i].y2 * GRID_UNIT;}
     }
     
     /*
@@ -1351,7 +1461,7 @@ var Map = function(litteral)
     
     for(var i=0; i<litteral.portals.length; i++)
     {
-        this._portalsposition.push(new Point(litteral.portals[i].x, litteral.portals[i].y));
+        this._portalsposition.push(new Point(litteral.portals[i].x * GRID_UNIT, litteral.portals[i].y * GRID_UNIT));
         this._portalsid.push(litteral.portals[i].id);
     }
     
@@ -1699,12 +1809,14 @@ var PlayingScreen = function(litteral)
 */
 PlayingScreen.prototype._getMapPaddingX = function()
 {
-    return (canvas.width - this._width) / 2 + LINE_WIDTH/2 - this._map.getTopLeft().getX();
+    //return (canvas.width - this._width) / 2 + LINE_WIDTH/2 - this._map.getTopLeft().getX();
+    return (canvas.width - this._map.getWidth()) / 2 - this._map.getTopLeft().getX();
 };
 
 PlayingScreen.prototype._getMapPaddingY = function()
 {
-    return (canvas.height - this._height) / 2 + LINE_WIDTH/2 - this._map.getTopLeft().getY();
+    //return (canvas.height - this._height) / 2 + LINE_WIDTH/2 - this._map.getTopLeft().getY();
+    return (canvas.height - STATUS_HEIGHT - this._map.getHeight()) / 2 - this._map.getTopLeft().getY();
 };
 
 PlayingScreen.prototype.loadMap = function(litteral)
@@ -1788,6 +1900,10 @@ PlayingScreen.prototype.loadMap = function(litteral)
     - PlayingState fait un loadMap(), et grace à ça il créé le Maze et le Status ; il leur envoie leur position avec un Rectangle frame en argument (il peut le faire pr Status vu que on aura la taille de la Map) ; mouais pas terrible, ce serait mieux si on donnait a status sa frame a partir des dimensions de Maze, or pr ça faut creer Maze, or pr ça faut lui envoyer une frame, or pr ça faut connaitre sa position, or pr ça faut calculer avec la taille de la Map + LINE etc... pas cool de faire manuellement ça ??!
         ===> en fait, Maze et Status font eux-meme dans le constructeur le calcul du frame, puisque c tjrs possible.... arf mais non nimporte quoi
         ======> tant pis, peut pas faire autrement : on donne a maze les pacdots et tt, sans frame puisqu'il le calcule seul ; puis on fait un getFrame() pr pouvoir créer Status en lui envoyant en argument une copie de ce Rectangle ; en fait c même plutôt logique, on est obligé de faire comme ça ! euh mais par contre comment on fait pr le padding du litteral ??? (vu qu'on le faisait avant d'envoyer les trucs a Maze, or là, Maze peut pas le faire tt seul si ?) => du coup vaudrait pas mieux refaire Maze.fromlitteral() ? ======> ou alors non, on envoie les trucs a Maze sans frame, du coup Maze genere les graphics et tt, puis ensuite on get la frame de Maze puis on l'utilise pr créer Status, puis a partir de la frame des 2 on peut centrer le tt avec un translate() ! mais ptetre pas utile d'envoyer une largeur/hauteur a Status ou Menu, un topleftcorner suffirait non ? puisqu'il peut générer le reste par lui-même ds sa propriete frame ?
+    
+    
+    
+    ================================> les xxxState auront une var maincontentframe (rectangle) ; Maze,Status,Menu auront une var frame (Rectangle) ; ou pas, c ptetre pas utile, on peut aussi bien faire juste par rapport au width/height du canvas, surtout qu'on a les graphics et tt, et qu'on utilise une taille fixe pr le jeu !!!
     */
     
     // ==========> PENSER A TOUJOURS FAIRE PAR RAPPORT A LA TAILLE DU CANVAS ET TOUJOURS CENTRER LE CADRE PRINCIPAL DE JEU (garder ses mesures et coords ds un truc global, ou alors le mettre en propriete de chaque etat, vu que sa peut changer entre le menu principal et playing avec des grosses maps)
@@ -2013,6 +2129,18 @@ PlayingScreen.prototype.move = function(elapsed)
 
 
 
+//TODO TODO TODO TODO TODO a faire comme il faut en priorite le drawMazeBackground(), puis le loadMap() (et ptetre pas besoin de width/height, verifier si on les get() quelque part, etc... => this._width est seulement dans ce drawmazebackground, idem pr this._height)
+/*
+maze a besoin de avoir en propriete ses top left et bottom right, ou un truc du genre, pr dessiner le background
+on a besoin de la map pr ses getwidth(), utilisé notamment dans le getmappadding()... ou mettre direct dans Maze... ??!?
+*/
+
+
+
+
+
+
+
 
 PlayingScreen.prototype._drawMazeBackground = function()
 {
@@ -2057,49 +2185,59 @@ PlayingScreen.prototype._drawMaze = function()
     this._drawMazePacdots();
 };
 
+//TODO mettre dans Status, avec des Drawable et tout...
 PlayingScreen.prototype._drawStatus = function()
 {
+    context.fillStyle = "blue";
+    
+    context.fillRect(CANVAS_BORDER_SIZE + STATUS_HMARGIN,
+                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN,
+                     STATUS_SCORE_CONTENT_WIDTH + 2 * STATUS_HPADDING + 2 * STATUS_BORDER_SIZE,
+                     STATUS_HEIGHT - 2 * STATUS_VMARGIN);
+    
+    context.fillRect(CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH,
+                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN,
+                     STATUS_LIVES_CONTENT_WIDTH + 2 * STATUS_HPADDING + 2 * STATUS_BORDER_SIZE,
+                     STATUS_HEIGHT - 2 * STATUS_VMARGIN);
+    
     context.fillStyle = "gray";
     
-    context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
+    context.fillRect(CANVAS_BORDER_SIZE + STATUS_HMARGIN + STATUS_BORDER_SIZE,
+                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE,
+                     STATUS_SCORE_CONTENT_WIDTH + 2 * STATUS_HPADDING,
+                     STATUS_HEIGHT - 2 * STATUS_VMARGIN - 2 * STATUS_BORDER_SIZE);
     
-    var maxscorewidth = context.measureText("Score : 9 999 999").width;
-    var statusheight = 1.3 * STATUS_FONT_SIZE;
-    var mapheight = this._maze.getHeight() + LINE_WIDTH;
+    context.fillRect(CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_BORDER_SIZE,
+                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE,
+                     STATUS_LIVES_CONTENT_WIDTH + 2 * STATUS_HPADDING,
+                     STATUS_HEIGHT - 2 * STATUS_VMARGIN - 2 * STATUS_BORDER_SIZE);
     
-    context.fillRect((canvas.width - this._width) / 2,
-                     (canvas.height - this._height) / 2 + mapheight + 10,
-                     this._width,
-                     statusheight);
     
+    context.font = STATUS_FONT;
     context.fillStyle = "white";
     
     context.fillText("Score : " + this._status.getScore(),
-                     (canvas.width - this._width) / 2 + STATUS_PADDINGLEFT,
-                     (canvas.height - this._height) / 2 + mapheight + 10 + STATUS_FONT_SIZE);
+                     CANVAS_BORDER_SIZE + STATUS_HMARGIN + STATUS_BORDER_SIZE + STATUS_HPADDING,
+                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE + STATUS_VPADDING + 3/4 * STATUS_CONTENT_HEIGHT);
     
     context.fillText("Lives : ",
-                     (canvas.width - this._width) / 2 + STATUS_PADDINGLEFT + maxscorewidth + 50,
-                     (canvas.height - this._height) / 2 + mapheight + 10 + STATUS_FONT_SIZE);
+                     CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_BORDER_SIZE + STATUS_HPADDING,
+                     canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE + STATUS_VPADDING + 3/4 * STATUS_CONTENT_HEIGHT);
+    
     
     context.fillStyle = "yellow";
     
     for(var i=1; i<=this._status.getLives(); i++)
     {
-        var distance = i*10 + (i-1)*2*STATUS_LIVES_RADIUS + (STATUS_LIVES_RADIUS/2);
+        var distance = i*STATUS_LIVES_INTERSPACE + (i-1)*2*STATUS_LIVES_RADIUS + (STATUS_LIVES_RADIUS/2);
         context.beginPath();
-        context.arc((canvas.width - this._width) / 2 + STATUS_PADDINGLEFT + maxscorewidth + 50 + context.measureText("Lives : ").width + distance,
-                    (canvas.height - this._height) / 2 + mapheight + 10 + statusheight/2,
+        context.arc(CANVAS_BORDER_SIZE + 2 * STATUS_HMARGIN + 2 * STATUS_BORDER_SIZE + 2 * STATUS_HPADDING + STATUS_SCORE_CONTENT_WIDTH + STATUS_BORDER_SIZE + STATUS_HPADDING + context.measureText("Lives : ").width + distance,
+                    canvas.height - CANVAS_BORDER_SIZE - STATUS_HEIGHT + STATUS_VMARGIN + STATUS_BORDER_SIZE + STATUS_VPADDING + STATUS_CONTENT_HEIGHT/2,
                     STATUS_LIVES_RADIUS,
                     0,
                     2 * Math.PI);
         context.fill();
     }
-};
-
-PlayingScreen.prototype._drawPacman = function()
-{
-    this._pacman.draw();
 };
 
 PlayingScreen.prototype._drawMazePortals = function()
@@ -2114,8 +2252,22 @@ PlayingScreen.prototype._drawMazePortals = function()
 
 PlayingScreen.prototype.draw = function()
 {
+    context.fillStyle = "blue";
+    
+    context.fillRect(0,
+                     0,
+                     canvas.width,
+                     canvas.height);
+    
+    context.fillStyle = "white";
+    
+    context.fillRect(CANVAS_BORDER_SIZE,
+                     CANVAS_BORDER_SIZE,
+                     canvas.width - 2 * CANVAS_BORDER_SIZE,
+                     canvas.height - 2 * CANVAS_BORDER_SIZE);
+    
     this._drawMaze();
-    this._drawPacman();
+    this._pacman.draw();
     this._drawMazePortals();
     
     this._drawStatus();
@@ -2202,15 +2354,15 @@ var Maze = function(corridors, pacdots, portals)
         if (corridors[i].getLine().getPoint1().getY() < ymin) {ymin = corridors[i].getLine().getPoint1().getY();}
     }
     
-    for(var i=0; i<corridors.length; i++)
+    /*for(var j=0; j<corridors.length; j++)
     {
-        assert((corridors[i] instanceof Corridor), "line " + i +" is not a Line");
-        assert((((corridors[i].getLine().getPoint1().getX()-xmin) % GRID_UNIT) === 0
-             && ((corridors[i].getLine().getPoint1().getY()-ymin) % GRID_UNIT) === 0
-             && ((corridors[i].getLine().getPoint2().getX()-xmin) % GRID_UNIT) === 0
-             && ((corridors[i].getLine().getPoint2().getY()-ymin) % GRID_UNIT) === 0),
-             "line n°" + i +" points are not on the game grid, using " + GRID_UNIT + " pixels unit");
-    }
+        assert((corridors[j] instanceof Corridor), "line " + j +" is not a Line");
+        assert((((corridors[j].getLine().getPoint1().getX()-xmin) % GRID_UNIT) === 0
+             && ((corridors[j].getLine().getPoint1().getY()-ymin) % GRID_UNIT) === 0
+             && ((corridors[j].getLine().getPoint2().getX()-xmin) % GRID_UNIT) === 0
+             && ((corridors[j].getLine().getPoint2().getY()-ymin) % GRID_UNIT) === 0),
+             "line n°" + j +" points are not on the game grid, using " + GRID_UNIT + " pixels unit");
+    }*/
     
     this._corridors = corridors; // lines on which the pacman center can move
     this._pacdots = pacdots;
@@ -2897,14 +3049,16 @@ chaque etat peut avoir des sous-etats ?
 dans logicloop, faut a un moment un truc pr changer l'etat si necessaire ; chaque etat pouvant dans une de ses fonctions modifier une variable nextstate ?
 */
 
+
+
 canvas = document.getElementById("gamecanvas");
 
 context = canvas.getContext("2d");
 
-checkConfiguration();
+//checkConfiguration();
 
 /*
-    compute and set the base size of the game canvas
+    compute and set the base size of the game canvas, using the original Pacman map
     //TODO - il faudra plus tard verifier aussi avec la taille du menu principal et du menu de pause
     //     - englober tout ca dans un initCanvasSize()
 */
@@ -2935,6 +3089,25 @@ var height = mainmap_h + LINE_WIDTH + 10 + status_h;
 // set the canvas size to the game base size
 //changeCanvasDimensions(window.innerWidth-15, window.innerHeight-15);  /* -15 is for scrollbars */
 changeCanvasDimensions(width, height);
+
+//console.log(width + ", " + height);
+
+/* TODO TODO TODO
+=> en fait, avant de commencer le jeu, faut creer 1 tempmainmenustate, 1 tempplayingstate, et 1 temppausestate ; et avec leur propriete maincontentframe, on prend les dimensions les plus grandes, et on les assigne au canvas, ce qui donne la taille de base ^^ faut le refaire a chaque fois au cas ou on modif des ...
+
+===> ou alors faudrait appeler des truc static : PlayingScreen.maxDimensions(map_X), et MainMenuState.maxDimensions(), et PauseMenuState.maxDimensions()
+    => ça appelle des Maze.maxDimensions(map_X), Status.maxDimensions(), XXXMenu.maxDimension()
+
+=> en fait faudra 3 "liens" => "resize to the normal size" ; "resize the the large size" ; "resize to the maximum size"
+
+
+====================> AU FINAL : je vais devoir decider d'une taille fixe pour le canvas, qui sera acceptable pour faire des maps pas trop petites ; ensuite apres ça je crée 2 fonctions dans les trucs tout en haut, qui s'appelleront MapMaxWidth() et MapMaxHeight(), qui retourneront les tailles max que le jeu accepte pour les Map (du coup on peut modifier autant qu'on veut les tailles des bordures, des textes, des lignes, ... peu importe, on aura un moyen de savoir si une map est trop grande ou pas => le checkconfig verifiera donc notamment pour chaque map qu'elle n'est pas trop grande)
+*/
+
+changeCanvasDimensions(800, 700);
+
+
+
 
 /*
     init the game
