@@ -53,7 +53,7 @@ Object.defineProperties(GhostState,
 var canvas = null;
 var context = null;
 var lastupdate = null;
-var newupdate = null;
+//var newupdate = null;
 var pressedkeys = [];
 var pressedkeysdate = [];
 var state = null;
@@ -293,6 +293,8 @@ var firstupdate = 0;
 var tmp1 = 0;
 var tmp2 = 0;
 
+
+
 /******************************************************************************/
 /***************************** utilities functions ****************************/
 /******************************************************************************/
@@ -507,6 +509,20 @@ var checkConfiguration = function()
     }
 };
 
+
+
+/******************************************************************************/
+/* -> classes for geometric elements/shapes data :                            */
+/*     -> Point, Circle, CircleArc, Rectangle, Line                           */
+/*     -> translate(x, y), setPosition(x, y)                                  */
+/*                                                                            */
+/* -> corresponding "Drawable" classes, that extend the base classes          */
+/*     -> DrawablePoint, ...                                                  */
+/*     -> draw()                                                              */
+/******************************************************************************/
+
+
+
 /******************************************************************************/
 /********************************* Point class ********************************/
 /******************************************************************************/
@@ -562,6 +578,11 @@ Point.prototype.translate = function(x, y)
     this._y += y;
 };
 
+Point.prototype.setPosition = function(x, y)
+{
+    this.set(x, y);
+};
+
 Point.prototype.equals = function(x, y)
 {
     assert((typeof x === "number"), "x is not a number");
@@ -592,9 +613,9 @@ Point.prototype.distanceToPoint = function(point)
     return Math.sqrt(Math.pow(point.getX()-this._x, 2) + Math.pow(point.getY()-this._y, 2));
 };
 
-/******************************************************************************/
+
 /**************************** DrawablePoint class *****************************/
-/******************************************************************************/
+
 
 var DrawablePoint = function(x, y)
 {
@@ -659,9 +680,9 @@ Circle.prototype.translate = function(x, y)
     this._position.translate(x, y);
 };
 
-/******************************************************************************/
+
 /*************************** DrawableCircle class *****************************/
-/******************************************************************************/
+
 
 var DrawableCircle = function(x, y, radius, filled)
 {
@@ -781,9 +802,9 @@ CircleArc.prototype.translate = function(x, y)
     this._position.translate(x, y);
 };
 
-/******************************************************************************/
+
 /************************* DrawableCircleArc class ****************************/
-/******************************************************************************/
+
 
 var DrawableCircleArc = function(x, y, radius, startangle, endangle)
 {
@@ -881,9 +902,9 @@ Rectangle.prototype.translate = function(x, y)
     this._position.translate(x, y);
 };
 
-/******************************************************************************/
+
 /************************** DrawableRectangle class ***************************/
-/******************************************************************************/
+
 
 var DrawableRectangle = function(x, y, w, h, filled)
 {
@@ -931,7 +952,7 @@ DrawableRectangle.prototype.draw = function()
 
 /*
     - Line creates horizontal or vertical lines
-    - Line ensures that the first end is the left-most and the top-most (the way
+    - Line ensures that _point1 property is the left-most and the top-most (the way
       the constructor ensures that is only valid for horizontal or vertical lines)
 */
 var Line = function(point1, point2)
@@ -989,6 +1010,18 @@ Line.prototype.translate = function(x, y)
     
     this._point1.translate(x,y);
     this._point2.translate(x,y);
+};
+
+Line.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    var xDiff = x - this._point1.getX();
+    var yDiff = y - this._point1.getY();
+    
+    this._point1.set(x, y);
+    this._point2.translate(xDiff, yDiff);
 };
 
 Line.prototype.size = function()
@@ -1137,9 +1170,9 @@ Line.prototype.containsYStrictly = function(y)
     }
 };
 
-/******************************************************************************/
+
 /***************************** DrawableLine class *****************************/
-/******************************************************************************/
+
 
 var DrawableLine = function(point1, point2)
 {
@@ -1162,6 +1195,16 @@ DrawableLine.prototype.draw = function()
     ctx.closePath();
     ctx.stroke();
 };
+
+
+
+/******************************************************************************/
+/* -> maze immobile elements classes :                                        */
+/*     -> Portal, Pacdot, Corridor                                            */
+/*     -> _generateGraphics(), translate(x, y), setPosition(x, y), draw()     */
+/******************************************************************************/
+
+
 
 /******************************************************************************/
 /********************************* Portal class *******************************/
@@ -1202,8 +1245,7 @@ Portal.prototype.setPosition = function(x, y)
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     
-    this._position.set(x, y);
-    
+    this._position.setPosition(x, y);
     this._graphicsrect.setPosition(this._position.getX() - LINE_WIDTH/2,
                                    this._position.getY() - LINE_WIDTH/2);
 };
@@ -1273,7 +1315,6 @@ Pacdot.prototype.setPosition = function(x, y)
     assert((typeof y === "number"), "y is not a number");
     
     this._position.set(x, y);
-    
     this._graphicscircle.setPosition(this._position.getX(),
                                      this._position.getY());
 };
@@ -1341,13 +1382,22 @@ Corridor.prototype.setLine = function(point1, point2)
                                    this._line.getPoint1().getY() - LINE_WIDTH/2);
 };
 
+Corridor.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._line.setPosition(x, y);
+    this._graphicsrect.setPosition(x - LINE_WIDTH/2,
+                                   y - LINE_WIDTH/2);
+};
+
 Corridor.prototype.translate = function(x, y)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     
     this._line.translate(x, y);
-    
     this._graphicsrect.translate(x, y);
 };
 
@@ -1538,6 +1588,10 @@ Map.prototype.getPacman = function()
     return new Pacman(this._pacmanPosition.getX(), this._pacmanPosition.getY(), this._pacmanDirection);
 };
 
+
+
+
+
 /******************************************************************************/
 /***************************** PauseScreen class ******************************/
 /******************************************************************************/
@@ -1674,6 +1728,30 @@ PauseScreen.prototype.handleInput = function(key)
     }
     
     return GameState.PAUSE;
+};
+
+PauseScreen.prototype.update = function()
+{
+    var nextstate = undefined;
+    
+    if (pressedkeys.length === 0)
+    {
+        nextstate = GameState.PAUSE;
+    }
+    else
+    {
+        do
+        {
+            var key = pressedkeys.shift();
+            var keydate = pressedkeysdate.shift();
+            
+            nextstate = this.handleInput(key);
+            
+            lastupdate = keydate;
+        } while(pressedkeys.length > 0 && state === nextstate);
+    }
+    
+    return nextstate;
 };
 
 //TODO utiliser des tailles fixes pour la largeur des items du menu + centrer les textes dans leurs rectangles
@@ -1882,6 +1960,10 @@ PlayingScreen.prototype.loadMap = function(litteral)
     /*
     - comment faire pour les menus qui devraient ptetre etre une classe avec position/dimension aussi, et pausescreen qui devrait etre un pausestate a part et avec ses postiiosn/dimensions
     - Pause/MainMenuState possèdent en fait juste un Menu
+    => soit faire une classe Menu qui ressemble a Pausemenu, mais sans mettre deja d'elements, et fournir une methode add()/delete() pour ça + generer les graphics comme et quand il faut (la classe appelante devra alors lors d'un add()/delete() recalculer la position du menu pour le centrer) + PauseMenu qui possede un Menu et qui fait les add()/delete() + le pausestate qui possede un pausemenu
+    => soit plutot (et ca semble mieux) un Menu comme dit precedemment, mais pas de Pause/XXxMenu et directement le Pause/XXXState qui possede un menu et qui l'initialise
+    => soit faire comme le premier "=>" + changer la ou vont les graphics et le mettre depuis Menu vers PauseMenu, ce qui le legitimerait un peu plus ptetre...
+        ===> OK : et renommer Menu en MenuItems ou un truc du genre ? (car c dommage que on ait Menu + XXXMenu avec seulement XXXMenu qui a des graphics, et le fait que c pas forcement super coherent vu que Menu n'a pas d'éléments alors que PauseMenu possede lui-meme un menu et le remplit => au niveau des noms, Menu / XXXMenu c pas optimal)
     - Status devrait etre composé de lives (classe LifeStatus composée de nblives de type entier + 1 graphics DrawableString du texte + 1 array de graphics DrawableCircle) et score (classe ScoreStatus composée de score + 1 DrawableString du texte + 1 DrawableStringText du score) ; un drawableString possède une position et un String (en fait, le faire heriter de String, tt comme les autres Drawable heritent de leur truc)
     - on a besoin de la map pr ses getwidth(), utilisé notamment dans le getmappadding()... ou mettre direct dans Maze... ??!?
     */
@@ -2087,6 +2169,34 @@ PlayingScreen.prototype.move = function(elapsed)
     }
     
     this._pacman.animate(elapsed);
+};
+
+PlayingScreen.prototype.update = function()
+{
+    var nextstate = undefined;
+    
+    if (pressedkeys.length === 0)
+    {
+        this.move(performance.now() - lastupdate);
+        
+        nextstate = GameState.PLAYING;
+    }
+    else
+    {
+        do
+        {
+            var key = pressedkeys.shift();
+            var keydate = pressedkeysdate.shift();
+            
+            this.move(keydate - lastupdate);
+            
+            nextstate = this.handleInput(key);
+            
+            lastupdate = keydate;
+        } while(pressedkeys.length > 0 && state === nextstate);
+    }
+    
+    return nextstate;
 };
 
 PlayingScreen.prototype.draw = function()
@@ -2540,6 +2650,16 @@ Maze.prototype.drawPortals = function()
     }
 };
 
+
+
+/******************************************************************************/
+/* -> maze mobile elements classes :                                          */
+/*     -> Pacman                                                              */
+/*     -> _generateGraphics(), translate(x, y), setPosition(x, y), draw()     */
+/******************************************************************************/
+
+
+
 /******************************************************************************/
 /******************************** Pacman class ********************************/
 /******************************************************************************/
@@ -2672,8 +2792,7 @@ Pacman.prototype.setPosition = function(x, y)
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
 
-    this._position.set(x, y);
-    
+    this._position.setPosition(x, y);
     this._graphicscirclearc.setPosition(this._position.getX(),
                                         this._position.getY());
 };
@@ -2684,7 +2803,6 @@ Pacman.prototype.translate = function(x, y)
     assert((typeof y === "number"), "y is not a number");
     
     this._position.translate(x, y);
-    
     this._graphicscirclearc.translate(x, y);
 };
 
@@ -2832,70 +2950,28 @@ var logicLoop = function()
     tmp1 = performance.now();
     //count2++;
     //if (performance.now() - firstupdate > 1000) {console.log(count1 + ", " + count2); firstupdate = performance.now(); count1 = 0; count2 = 0;}
-    newupdate = performance.now();
-    var elapsed = newupdate - lastupdate;
+    var newupdate = performance.now();
     
-    if (pressedkeys.length === 0)
+    var nextstate = undefined;
+    
+    while(state !== nextstate)
     {
+        if (nextstate !== undefined)
+        {
+            state = nextstate;
+        }
+        
         if (state === GameState.PLAYING)
         {
-            playingscreen.move(newupdate - lastupdate);
+            nextstate = playingscreen.update();
         }
-    }
-    else
-    {
-        /*
-            we go through all the pressed keys ; even if there were some system
-            lag, the keys will be taken into account
-        */
-        while (pressedkeys.length > 0)
+        else if (state === GameState.PAUSE)
         {
-            var key = pressedkeys.shift();
-            var keydate = pressedkeysdate.shift();
-            var nextstate = state;
+            nextstate = pausescreen.update();
+        }
+        else    /* state === GameState.MAIN */
+        {
             
-            if (state === GameState.PLAYING)
-            {
-                /*
-                    compute the elements movement between the previous update
-                    and the pressed key date
-                */
-                playingscreen.move(keydate - lastupdate);
-                nextstate = playingscreen.handleInput(key);
-                lastupdate = keydate;
-                
-                if (nextstate === GameState.PLAYING
-                 && pressedkeys.length === 0)
-                {
-                    /*
-                        compute the elements movement between the pressed key
-                        date and now
-                    */
-                    playingscreen.move(newupdate - keydate);
-                }
-            }
-            else if (state === GameState.PAUSE)
-            {
-                lastupdate = keydate;
-                
-                nextstate = pausescreen.handleInput(key);
-                
-                if (nextstate === GameState.PLAYING
-                 && pressedkeys.length === 0)
-                {
-                    /*
-                        compute the elements movement between the pressed key
-                        date and now
-                    */
-                    playingscreen.move(newupdate - keydate);
-                }
-            }
-            else    /* state === GameState.MAIN */
-            {
-                
-            }
-            
-            state = nextstate;
         }
     }
     
@@ -2942,14 +3018,10 @@ var logicLoop = function()
     - mettre dans les constantes (en haut) tout truc codé en dur (valeur, couleur, ...)
     - utiliser un genre d'automate a etats, comme ça on se souvient des etats précédents, genre menu, playing, pause, ... et une variable du style current_state qu'on utilise et sur laquelle on appelle draw(), update(), ...
     
-    - on pourrait utiliser une fonction qui lors de l'initialisation detecte taille du browser/mobile et utilise une taille predefinie pr le jeu, genre : petit, moyen, normal, conservant les rapports de distance etc... et faudrait des constantes prefixees par S(mall), M(edium), N(ormal)
-    
     - y'aura un prob a un moment puisque maze devrait faire un draw() qui englobe le draw() des pacdots et lines et portals, or les portals doivent etre fait apres le pacman => soit tt mettre lines et tt, et meme tt le contenu de Maze, a la "racine" du playingscreen, SOIT mettre pacman dans maze, ce qui serait ptetre plus logique...
         ===> ou bien plutot rester comme on est et : enlever le draw des portals du draw() de maze, de facon a avoir maze.draw() puis pacman.draw() puis ghosts.draw() puis maze.drawPortals()
     
     - pr pacdot, faire une animation qui fait "briler" ?
-    
-    - idée pour les Portal/Pacdot/Corridor : tjrs avoir une methode _updateGraphicsPosition(), sans arguments, qui update la position des graphics Drawable a partir des infos de position de l'objet => de cette façon on n'a plus a copier-coller le meme code de positionnement avec LINE_WIDTH ou autre, on appelle cette methode chaque fois qu'une methode modifie la position de l'objet (et dans generategraphics on peut tt a fait mettre a 0 la position, et ensuite appeler cette methode ; voire meme faire en sorte que pour les formes et drawable de base, la position ne soit pas obligatoire, elle serait initialisee par defaut a (0,0))
     
     - pour l'optimisation des perfs, etc, pr dessiner la meme image ou un truc d'un canvas cache, il suffira d'ajouter une methode drawFromXXX()
 */
