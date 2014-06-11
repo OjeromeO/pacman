@@ -1,6 +1,6 @@
 
 /******************************************************************************/
-/************** global variables, "constants", and enumerations ***************/
+/*              global variables, "constants", and enumerations               */
 /******************************************************************************/
 
 var Direction = {};
@@ -12,19 +12,14 @@ Object.defineProperties(Direction,
     "RIGHT": {value: 4, writable: false, configurable: false, enumerable: true}
 });
 
-/*
-    - items for the pause menu ; they will appear in "idx" increasing order
-    - values need to start at 0 and to be incremented by 1 each time
-      as we use an array
-*/
 var PauseMenuItem = {};
 Object.defineProperties(PauseMenuItem,
 {
-    "RESUME":  {value: {idx: 0, str: "Resume game"},
+    "RESUME":  {value: {id: 0, str: "Resume game"},
                 writable: false, configurable: false, enumerable: true},
-    "RESTART": {value: {idx: 1, str: "Restart game"},
+    "RESTART": {value: {id: 1, str: "Restart game"},
                 writable: false, configurable: false, enumerable: true},
-    "QUIT":    {value: {idx: 2, str: "Return to main menu"},
+    "QUIT":    {value: {id: 2, str: "Return to main menu"},
                 writable: false, configurable: false, enumerable: true}
 });
 
@@ -53,22 +48,26 @@ Object.defineProperties(GhostState,
 var canvas = null;
 var context = null;
 var lastupdate = null;
-//var newupdate = null;
+var newupdate = null;
 var pressedkeys = [];
 var pressedkeysdate = [];
 var state = null;
-var playingscreen = null;
-var pausescreen = null;
+var playingstate = null;
+var pausestate = null;
 
 var LOGIC_REFRESH_RATE = 60;
 
+var PAUSEMENUITEM_FONT_SIZE = 30;
+var PAUSEMENUITEM_FONT_HEIGHT = 1.3 * PAUSEMENUITEM_FONT_SIZE;
+var PAUSEMENUITEM_WIDTH = 500;
+var PAUSEMENUITEM_HEIGHT = PAUSEMENUITEM_FONT_HEIGHT;
+
 var PAUSEMENU_FONT = "sans-serif";
-var PAUSEMENU_FONT_SIZE = 30;
 var PAUSEMENU_HPADDING = 20;
 var PAUSEMENU_VPADDING = 20;
-var PAUSEMENU_HMARGIN = 30;
-var PAUSEMENU_VMARGIN = 30;
 var PAUSEMENU_ITEMSDISTANCE = 30;
+var PAUSEMENU_WIDTH = 2 * PAUSEMENU_HPADDING + PAUSEMENUITEM_WIDTH;
+var PAUSEMENU_HEIGHT = 2 * PAUSEMENU_VPADDING + Object.keys(PauseMenuItem).length * PAUSEMENUITEM_HEIGHT + (Object.keys(PauseMenuItem).length - 1) * PAUSEMENU_ITEMSDISTANCE;
 
 var PACMAN_RADIUS = 12;
 var PACDOTS_RADIUS = 2;
@@ -109,92 +108,6 @@ var STATUS_WIDTH = STATUS_HMARGIN + STATUS_BORDER_SIZE + STATUS_HPADDING + STATU
 
 var maps = [];
 
-/*var MAP_1 =
-{
-    //
-    //    a "nopacdots" property means that the line will not have any pacdots on it
-    //    (except on an intersection with a line containing pacdots)
-    //
-    mazelines:  [
-                    // horizontal lines
-
-                    {x1: 50,  y1: 50,  x2: 270, y2: 50},
-                    {x1: 330, y1: 50,  x2: 550, y2: 50},
-
-                    {x1: 50,  y1: 130, x2: 550, y2: 130},
-
-                    {x1: 50,  y1: 190, x2: 150, y2: 190},
-                    {x1: 210, y1: 190, x2: 270, y2: 190},
-                    {x1: 330, y1: 190, x2: 390, y2: 190},
-                    {x1: 450, y1: 190, x2: 550, y2: 190},
-
-                    {x1: 210, y1: 250, x2: 390, y2: 250, nopacdots: "defined"},
-
-                    {x1: 50,  y1: 310, x2: 210, y2: 310, nopacdots: "defined"},
-                    {x1: 390, y1: 310, x2: 550, y2: 310, nopacdots: "defined"},
-
-                    {x1: 210, y1: 370, x2: 390, y2: 370, nopacdots: "defined"},
-
-                    {x1: 50,  y1: 430, x2: 270, y2: 430},
-                    {x1: 330, y1: 430, x2: 550, y2: 430},
-
-                    {x1: 50,  y1: 490, x2: 90,  y2: 490},
-                    {x1: 150, y1: 490, x2: 450, y2: 490},
-                    {x1: 510, y1: 490, x2: 550, y2: 490},
-
-                    {x1: 50,  y1: 550, x2: 150, y2: 550},
-                    {x1: 210, y1: 550, x2: 270, y2: 550},
-                    {x1: 330, y1: 550, x2: 390, y2: 550},
-                    {x1: 450, y1: 550, x2: 550, y2: 550},
-
-                    {x1: 50,  y1: 610, x2: 550, y2: 610},
-
-                    // vertical lines
-
-                    {x1: 50,  y1: 50,  x2: 50,  y2: 190},
-                    {x1: 150, y1: 50,  x2: 150, y2: 550},
-                    {x1: 450, y1: 50,  x2: 450, y2: 550},
-                    {x1: 550, y1: 50,  x2: 550, y2: 190},
-
-                    {x1: 270, y1: 50,  x2: 270, y2: 130},
-                    {x1: 330, y1: 50,  x2: 330, y2: 130},
-
-                    {x1: 210, y1: 130, x2: 210, y2: 190},
-                    {x1: 390, y1: 130, x2: 390, y2: 190},
-
-                    {x1: 270, y1: 190, x2: 270, y2: 250, nopacdots: "defined"},
-                    {x1: 330, y1: 190, x2: 330, y2: 250, nopacdots: "defined"},
-
-                    {x1: 210, y1: 250, x2: 210, y2: 430, nopacdots: "defined"},
-                    {x1: 390, y1: 250, x2: 390, y2: 430, nopacdots: "defined"},
-
-                    {x1: 50,  y1: 430, x2: 50,  y2: 490},
-                    {x1: 270, y1: 430, x2: 270, y2: 490},
-                    {x1: 330, y1: 430, x2: 330, y2: 490},
-                    {x1: 550, y1: 430, x2: 550, y2: 490},
-
-                    {x1: 90,  y1: 490, x2: 90,  y2: 550},
-                    {x1: 210, y1: 490, x2: 210, y2: 550},
-                    {x1: 390, y1: 490, x2: 390, y2: 550},
-                    {x1: 510, y1: 490, x2: 510, y2: 550},
-
-                    {x1: 50,  y1: 550, x2: 50,  y2: 610},
-                    {x1: 270, y1: 550, x2: 270, y2: 610},
-                    {x1: 330, y1: 550, x2: 330, y2: 610},
-                    {x1: 550, y1: 550, x2: 550, y2: 610}
-                ],
-    
-    portals:    [
-                    {x: 50,  y: 310, id: 1},
-                    {x: 550, y: 310, id: 1}
-                ],
-    
-    pacman:     {
-                    x:          50,
-                    y:          50,
-                    direction:  Direction.UP
-                }
-};*/
 var MAP_1 =
 {
     /*
@@ -290,13 +203,13 @@ var count2 = 0;
 var firstupdate = 0;
 */
 
-var tmp1 = 0;
-var tmp2 = 0;
+//var tmp1 = 0;
+//var tmp2 = 0;
 
 
 
 /******************************************************************************/
-/***************************** utilities functions ****************************/
+/*                             utilities functions                            */
 /******************************************************************************/
 
 var AssertError = function(message)
@@ -1590,13 +1503,217 @@ Map.prototype.getPacman = function()
 
 
 
+/******************************************************************************/
+/* -> classes handling menu structure                                         */
+/*     -> MenuItem, Menu                                                      */
+/*                                                                            */
+/* -> classes for game menus                                                  */
+/*     -> PauseMenu                                                           */
+/*     -> draw() + building menu in constructor                               */
+/******************************************************************************/
+
 
 
 /******************************************************************************/
-/***************************** PauseScreen class ******************************/
+/******************************* MenuItem class *******************************/
 /******************************************************************************/
 
-var PauseScreen = function()
+var MenuItem = function(id, string)
+{
+    this._id = id;
+    this._string = string;
+};
+
+MenuItem.prototype.getId = function()
+{
+    return this._id;
+};
+
+MenuItem.prototype.setId = function(id)
+{
+    this._id = id;
+};
+
+MenuItem.prototype.getString = function()
+{
+    return this._string;
+};
+
+MenuItem.prototype.setString = function(string)
+{
+    this._string = string;
+};
+
+/******************************************************************************/
+/********************************* Menu class *********************************/
+/******************************************************************************/
+
+var Menu = function()
+{
+    this._current = null;
+    this._items = [];
+};
+
+Menu.prototype.getLength = function()
+{
+    return this._items.length;
+};
+
+Menu.prototype.getItem = function(id)
+{
+    for(var i=0; i<this._items.length; i++)
+    {
+        if (this._items[i].getId() === id)
+        {
+            return this._items[i];
+        }
+    }
+    
+    return undefined;
+};
+
+Menu.prototype.getItems = function()
+{
+    return this._items;
+};
+
+Menu.prototype.getCurrent = function()
+{
+    return this._current;
+};
+
+Menu.prototype.setCurrent = function(id)
+{
+    this._current = id;
+};
+
+Menu.prototype.changeToPreviousItem = function()
+{
+    for(var i=0; i<this._items.length; i++)
+    {
+        if (this._items[i].getId() === this._current)
+        {
+            if (i > 0)
+            {
+                this._current = this._items[i-1].getId();
+                return;
+            }
+        }
+    }
+};
+
+Menu.prototype.changeToNextItem = function()
+{
+    for(var i=0; i<this._items.length; i++)
+    {
+        if (this._items[i].getId() === this._current)
+        {
+            if (i < this._items.length-1)
+            {
+                this._current = this._items[i+1].getId();
+                return;
+            }
+        }
+    }
+};
+
+Menu.prototype.addItem = function(id, string)
+{
+    this._items.push(new MenuItem(id, string));
+};
+
+Menu.prototype.deleteItem = function(id)
+{
+    for(var i=0; i<this._items.length; i++)
+    {
+        if (this._items[i].getId() === id)
+        {
+            this._items.splice(i, 1);
+            this._current = (this._items.length > 0) ? this._items[0].getId() : null ;
+            
+            return;
+        }
+    }
+};
+
+/*TODO faire que pausemenu aura aussi des graphics ?
+
+pour les menu principaux, faire un genre de classe abstraite qui herite de emnu et qui a juste un draw() en plus, histoire d'harmoniser le dessin entre par exemple le menu d'options, celui d'aide, celui d'accueil, ...
+du coup on aura des optionsmenu, helpmenu, .. qui heriteront de cette classe abstraite et qui auront donc juste en plus les _items
+*/
+
+/******************************************************************************/
+/******************************* PauseMenu class ******************************/
+/******************************************************************************/
+
+var PauseMenu = function()
+{
+    Menu.call(this);
+    
+    this.addItem(PauseMenuItem.RESUME.id, PauseMenuItem.RESUME.str);
+    this.addItem(PauseMenuItem.RESTART.id, PauseMenuItem.RESTART.str);
+    this.addItem(PauseMenuItem.QUIT.id, PauseMenuItem.QUIT.str);
+    
+    this._current = PauseMenuItem.RESUME.id;
+};
+
+PauseMenu.prototype = Object.create(Menu.prototype);
+PauseMenu.prototype.constructor = PauseMenu;
+
+PauseMenu.prototype.draw = function()
+{
+    var paddingLeft = (canvas.width - PAUSEMENU_WIDTH) / 2;
+    var paddingTop = (canvas.height - PAUSEMENU_HEIGHT) / 2;
+    
+    context.font = PAUSEMENUITEM_FONT_SIZE + "px " + PAUSEMENU_FONT;
+    
+    /* draw menu background */
+    
+    context.fillStyle = "green";
+    
+    context.fillRect(paddingLeft,
+                     paddingTop,
+                     PAUSEMENU_WIDTH,
+                     PAUSEMENU_HEIGHT);
+    
+    /* draw menu items */
+    
+    for(var i=0; i<this._items.length; i++)
+    {
+        /* draw menu items background */
+        
+        context.fillStyle = "blue";
+        
+        context.fillRect(paddingLeft + PAUSEMENU_HPADDING,
+                         paddingTop + PAUSEMENU_VPADDING + i*(PAUSEMENUITEM_HEIGHT + PAUSEMENU_ITEMSDISTANCE),
+                         PAUSEMENUITEM_WIDTH,
+                         PAUSEMENUITEM_HEIGHT);
+        
+        /* draw menu items strings */
+        
+        context.fillStyle = (this._items[i].getId() === this._current) ? "white" : "gray" ;
+        
+        context.fillText(this._items[i].getString(),
+                         paddingLeft + PAUSEMENU_HPADDING + (PAUSEMENUITEM_WIDTH - context.measureText(this._items[i].getString()).width)/2,
+                         paddingTop + PAUSEMENU_VPADDING + PAUSEMENUITEM_FONT_SIZE + i*(PAUSEMENUITEM_HEIGHT + PAUSEMENU_ITEMSDISTANCE));
+    }
+};
+
+
+
+/******************************************************************************/
+/* -> game states classes                                                     */
+/*     -> PauseState, PlayingState                                            */
+/*     -> handleInput(key), update(), draw()                                  */
+/******************************************************************************/
+
+
+
+/******************************************************************************/
+/****************************** PauseState class ******************************/
+/******************************************************************************/
+
+var PauseState = function()
 {
     this._pausemenu = new PauseMenu();
     
@@ -1605,15 +1722,17 @@ var PauseScreen = function()
     this._minWidth = 0;
     this._minHeight = 0;
     
+    this._firstdraw = true;
+    
     this._computeDimensions();
 };
 
-PauseScreen.menuWidth = function()
+PauseState.menuWidth = function()
 {
     var textmaxwidth = 0;
     var width = 0;
     
-    context.font = PAUSEMENU_FONT_SIZE + "px " + PAUSEMENU_FONT;
+    context.font = PAUSEMENUITEM_FONT_SIZE + "px " + PAUSEMENU_FONT;
     
     for(var key in PauseMenuItem)
     {
@@ -1630,9 +1749,9 @@ PauseScreen.menuWidth = function()
     return width;
 };
 
-PauseScreen.menuHeight = function()
+PauseState.menuHeight = function()
 {
-    var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
+    var textheight = 1.3 * PAUSEMENUITEM_FONT_SIZE;
     var height = 0;
     
     height += PAUSEMENU_VPADDING;
@@ -1649,54 +1768,51 @@ PauseScreen.menuHeight = function()
     return height;
 };
 
-PauseScreen.minWidth = function()
+PauseState.minWidth = function()
 {
-    return PauseScreen.menuWidth();
+    return PauseState.menuWidth();
 };
 
-PauseScreen.minHeight = function()
+PauseState.minHeight = function()
 {
-    return PauseScreen.menuHeight();
+    return PauseState.menuHeight();
 };
 
-PauseScreen.prototype.reinit = function()
+PauseState.prototype.reinit = function()
 {
-    this._pausemenu.setCurrent(PauseMenuItem.RESUME.idx);
+    this._pausemenu.setCurrent(PauseMenuItem.RESUME.id);
 };
 
-PauseScreen.prototype._computeDimensions = function()
+PauseState.prototype._computeDimensions = function()
 {
-    this._menuWidth = PauseScreen.menuWidth();
-    this._menuHeight = PauseScreen.menuHeight();
+    this._menuWidth = PauseState.menuWidth();
+    this._menuHeight = PauseState.menuHeight();
     
-    /*
-        maybe later some amazing graphics or stats will be added here
-    */
-    this._minWidth = PauseScreen.minWidth();
-    this._minHeight = PauseScreen.minHeight();
+    this._minWidth = PauseState.minWidth();
+    this._minHeight = PauseState.minHeight();
 };
 
-PauseScreen.prototype.getMinWidth = function()
+PauseState.prototype.getMinWidth = function()
 {
     return this._minWidth;
 };
 
-PauseScreen.prototype.getMinHeight = function()
+PauseState.prototype.getMinHeight = function()
 {
     return this._minHeight;
 };
 
-PauseScreen.prototype.getMenuWidth = function()
+PauseState.prototype.getMenuWidth = function()
 {
     return this._menuWidth;
 };
 
-PauseScreen.prototype.getMenuHeight = function()
+PauseState.prototype.getMenuHeight = function()
 {
     return this._menuHeight;
 };
 
-PauseScreen.prototype.handleInput = function(key)
+PauseState.prototype.handleInput = function(key)
 {
     assert((isVirtualKeyCode(key)), "key is not a virtual key code");
     
@@ -1710,18 +1826,18 @@ PauseScreen.prototype.handleInput = function(key)
     }
     else if (key === 13)    /* enter key */
     {
-        if (this._pausemenu.getCurrent() === PauseMenuItem.RESUME.idx)
+        if (this._pausemenu.getCurrent() === PauseMenuItem.RESUME.id)
         {
             return GameState.PLAYING;
         }
-        else if (this._pausemenu.getCurrent() === PauseMenuItem.QUIT.idx)
+        else if (this._pausemenu.getCurrent() === PauseMenuItem.QUIT.id)
         {
-            //TODO
+            // mainmenu
         }
-        else if (this._pausemenu.getCurrent() === PauseMenuItem.RESTART.idx)
+        else if (this._pausemenu.getCurrent() === PauseMenuItem.RESTART.id)
         {
             this.reinit();
-            playingscreen.restart();
+            playingstate.restart();
             
             return GameState.PLAYING;
         }
@@ -1730,7 +1846,7 @@ PauseScreen.prototype.handleInput = function(key)
     return GameState.PAUSE;
 };
 
-PauseScreen.prototype.update = function()
+PauseState.prototype.update = function()
 {
     var nextstate = undefined;
     
@@ -1751,118 +1867,36 @@ PauseScreen.prototype.update = function()
         } while(pressedkeys.length > 0 && state === nextstate);
     }
     
+    if (nextstate != state)
+    {
+        this._firstdraw = true;
+    }
+    
     return nextstate;
 };
 
-//TODO utiliser des tailles fixes pour la largeur des items du menu + centrer les textes dans leurs rectangles
-PauseScreen.prototype.draw = function()
+PauseState.prototype.draw = function()
 {
-    var paddingLeft = (canvas.width - this._minWidth) / 2;
-    var paddingTop = (canvas.height - this._minHeight) / 2;
-
-    var textheight = 1.3 * PAUSEMENU_FONT_SIZE;
-    var textmaxwidth = 0;
-    
-    context.font = PAUSEMENU_FONT_SIZE + "px " + PAUSEMENU_FONT;
-    
-    for(var i=0; i<this._pausemenu.getItems().length; i++)
+    if (this._firstdraw === true)
     {
-        var itemwidth = context.measureText(this._pausemenu.getItems()[i]).width;
-        if (itemwidth > textmaxwidth)
-        {
-            textmaxwidth = itemwidth;
-        }
-    }
-    
-    context.fillStyle = "green";
-    
-    context.fillRect(paddingLeft,
-                     paddingTop,
-                     this._minWidth,
-                     this._minHeight);
-    
-    context.fillStyle = "blue";
-    
-    for(var i=0; i<this._pausemenu.getItems().length; i++)
-    {
-        context.fillRect(paddingLeft + PAUSEMENU_HPADDING,
-                         paddingTop + PAUSEMENU_VPADDING + i*(textheight + PAUSEMENU_ITEMSDISTANCE),
-                         textmaxwidth,
-                         textheight);
-    }
-    
-    var yval = 0;
-    for(var i=0; i<this._pausemenu.getItems().length; i++)
-    {
-        if (i === this._pausemenu.getCurrent())
-        {
-            context.fillStyle = "white";
-        }
-        else
-        {
-            context.fillStyle = "gray";
-        }
+        context.fillStyle = "rgba(0, 0, 0, 0.3)";
         
-        context.fillText(this._pausemenu.getItems()[i],
-                         paddingLeft + PAUSEMENU_HPADDING,
-                         paddingTop + PAUSEMENU_VPADDING + PAUSEMENU_FONT_SIZE + yval);
-        
-        yval += (textheight + PAUSEMENU_ITEMSDISTANCE);
+        context.fillRect(0,
+                         0,
+                         canvas.width,
+                         canvas.height);
     }
-};
-
-/******************************************************************************/
-/******************************* PauseMenu class ******************************/
-/******************************************************************************/
-
-var PauseMenu = function()
-{
-    this._current = PauseMenuItem.RESUME.idx;
     
-    this._items = [];
-    this._items[PauseMenuItem.RESUME.idx] = PauseMenuItem.RESUME.str;
-    this._items[PauseMenuItem.RESTART.idx] = PauseMenuItem.RESTART.str;
-    this._items[PauseMenuItem.QUIT.idx] = PauseMenuItem.QUIT.str;
-};
-
-PauseMenu.prototype.getCurrent = function()
-{
-    return this._current;
-};
-
-PauseMenu.prototype.setCurrent = function(index)
-{
-    assert((index >= 0 && index < this._items.length), "index value is not valid");
+    this._pausemenu.draw();
     
-    this._current = index;
-};
-
-PauseMenu.prototype.getItems = function()
-{
-    return this._items;
-};
-
-PauseMenu.prototype.changeToPreviousItem = function()
-{
-    if (this._current > 0)
-    {
-        this._current--;
-    }
-};
-
-PauseMenu.prototype.changeToNextItem = function()
-{
-    if (this._current < this._items.length-1)
-    {
-        this._current++;
-    }
+    this._firstdraw = false;
 };
 
 /******************************************************************************/
-/**************************** PlayingScreen class *****************************/
+/**************************** PlayingState class ******************************/
 /******************************************************************************/
 
-var PlayingScreen = function(litteral)
+var PlayingState = function(litteral)
 {
     this._map = null;
     
@@ -1880,7 +1914,7 @@ var PlayingScreen = function(litteral)
     //TODO au final quand on aura un PlayingState, faudra savoir si mettre le Map ou seulement le MAP_1, car c ptetre moins pire de devoir tout rechopper a partir du litteral, plutot que de tout stocker tt le temps et de tte façon quand meme choper les infos par copie de ce qu'a chopé Map
 };
 
-PlayingScreen.prototype._generateGraphics = function()
+PlayingState.prototype._generateGraphics = function()
 {
     this._graphicsborder = new DrawableRectangle(0,
                                                  0,
@@ -1900,17 +1934,17 @@ PlayingScreen.prototype._generateGraphics = function()
     corner for the game, and the original position of this corner in the map
     definition)
 */
-PlayingScreen.prototype._getMapPaddingX = function()
+PlayingState.prototype._getMapPaddingX = function()
 {
     return (canvas.width - this._map.getWidth()) / 2 - this._map.getTopLeft().getX();
 };
 
-PlayingScreen.prototype._getMapPaddingY = function()
+PlayingState.prototype._getMapPaddingY = function()
 {
     return (canvas.height - STATUS_HEIGHT - this._map.getHeight()) / 2 - this._map.getTopLeft().getY();
 };
 
-PlayingScreen.prototype.loadMap = function(litteral)
+PlayingState.prototype.loadMap = function(litteral)
 {
     this._map = new Map(litteral);
     
@@ -1957,14 +1991,11 @@ PlayingScreen.prototype.loadMap = function(litteral)
     
     //TODO TODO TODO
     
-    /*
-    - comment faire pour les menus qui devraient ptetre etre une classe avec position/dimension aussi, et pausescreen qui devrait etre un pausestate a part et avec ses postiiosn/dimensions
-    - Pause/MainMenuState possèdent en fait juste un Menu
-    => soit faire une classe Menu qui ressemble a Pausemenu, mais sans mettre deja d'elements, et fournir une methode add()/delete() pour ça + generer les graphics comme et quand il faut (la classe appelante devra alors lors d'un add()/delete() recalculer la position du menu pour le centrer) + PauseMenu qui possede un Menu et qui fait les add()/delete() + le pausestate qui possede un pausemenu
-    => soit plutot (et ca semble mieux) un Menu comme dit precedemment, mais pas de Pause/XXxMenu et directement le Pause/XXXState qui possede un menu et qui l'initialise
-    => soit faire comme le premier "=>" + changer la ou vont les graphics et le mettre depuis Menu vers PauseMenu, ce qui le legitimerait un peu plus ptetre...
-        ===> OK : et renommer Menu en MenuItems ou un truc du genre ? (car c dommage que on ait Menu + XXXMenu avec seulement XXXMenu qui a des graphics, et le fait que c pas forcement super coherent vu que Menu n'a pas d'éléments alors que PauseMenu possede lui-meme un menu et le remplit => au niveau des noms, Menu / XXXMenu c pas optimal)
+
+        /*
     - Status devrait etre composé de lives (classe LifeStatus composée de nblives de type entier + 1 graphics DrawableString du texte + 1 array de graphics DrawableCircle) et score (classe ScoreStatus composée de score + 1 DrawableString du texte + 1 DrawableStringText du score) ; un drawableString possède une position et un String (en fait, le faire heriter de String, tt comme les autres Drawable heritent de leur truc)
+    */
+    /*
     - on a besoin de la map pr ses getwidth(), utilisé notamment dans le getmappadding()... ou mettre direct dans Maze... ??!?
     */
     
@@ -1974,7 +2005,7 @@ PlayingScreen.prototype.loadMap = function(litteral)
     this._pacman = pacman;
 };
 
-PlayingScreen.prototype.restart = function()
+PlayingState.prototype.restart = function()
 {
     var xmappadding = this._getMapPaddingX();
     var ymappadding = this._getMapPaddingY();
@@ -2000,14 +2031,14 @@ PlayingScreen.prototype.restart = function()
     this._pacman.reinit(pacman.getPosition().getX(), pacman.getPosition().getY(), pacman.getDirection());
 };
 
-PlayingScreen.prototype._statusMaxWidth = function()
+PlayingState.prototype._statusMaxWidth = function()
 {
     context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
     
     return STATUS_PADDINGLEFT + context.measureText("Score : 9 999 999").width + 50 + context.measureText("Lives : ").width + 3 * (10 + 2*STATUS_LIVES_RADIUS);
 };
 
-PlayingScreen.prototype.handleInput = function(key)
+PlayingState.prototype.handleInput = function(key)
 {
     assert((isVirtualKeyCode(key)), "key is not a virtual key code");
     
@@ -2035,7 +2066,7 @@ PlayingScreen.prototype.handleInput = function(key)
     return GameState.PLAYING;
 };
 
-PlayingScreen.prototype.move = function(elapsed)
+PlayingState.prototype.move = function(elapsed)
 {
     assert((elapsed > 0), "elapsed value is not valid");
     
@@ -2171,17 +2202,11 @@ PlayingScreen.prototype.move = function(elapsed)
     this._pacman.animate(elapsed);
 };
 
-PlayingScreen.prototype.update = function()
+PlayingState.prototype.update = function()
 {
     var nextstate = undefined;
     
-    if (pressedkeys.length === 0)
-    {
-        this.move(performance.now() - lastupdate);
-        
-        nextstate = GameState.PLAYING;
-    }
-    else
+    if (pressedkeys.length > 0)
     {
         do
         {
@@ -2196,10 +2221,24 @@ PlayingScreen.prototype.update = function()
         } while(pressedkeys.length > 0 && state === nextstate);
     }
     
+    // also does the last move() if we end the while() with length=0 in the same state
+    if (pressedkeys.length === 0)
+    {
+        if (nextstate === undefined)
+        {
+            nextstate = GameState.PLAYING;
+        }
+        
+        if (nextstate === state)
+        {
+            this.move(newupdate - lastupdate);
+        }
+    }
+    
     return nextstate;
 };
 
-PlayingScreen.prototype.draw = function()
+PlayingState.prototype.draw = function()
 {
     context.fillStyle = "blue";
     this._graphicsborder.draw();
@@ -2814,8 +2853,8 @@ Pacman.prototype.translate = function(x, y)
 /* TODO
 - on aura des pacman.move(maze) et ghost.move(maze, pacman) et des .handle_collision(maze, ghosts), ...
 - ne pas mettre pacman dans maze, histoire de separer truc qui bougent
-- tte facon soit on a des move(maze, ...) soit on a dans playingscreen un gros move() qui utilisera le maze et le pacman et les ghosts en propriétés
-- mais pr les collisions, comment faire ? et meme pr les deplacements ? enregistrer le trajet effectué pr chacun (chacun ayant un array de lignes representatn ce chemin) pendant le move() (sans tenir compte des collisions durant le move()), puis appeler pr chacun un handle_collisions() ? mais quand même, faut trouver comment detecter a quel endroit/moment a eu lieu la collision et tt, et agir en consequence... ; ou plutot un handle_collisions() global dans playingscreen
+- tte facon soit on a des move(maze, ...) soit on a dans playingstate un gros move() qui utilisera le maze et le pacman et les ghosts en propriétés
+- mais pr les collisions, comment faire ? et meme pr les deplacements ? enregistrer le trajet effectué pr chacun (chacun ayant un array de lignes representatn ce chemin) pendant le move() (sans tenir compte des collisions durant le move()), puis appeler pr chacun un handle_collisions() ? mais quand même, faut trouver comment detecter a quel endroit/moment a eu lieu la collision et tt, et agir en consequence... ; ou plutot un handle_collisions() global dans playingstate
 */
 
 
@@ -2898,9 +2937,13 @@ Pacman.prototype.animate = function(elapsed)
     this._graphicscirclearc.setEndangle(this._mouthendangle);
 };
 
+
+
 /******************************************************************************/
-/**************************** game event listeners ****************************/
+/*                            game events listeners                           */
 /******************************************************************************/
+
+
 
 /*
     we also save when the key was pressed, to be able, if there is some system
@@ -2921,9 +2964,13 @@ var blurEventListener= function(e)
     }
 };
 
+
+
 /******************************************************************************/
-/**************************** game loop functions *****************************/
+/*                            game loop functions                             */
 /******************************************************************************/
+
+
 
 var graphicsLoop = function()
 {
@@ -2931,11 +2978,11 @@ var graphicsLoop = function()
     //tmp2 = performance.now();
     if (state === GameState.PLAYING)
     {
-        playingscreen.draw();
+        playingstate.draw();
     }
     else if (state === GameState.PAUSE)
     {
-        pausescreen.draw();
+        pausestate.draw();
     }
     else    /* state === GameState.MAIN */
     {
@@ -2947,10 +2994,10 @@ var graphicsLoop = function()
 
 var logicLoop = function()
 {
-    tmp1 = performance.now();
+    //tmp1 = performance.now();
     //count2++;
     //if (performance.now() - firstupdate > 1000) {console.log(count1 + ", " + count2); firstupdate = performance.now(); count1 = 0; count2 = 0;}
-    var newupdate = performance.now();
+    newupdate = performance.now();
     
     var nextstate = undefined;
     
@@ -2963,11 +3010,11 @@ var logicLoop = function()
         
         if (state === GameState.PLAYING)
         {
-            nextstate = playingscreen.update();
+            nextstate = playingstate.update();
         }
         else if (state === GameState.PAUSE)
         {
-            nextstate = pausescreen.update();
+            nextstate = pausestate.update();
         }
         else    /* state === GameState.MAIN */
         {
@@ -2985,9 +3032,13 @@ var logicLoop = function()
     setTimeout(logicLoop, 1000/LOGIC_REFRESH_RATE - (performance.now()-newupdate));
 };
 
+
+
 /******************************************************************************/
-/********************************* game main **********************************/
+/*                                 game main                                  */
 /******************************************************************************/
+
+
 
 /* TODO
 
@@ -3013,36 +3064,23 @@ var logicLoop = function()
     - verifier ttes les verifs d'erreurs et ajouter les verifs manquantes, et aussi dans checkconfig()
     - verif les bonnes utilisations de certaines fonctions : par exemple ne pas faire this._position.set() quand on peut faire this._setPosition() !
     - verifier les prop et methodes privées/publiques et statiques
-    - le loadmapfromarray...() de playingscreeen pourrap tetre etre fait par Game, et du coup plus de prob d'etre obligé d'avoir un truc statique de pausescreen pr avoir la largeur et comparer ? et aussi ptetre mettre des trucs statiques a playingscreen ? et mettre des proprs statiques dans le constructeur de pausescreen permettrait d'avoir tt le temps les valeurs et d'y acceder comme on veut sans avoir a recalculer ; mais et si jamais on devait modif le menu, genre avec un god mode ?=> faudrait alors pouvoir modifier sa taille et donc faudrait garder les props comme props d'instance...
-    - ======> creer classe Game : faire des etats et meme des sous-états (ex: pendant playing, quand on commmence, genre avec compte a rebours ; ou quand on a gagne, genre cinematique ; ...) ; lire truc de lazyfoo et cie sur machines a etats : chaque etat a sa methode update(), et init() ? ; et a priori y'aura plu le prob de devoir utiliser truc statique ou nonn pr creer taille ecran jeu, vu que game pourrait creer direct le pause+playingscreen et donc avoir leurs mesures (le menu peut donc changer de taille, ce serait pas grave)
-    - mettre dans les constantes (en haut) tout truc codé en dur (valeur, couleur, ...)
+    - le loadmapfromarray...() de playingscreeen pourrap tetre etre fait par Game, et du coup plus de prob d'etre obligé d'avoir un truc statique de pausestate pr avoir la largeur et comparer ? et aussi ptetre mettre des trucs statiques a playingstate ? et mettre des proprs statiques dans le constructeur de pausestate permettrait d'avoir tt le temps les valeurs et d'y acceder comme on veut sans avoir a recalculer ; mais et si jamais on devait modif le menu, genre avec un god mode ?=> faudrait alors pouvoir modifier sa taille et donc faudrait garder les props comme props d'instance...
+    - ======> creer classe Game : faire des etats et meme des sous-états (ex: pendant playing, quand on commmence, genre avec compte a rebours ; ou quand on a gagne, genre cinematique ; ...) ; lire truc de lazyfoo et cie sur machines a etats : chaque etat a sa methode update(), et init() ? ; et a priori y'aura plu le prob de devoir utiliser truc statique ou nonn pr creer taille ecran jeu, vu que game pourrait creer direct le pause+playingstate et donc avoir leurs mesures (le menu peut donc changer de taille, ce serait pas grave)
+    - mettre dans les "constantes" (en haut) tout truc codé en dur (valeur, couleur, ...)
     - utiliser un genre d'automate a etats, comme ça on se souvient des etats précédents, genre menu, playing, pause, ... et une variable du style current_state qu'on utilise et sur laquelle on appelle draw(), update(), ...
-    
-    - y'aura un prob a un moment puisque maze devrait faire un draw() qui englobe le draw() des pacdots et lines et portals, or les portals doivent etre fait apres le pacman => soit tt mettre lines et tt, et meme tt le contenu de Maze, a la "racine" du playingscreen, SOIT mettre pacman dans maze, ce qui serait ptetre plus logique...
-        ===> ou bien plutot rester comme on est et : enlever le draw des portals du draw() de maze, de facon a avoir maze.draw() puis pacman.draw() puis ghosts.draw() puis maze.drawPortals()
     
     - pr pacdot, faire une animation qui fait "briler" ?
     
     - pour l'optimisation des perfs, etc, pr dessiner la meme image ou un truc d'un canvas cache, il suffira d'ajouter une methode drawFromXXX()
+    
+    
+    - =================> ca ira pas pour les graphics en general : certains trucs peuvent pas vraiment avoir des graphics, par exemple quand on dessinera des fantomes, etc... faudrait stocker pleins de propriété pour chaque element de son dessin... autant faire draw() par le fantome lui-meme, tant pis... => en fait faudrait arriver a avoir un unique objet a mettre en propriete, et qui permet de faire draw(), translate(), ...
 */
 
 /*
 => chaque etat possede alors une largeur/hauteur minimale pour son affichage ; + les tailles pour son contenu, ou alors les mettre dans ce contenu...
 
-chaque etat doit avoir :
- - son propre draw()
- - son propre handle_events()
- - son propre update()
-
-MenuState
-{}
-
-PauseState
-{}
-
-PlayingState(mapToLoad)
-{}
-
+chaque etat doit avoir : draw(), handle_events(), update()
 chaque etat peut avoir des sous-etats ?
 
 dans logicloop, faut a un moment un truc pr changer l'etat si necessaire ; chaque etat pouvant dans une de ses fonctions modifier une variable nextstate ?
@@ -3094,7 +3132,7 @@ changeCanvasDimensions(width, height);
 /* TODO TODO TODO
 => en fait, avant de commencer le jeu, faut creer 1 tempmainmenustate, 1 tempplayingstate, et 1 temppausestate ; et avec leur propriete maincontentframe, on prend les dimensions les plus grandes, et on les assigne au canvas, ce qui donne la taille de base ^^ faut le refaire a chaque fois au cas ou on modif des ...
 
-===> ou alors faudrait appeler des truc static : PlayingScreen.maxDimensions(map_X), et MainMenuState.maxDimensions(), et PauseMenuState.maxDimensions()
+===> ou alors faudrait appeler des truc static : PlayingState.maxDimensions(map_X), et MainMenuState.maxDimensions(), et PauseMenuState.maxDimensions()
     => ça appelle des Maze.maxDimensions(map_X), Status.maxDimensions(), XXXMenu.maxDimension()
 
 => en fait faudra 3 "liens" => "resize to the normal size" ; "resize the the large size" ; "resize to the maximum size"
@@ -3112,8 +3150,8 @@ changeCanvasDimensions(800, 700);
     init the game
 */
 
-playingscreen = new PlayingScreen(maps[0]);
-pausescreen = new PauseScreen();
+playingstate = new PlayingState(maps[0]);
+pausestate = new PauseState();
 
 canvas.addEventListener("blur", blurEventListener);
 canvas.addEventListener("keydown", keyEventListener);
