@@ -141,9 +141,8 @@ var MAP_1 =
                     {x1: 0,  y1: 13, x2: 8,  y2: 13, nopacdots: "defined"},
                     {x1: 17, y1: 13, x2: 25, y2: 13, nopacdots: "defined"},
                     
-                    //{x1: 10, y1: 12, x2: 15, y2: 12, nopacdots: "defined", ghosthouse: "defined"},
-                    //{x1: 10.5, y1: 13, x2: 14.5, y2: 13, nopacdots: "defined", ghosthouse: "defined"},
-                    //{x1: 10, y1: 14, x2: 15, y2: 14, nopacdots: "defined", ghosthouse: "defined"},
+                    {x1: 10.5, y1: 12.5, x2: 14.5, y2: 12.5, nopacdots: "defined", ghosthouse: "defined"},
+                    {x1: 10.5, y1: 13.5, x2: 14.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
 
                     {x1: 8,  y1: 16, x2: 17, y2: 16, nopacdots: "defined"},
 
@@ -176,6 +175,12 @@ var MAP_1 =
 
                     {x1: 11, y1: 7,  x2: 11, y2: 10, nopacdots: "defined"},
                     {x1: 14, y1: 7,  x2: 14, y2: 10, nopacdots: "defined"},
+                    
+                    {x1: 10.5, y1: 12.5, x2: 10.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
+                    {x1: 11.5, y1: 12.5, x2: 11.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
+                    {x1: 12.5, y1: 10, x2: 12.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
+                    {x1: 13.5, y1: 12.5, x2: 13.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
+                    {x1: 14.5, y1: 12.5, x2: 14.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
 
                     {x1: 8,  y1: 10, x2: 8,  y2: 19, nopacdots: "defined"},
                     {x1: 17, y1: 10, x2: 17, y2: 19, nopacdots: "defined"},
@@ -1351,6 +1356,7 @@ var Map = function(litteral)
 {
     // loaded data
     this._corridorlines = [];
+    this._ghosthouselines = [];
     this._pacdotsposition = [];
     this._portalsposition = [];
     this._portalsid = [];
@@ -1398,8 +1404,15 @@ var Map = function(litteral)
         var line = new Line(new Point(litteral.mazelines[i].x1 * GRID_UNIT, litteral.mazelines[i].y1 * GRID_UNIT),
                             new Point(litteral.mazelines[i].x2 * GRID_UNIT, litteral.mazelines[i].y2 * GRID_UNIT));
         
-        // load lines
-        this._corridorlines.push(line);
+        // load corridor lines and ghosthouse lines
+        if (typeof litteral.mazelines[i].ghosthouse === "undefined")
+        {
+            this._corridorlines.push(line);
+        }
+        else
+        {
+            this._ghosthouselines.push(line);
+        }
         
         // load pacdots
         if (typeof litteral.mazelines[i].nopacdots === "undefined")
@@ -1503,6 +1516,19 @@ Map.prototype.getCorridors = function()
     }
     
     return corridors;
+};
+
+Map.prototype.getGhosthouse = function()
+{
+    var ghosthouse = [];
+    
+    for(var i=0;i<this._ghosthouselines.length;i++)
+    {
+        ghosthouse.push(new Corridor(new Point(this._ghosthouselines[i].getPoint1().getX(), this._ghosthouselines[i].getPoint1().getY()),
+                                     new Point(this._ghosthouselines[i].getPoint2().getX(), this._ghosthouselines[i].getPoint2().getY())));
+    }
+    
+    return ghosthouse;
 };
 
 Map.prototype.getPacdots = function()
@@ -1912,6 +1938,7 @@ PlayingState.prototype.loadMap = function(litteral)
     */
     
     var lines = this._map.getCorridors();
+    var ghosthouse = this._map.getGhosthouse();
     var pacdots = this._map.getPacdots();
     var portals = this._map.getPortals();
     var ghosts = this._map.getGhosts();
@@ -1931,6 +1958,11 @@ PlayingState.prototype.loadMap = function(litteral)
     for(var i=0; i<lines.length; i++)
     {
         lines[i].translate(xmappadding, ymappadding);
+    }
+    
+    for(var i=0; i<ghosthouse.length; i++)
+    {
+        ghosthouse[i].translate(xmappadding, ymappadding);
     }
     
     for(var i=0; i<pacdots.length; i++)
@@ -1966,7 +1998,7 @@ PlayingState.prototype.loadMap = function(litteral)
     
     //TODO ici, creer direct le this._maze et this._pacman, puis faire un maze.translate() et un pacman.translate() (creer ces fonctions en pensant a translater les graphics aussi)
     
-    this._maze = new Maze(lines, pacdots, portals);
+    this._maze = new Maze(ghosthouse, lines, pacdots, portals);
     this._pacman = pacman;
     this._ghosts = ghosts;
 };
@@ -2240,13 +2272,14 @@ Status.prototype.draw = function()
 /********************************* Maze class *********************************/
 /******************************************************************************/
 
-var Maze = function(corridors, pacdots, portals)
+var Maze = function(ghosthouse, corridors, pacdots, portals)
 {
     //TODO  check if lines don't overlap with one another => if overlap, create
     //      a new one containing the two lines overlapping (they need to be of
     //      the same type : the 2 with pacdots, or the 2 without pacdots)
     assert((corridors instanceof Array && corridors.length > 0), "corridors is not an array");
     
+    this._ghosthouse = ghosthouse;
     this._corridors = corridors;    // lines on which the pacman center can move
     this._pacdots = pacdots;
     this._powerpellets = [];
@@ -2319,6 +2352,11 @@ Maze.prototype._computeDimensions = function()
 Maze.prototype.getCorridors = function()
 {
     return this._corridors;
+};
+
+Maze.prototype.getGhostHouse = function()
+{
+    return this._ghosthouse;
 };
 
 Maze.prototype.getPacdots = function()
@@ -2399,6 +2437,14 @@ Maze.prototype.containsPoint = function(point)
         }
     }
     
+    for(var i=0;i<this._ghosthouse.length;i++)
+    {
+        if (this._ghosthouse[i].getLine().containsPoint(point))
+        {
+            return true;
+        }
+    }
+    
     return false;
 };
 
@@ -2413,6 +2459,18 @@ Maze.prototype.currentLine = function(point, direction)
     for(var i=0; i<this._corridors.length; i++)
     {
         line = this._corridors[i].getLine();
+        
+        if (((isVertical(direction) && isVertical(line))
+          || (isHorizontal(direction) && isHorizontal(line)))
+         && line.containsPoint(point))
+        {
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._ghosthouse.length; i++)
+    {
+        line = this._ghosthouse[i].getLine();
         
         if (((isVertical(direction) && isVertical(line))
           || (isHorizontal(direction) && isHorizontal(line)))
@@ -2437,13 +2495,24 @@ Maze.prototype.currentLine = function(point, direction)
             return line;
         }
     }
+    
+    for(var i=0; i<this._ghosthouse.length; i++)
+    {
+        line = this._ghosthouse[i].getLine();
+        
+        if (line.containsPoint(point))
+        {
+            return line;
+        }
+    }
 };
 
-Maze.prototype.nextTurn = function(point, direction, nextdirection)
+Maze.prototype.nextTurn = function(point, direction, nextdirection, withghosthouse)
 {
     assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
     assert((isDirection(nextdirection)), "nextdirection value is not valid");
+    assert((typeof withghosthouse === "boolean"), "withghosthouse is not a boolean");
     
     if ((isVertical(direction) && isVertical(nextdirection))
      || (isHorizontal(direction) && isHorizontal(nextdirection)))
@@ -2478,6 +2547,27 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection)
              || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
             {
                 lines.push(l);
+            }
+        }
+    }
+    
+    if (withghosthouse === true)
+    {
+        for(var i=0;i<this._ghosthouse.length;i++)
+        {
+            var l = this._ghosthouse[i].getLine();
+            
+            /* if this line is crossing ours */
+            if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
+            {
+                /* if there is some place to turn */
+                if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
+                 || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
+                 || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
+                 || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
+                {
+                    lines.push(l);
+                }
             }
         }
     }
@@ -2527,6 +2617,11 @@ Maze.prototype.draw = function()
     for(var i=0; i<this._corridors.length; i++)
     {
         this._corridors[i].draw();
+    }
+    
+    for(var i=0; i<this._ghosthouse.length; i++)
+    {
+        this._ghosthouse[i].draw();
     }
     
     for(var i=0; i<this._pacdots.length; i++)
@@ -2735,7 +2830,7 @@ Pacman.prototype.changeDirection = function(direction, maze)
     {
         this._nextdirection = direction;
         
-        var point = maze.nextTurn(this._position, this._direction, this._nextdirection);
+        var point = maze.nextTurn(this._position, this._direction, this._nextdirection, false);
         
         this._nextturn = (typeof point === "undefined") ? null : point ;
     }
@@ -2908,7 +3003,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
         if (this._nextdirection !== null
          && this._nextturn === null)
         {
-            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection);
+            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, false);
             
             this.setNextTurn(nt);
         }
@@ -3131,7 +3226,7 @@ Ghost.prototype.changeDirection = function(direction, maze)
     {
         this._nextdirection = direction;
         
-        var point = maze.nextTurn(this._position, this._direction, this._nextdirection);
+        var point = maze.nextTurn(this._position, this._direction, this._nextdirection, true);
         
         this._nextturn = (typeof point === "undefined") ? null : point ;
     }
@@ -3416,7 +3511,7 @@ context = canvas.getContext("2d");
 */
 
 // compute the size of the original Pacman map
-var mainmap = maps[0];
+/*var mainmap = maps[0];
 var lines = [];
 
 for(var i=0; i<mainmap.mazelines.length; i++)
@@ -3427,20 +3522,20 @@ for(var i=0; i<mainmap.mazelines.length; i++)
 
 var m = new Maze(lines, [], []);
 var mainmap_h = m.getHeight();
-var mainmap_w = m.getWidth();
+var mainmap_w = m.getWidth();*/
 
 // compute the size of the status bar
-context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
+/*context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
 var status_w = STATUS_PADDINGLEFT + context.measureText("Score : 9 999 999").width + 50 + context.measureText("Lives : ").width + 3 * (10 + 2*STATUS_LIVES_RADIUS);
-var status_h = 1.3 * STATUS_FONT_SIZE;
+var status_h = 1.3 * STATUS_FONT_SIZE;*/
 
 // compute the total size
-var width = (mainmap_w + LINE_WIDTH > status_w) ? mainmap_w + LINE_WIDTH : status_w ;
-var height = mainmap_h + LINE_WIDTH + 10 + status_h;
+/*var width = (mainmap_w + LINE_WIDTH > status_w) ? mainmap_w + LINE_WIDTH : status_w ;
+var height = mainmap_h + LINE_WIDTH + 10 + status_h;*/
 
 // set the canvas size to the game base size
 //changeCanvasDimensions(window.innerWidth-15, window.innerHeight-15);  /* -15 is for scrollbars */
-changeCanvasDimensions(width, height);
+/*changeCanvasDimensions(width, height);*/
 
 //console.log(width + ", " + height);
 
