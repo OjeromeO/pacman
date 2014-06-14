@@ -81,6 +81,7 @@ var PAUSEMENU_HEIGHT = 2 * PAUSEMENU_VPADDING + Object.keys(PauseMenuItem).lengt
 var PACMAN_RADIUS = 12;
 var PACDOTS_RADIUS = 2;
 var PACMAN_SPEED = 300;
+var GHOST_SPEED = 200;
 var LINE_WIDTH = 2 * PACMAN_RADIUS + 8;
 var GRID_UNIT = 16;
 var PACDOT_POINT = 10;
@@ -212,10 +213,10 @@ var MAP_1 =
                     direction:  Direction.UP
                 },
     ghosts:     [
-                    {id: GhostType.BLINKY, x: 8,  y: 10, direction: Direction.UP},
-                    {id: GhostType.PINKY,  x: 11, y: 10, direction: Direction.DOWN},
+                    {id: GhostType.BLINKY, x: 8,  y: 10, direction: Direction.RIGHT},
+                    {id: GhostType.PINKY,  x: 11, y: 10, direction: Direction.UP},
                     {id: GhostType.INKY,   x: 14, y: 10, direction: Direction.LEFT},
-                    {id: GhostType.CLYDE,  x: 17, y: 10, direction: Direction.RIGHT}
+                    {id: GhostType.CLYDE,  x: 17, y: 10, direction: Direction.DOWN}
                 ]
 };
 
@@ -2079,7 +2080,8 @@ PlayingState.prototype.move = function(elapsed)
     
     for(var i=0; i<this._ghosts.length; i++)
     {
-        this._ghosts[i].move(elapsed, this._maze, this._status, this._pacman);
+        this._ghosts[i].movementAI(elapsed, this._maze, this._pacman);
+        this._ghosts[i].move(elapsed, this._maze);
         this._ghosts[i].animate(elapsed);
     }
 };
@@ -3032,6 +3034,8 @@ var Ghost = function(id, x, y, direction)
     this._position = new Point(x, y);
     this._direction = direction;
     
+    this._newdirtime = 0;       // TEMPORAIRE (tests)
+    
     this._nextdirection = null;     // direction requested
     this._nextturn = null;          // intersection that allows movement in the requested direction
     
@@ -3307,14 +3311,97 @@ Ghost.prototype.translate = function(x, y)
     this._position.translate(x, y);
 };
 
-/*
-http://www.grospixels.com/site/trucpac.php
-http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
-http://www.developpez.net/forums/d306886/autres-langages/algorithmes/pacman-algorithme-poursuite/
-*/
-Ghost.prototype.move = function(elapsed, maze, status, pacman)
+Ghost.prototype.move = function(elapsed, maze)
 {
-    if (this._id === GhostType.BLINKY)
+    assert((elapsed > 0), "elapsed value is not valid");
+    
+    var movement = Math.round(GHOST_SPEED * elapsed/1000);
+    var limit = 0;
+    var turndistance = 0;
+    
+    if (this._nextdirection !== null && this._nextturn !== null)
+    {
+        turndistance = this._nextturn.distanceToPoint(this._position);
+    }
+    
+    /* if we will have to turn */
+    if (this._nextdirection !== null
+     && this._nextturn !== null
+     && turndistance <= movement)
+    {
+        /* move towards the intersection point */
+        
+        this.setPosition(this._nextturn.getX(), this._nextturn.getY());
+        this._direction = this._nextdirection;
+        this._nextdirection = null;
+        this._nextturn = null;
+        
+        movement -= turndistance;
+    }
+    
+    var newx = 0;
+    var newy = 0;
+    
+    var currentline = maze.currentLine(this._position, this._direction);
+    
+    if (this._direction === Direction.UP)
+    {
+        limit = currentline.getPoint1().getY();
+        newx = this._position.getX();
+        newy = (this._position.getY()-movement > limit) ? this._position.getY()-movement : limit ;
+    }
+    else if (this._direction === Direction.DOWN)
+    {
+        limit = currentline.getPoint2().getY();
+        newx = this._position.getX();
+        newy = (this._position.getY()+movement < limit) ? this._position.getY()+movement : limit ;
+    }
+    else if (this._direction === Direction.LEFT)
+    {
+        limit = currentline.getPoint1().getX();
+        newx = (this._position.getX()-movement > limit) ? this._position.getX()-movement : limit ;
+        newy = this._position.getY();
+    }
+    else
+    {
+        limit = currentline.getPoint2().getX();
+        newx = (this._position.getX()+movement < limit) ? this._position.getX()+movement : limit ;
+        newy = this._position.getY();
+    }
+    
+    this.setPosition(newx, newy);
+    
+    /* if we enter a teleportation tunnel */
+    if (maze.isPortal(this._position.getX(), this._position.getY()))
+    {
+        var p = maze.associatedPortal(this._position.getX(), this._position.getY());
+        
+        this.setPosition(p.getPosition().getX(), p.getPosition().getY());
+        
+        /* search if we can now turn after the teleportation */
+        
+        if (this._nextdirection !== null
+         && this._nextturn === null)
+        {
+            //TODO penser que normalement une fois la ghost sorti, faut pas qu'il puisse re-rentrer dedans,
+            // a moins qu'il ait ete mangé... creer 3 etats : pr insidehouse, pr outsidehouse, pr dead
+            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, true);
+            
+            this.setNextTurn(nt);
+        }
+        
+        
+        //TODO move again, as we reached the limit of the teleportation point
+        
+        
+        //TODO if we will reach the next turn point, turn and then... mais alors
+        // et si on rechoppe un teleporteur c chiant... fait un do while() ?
+    }
+};
+
+Ghost.prototype.movementAI = function(elapsed, maze, pacman)
+{
+    /*if (this._id === GhostType.BLINKY)
     {
         
     }
@@ -3332,13 +3419,36 @@ Ghost.prototype.move = function(elapsed, maze, status, pacman)
     if (this._id === GhostType.CLYDE)
     {
         
+    }*/
+    
+    if (this._newdirtime % 2000 > (this._newdirtime + elapsed) % 2000) // on change une fois toutes les 2s
+    {
+        var nextdir = 1 + Math.floor(Math.random() * ((4-1)+1));
+        
+        switch(nextdir)
+        {
+            case 1: this.changeDirection(Direction.UP, maze);
+                    break;
+            case 2: this.changeDirection(Direction.RIGHT, maze);
+                    break;
+            case 3: this.changeDirection(Direction.DOWN, maze);
+                    break;
+            case 4: this.changeDirection(Direction.LEFT, maze);
+                    break;
+        }
     }
+    
+    this._newdirtime = (this._newdirtime + elapsed) % (2000);
 };
 
 
 /* TODO
-    - faire le move() de Ghost
-    - faire un classe mere commune a Pacman et a Ghost : Character (ou un truc du genre)
+    - faire le movementAI() de Ghost
+        http://www.grospixels.com/site/trucpac.php
+        http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
+        http://www.developpez.net/forums/d306886/autres-langages/algorithmes/pacman-algorithme-poursuite/
+
+    - faire une classe mere commune a Pacman et a Ghost : Character (ou un truc du genre)
     - avoir en fait un update() pour les elements, et dedans y faire le move() ? (+ animate() si besoin ?)
 */
 
