@@ -45,6 +45,15 @@ Object.defineProperties(GhostState,
     "EATABLE":  {value: 2, writable: false, configurable: false, enumerable: true}
 });
 
+var GhostType = {};
+Object.defineProperties(GhostType,
+{
+    "BLINKY":   {value: 1, writable: false, configurable: false, enumerable: true},
+    "PINKY":    {value: 2, writable: false, configurable: false, enumerable: true},
+    "INKY":     {value: 3, writable: false, configurable: false, enumerable: true},
+    "CLYDE":    {value: 4, writable: false, configurable: false, enumerable: true}
+});
+
 var canvas = null;
 var context = null;
 var lastupdate = null;
@@ -71,7 +80,7 @@ var PAUSEMENU_HEIGHT = 2 * PAUSEMENU_VPADDING + Object.keys(PauseMenuItem).lengt
 
 var PACMAN_RADIUS = 12;
 var PACDOTS_RADIUS = 2;
-var PACMAN_SPEED = 400;
+var PACMAN_SPEED = 300;
 var LINE_WIDTH = 2 * PACMAN_RADIUS + 8;
 var GRID_UNIT = 16;
 var PACDOT_POINT = 10;
@@ -114,39 +123,39 @@ var maps = [];
 
 var MAP_1 =
 {
-    /*
-        a "nopacdots" property means that the line will not have any pacdots on it
-        (except on an intersection with a line containing pacdots)
-    */
     mazelines:  [
                     /* horizontal lines */
 
                     {x1: 0,  y1: 0,  x2: 11, y2: 0},
                     {x1: 14, y1: 0,  x2: 25, y2: 0},
 
-                    {x1: 0,  y1: 4, x2: 25, y2: 4},
+                    {x1: 0,  y1: 4,  x2: 25, y2: 4},
 
-                    {x1: 0,  y1: 7, x2: 5, y2: 7},
-                    {x1: 8, y1: 7, x2: 11, y2: 7},
-                    {x1: 14, y1: 7, x2: 17, y2: 7},
-                    {x1: 20, y1: 7, x2: 25, y2: 7},
+                    {x1: 0,  y1: 7,  x2: 5,  y2: 7},
+                    {x1: 8,  y1: 7,  x2: 11, y2: 7},
+                    {x1: 14, y1: 7,  x2: 17, y2: 7},
+                    {x1: 20, y1: 7,  x2: 25, y2: 7},
 
-                    {x1: 8, y1: 10, x2: 17, y2: 10, nopacdots: "defined"},
+                    {x1: 8,  y1: 10, x2: 17, y2: 10, nopacdots: "defined"},
 
-                    {x1: 0,  y1: 13, x2: 8, y2: 13, nopacdots: "defined"},
+                    {x1: 0,  y1: 13, x2: 8,  y2: 13, nopacdots: "defined"},
                     {x1: 17, y1: 13, x2: 25, y2: 13, nopacdots: "defined"},
+                    
+                    //{x1: 10, y1: 12, x2: 15, y2: 12, nopacdots: "defined", ghosthouse: "defined"},
+                    //{x1: 10.5, y1: 13, x2: 14.5, y2: 13, nopacdots: "defined", ghosthouse: "defined"},
+                    //{x1: 10, y1: 14, x2: 15, y2: 14, nopacdots: "defined", ghosthouse: "defined"},
 
-                    {x1: 8, y1: 16, x2: 17, y2: 16, nopacdots: "defined"},
+                    {x1: 8,  y1: 16, x2: 17, y2: 16, nopacdots: "defined"},
 
                     {x1: 0,  y1: 19, x2: 11, y2: 19},
                     {x1: 14, y1: 19, x2: 25, y2: 19},
 
                     {x1: 0,  y1: 22, x2: 2,  y2: 22},
-                    {x1: 5, y1: 22, x2: 20, y2: 22},
+                    {x1: 5,  y1: 22, x2: 20, y2: 22},
                     {x1: 23, y1: 22, x2: 25, y2: 22},
 
-                    {x1: 0,  y1: 25, x2: 5, y2: 25},
-                    {x1: 8, y1: 25, x2: 11, y2: 25},
+                    {x1: 0,  y1: 25, x2: 5,  y2: 25},
+                    {x1: 8,  y1: 25, x2: 11, y2: 25},
                     {x1: 14, y1: 25, x2: 17, y2: 25},
                     {x1: 20, y1: 25, x2: 25, y2: 25},
 
@@ -155,20 +164,20 @@ var MAP_1 =
                     /* vertical lines */
 
                     {x1: 0,  y1: 0,  x2: 0,  y2: 7},
-                    {x1: 5, y1: 0,  x2: 5, y2: 25},
+                    {x1: 5,  y1: 0,  x2: 5,  y2: 25},
                     {x1: 20, y1: 0,  x2: 20, y2: 25},
                     {x1: 25, y1: 0,  x2: 25, y2: 7},
 
                     {x1: 11, y1: 0,  x2: 11, y2: 4},
                     {x1: 14, y1: 0,  x2: 14, y2: 4},
 
-                    {x1: 8, y1: 4, x2: 8, y2: 7},
-                    {x1: 17, y1: 4, x2: 17, y2: 7},
+                    {x1: 8,  y1: 4,  x2: 8,  y2: 7},
+                    {x1: 17, y1: 4,  x2: 17, y2: 7},
 
-                    {x1: 11, y1: 7, x2: 11, y2: 10, nopacdots: "defined"},
-                    {x1: 14, y1: 7, x2: 14, y2: 10, nopacdots: "defined"},
+                    {x1: 11, y1: 7,  x2: 11, y2: 10, nopacdots: "defined"},
+                    {x1: 14, y1: 7,  x2: 14, y2: 10, nopacdots: "defined"},
 
-                    {x1: 8, y1: 10, x2: 8, y2: 19, nopacdots: "defined"},
+                    {x1: 8,  y1: 10, x2: 8,  y2: 19, nopacdots: "defined"},
                     {x1: 17, y1: 10, x2: 17, y2: 19, nopacdots: "defined"},
 
                     {x1: 0,  y1: 19, x2: 0,  y2: 22},
@@ -177,7 +186,7 @@ var MAP_1 =
                     {x1: 25, y1: 19, x2: 25, y2: 22},
 
                     {x1: 2,  y1: 22, x2: 2,  y2: 25},
-                    {x1: 8, y1: 22, x2: 8, y2: 25},
+                    {x1: 8,  y1: 22, x2: 8,  y2: 25},
                     {x1: 17, y1: 22, x2: 17, y2: 25},
                     {x1: 23, y1: 22, x2: 23, y2: 25},
 
@@ -198,10 +207,10 @@ var MAP_1 =
                     direction:  Direction.UP
                 },
     ghosts:     [
-                    {x: 8, y: 10, direction: Direction.UP},
-                    {x: 11, y: 10, direction: Direction.DOWN},
-                    {x: 14, y: 10, direction: Direction.LEFT},
-                    {x: 17, y: 10, direction: Direction.RIGHT}
+                    {id: GhostType.BLINKY, x: 8,  y: 10, direction: Direction.UP},
+                    {id: GhostType.PINKY,  x: 11, y: 10, direction: Direction.DOWN},
+                    {id: GhostType.INKY,   x: 14, y: 10, direction: Direction.LEFT},
+                    {id: GhostType.CLYDE,  x: 17, y: 10, direction: Direction.RIGHT}
                 ]
 };
 
@@ -1349,6 +1358,7 @@ var Map = function(litteral)
     this._pacmanDirection = null;
     this._ghostsPosition = [];
     this._ghostsDirection = [];
+    this._ghostsId = [];
     
     //computed data
     this._topleft = null;
@@ -1371,6 +1381,7 @@ var Map = function(litteral)
     {
         this._ghostsPosition.push(new Point(litteral.ghosts[i].x * GRID_UNIT, litteral.ghosts[i].y * GRID_UNIT));
         this._ghostsDirection.push(litteral.ghosts[i].direction);
+        this._ghostsId.push(litteral.ghosts[i].id);
     }
 
     /*
@@ -1529,7 +1540,7 @@ Map.prototype.getGhosts = function()
     
     for(var i=0; i<this._ghostsPosition.length; i++)
     {
-        ghosts.push(new Ghost(this._ghostsPosition[i].getX(), this._ghostsPosition[i].getY(), this._ghostsDirection[i]));
+        ghosts.push(new Ghost(this._ghostsId[i], this._ghostsPosition[i].getX(), this._ghostsPosition[i].getY(), this._ghostsDirection[i]));
     }
     
     return ghosts;
@@ -2031,149 +2042,12 @@ PlayingState.prototype.move = function(elapsed)
 {
     assert((elapsed > 0), "elapsed value is not valid");
     
-    var movement = Math.round(PACMAN_SPEED * elapsed/1000);
-    var limit = 0;
-    var turndistance = 0;
-    
-    if (this._pacman.getNextDirection() !== null && this._pacman.getNextTurn() !== null)
-    {
-        turndistance = this._pacman.getNextTurn().distanceToPoint(this._pacman.getPosition());
-    }
-    
-    /* if we will have to turn */
-    if (this._pacman.getNextDirection() !== null
-     && this._pacman.getNextTurn() !== null
-     && turndistance <= movement)
-    {
-        /* check if pacman will eat some pacdots... */
-        
-        var travelled1 = new Line(this._pacman.getPosition(), this._pacman.getNextTurn());
-        
-        var eatenpacdots = [];
-        
-        for(var i=0; i<this._maze.getPacdots().length; i++)
-        {
-            if (travelled1.containsPoint(this._maze.getPacdot(i).getPosition()))
-            {
-                this._status.increaseScore(PACDOT_POINT);
-                eatenpacdots.push(i);
-            }
-        }
-        
-        for(var i=0; i<eatenpacdots.length; i++)
-        {
-            /*
-                we need to delete from the biggest index to the lowest, because
-                when deleting an element of an array, the following ones will be
-                re-indexed (indexes decremented) => the registered indexes of
-                the next pacdots to delete will become incorrect
-            */
-            var index = eatenpacdots[eatenpacdots.length-1 - i];
-            this._maze.deletePacdot(index);
-        }
-        
-        /* move towards the intersection point */
-        
-        this._pacman.setPosition(this._pacman.getNextTurn().getX(), this._pacman.getNextTurn().getY());
-        this._pacman.setDirection(this._pacman.getNextDirection());
-        this._pacman.setNextDirection(null);
-        this._pacman.setNextTurn(null);
-        
-        movement -= turndistance;
-    }
-    
-    var newx = 0;
-    var newy = 0;
-    
-    var currentline = this._maze.currentLine(this._pacman.getPosition(), this._pacman.getDirection());
-    
-    if (this._pacman.getDirection() === Direction.UP)
-    {
-        limit = currentline.getPoint1().getY();
-        newx = this._pacman.getPosition().getX();
-        newy = (this._pacman.getPosition().getY()-movement > limit) ? this._pacman.getPosition().getY()-movement : limit ;
-    }
-    else if (this._pacman.getDirection() === Direction.DOWN)
-    {
-        limit = currentline.getPoint2().getY();
-        newx = this._pacman.getPosition().getX();
-        newy = (this._pacman.getPosition().getY()+movement < limit) ? this._pacman.getPosition().getY()+movement : limit ;
-    }
-    else if (this._pacman.getDirection() === Direction.LEFT)
-    {
-        limit = currentline.getPoint1().getX();
-        newx = (this._pacman.getPosition().getX()-movement > limit) ? this._pacman.getPosition().getX()-movement : limit ;
-        newy = this._pacman.getPosition().getY();
-    }
-    else
-    {
-        limit = currentline.getPoint2().getX();
-        newx = (this._pacman.getPosition().getX()+movement < limit) ? this._pacman.getPosition().getX()+movement : limit ;
-        newy = this._pacman.getPosition().getY();
-    }
-    
-    /* check if pacman will eat some pacdots... */
-    
-    var travelled2 = new Line(this._pacman.getPosition(), new Point(newx, newy));
-    
-    var eatenpacdots = [];
-    
-    for(var i=0; i<this._maze.getPacdots().length; i++)
-    {
-        if (travelled2.containsPoint(this._maze.getPacdot(i).getPosition()))
-        {
-            this._status.increaseScore(PACDOT_POINT);
-            eatenpacdots.push(i);
-        }
-    }
-    
-    for(var i=0; i<eatenpacdots.length; i++)
-    {
-        var index = eatenpacdots[eatenpacdots.length-1 - i];
-        this._maze.deletePacdot(index);
-    }
-    
-    this._pacman.setPosition(newx, newy);
-    
-    /* if we enter a teleportation tunnel */
-    if (this._maze.isPortal(this._pacman.getPosition().getX(), this._pacman.getPosition().getY()))
-    {
-        var p = this._maze.associatedPortal(this._pacman.getPosition().getX(), this._pacman.getPosition().getY());
-        
-        this._pacman.setPosition(p.getPosition().getX(), p.getPosition().getY());
-        
-        /* search if we can now turn after the teleportation */
-        
-        if (this._pacman.getNextDirection() !== null
-         && this._pacman.getNextTurn() === null)
-        {
-            var nt = this._maze.nextTurn(this._pacman.getPosition(), this._pacman.getDirection(), this._pacman.getNextDirection());
-            
-            this._pacman.setNextTurn(nt);
-        }
-        
-        
-        //TODO move again, as we reached the limit of the teleportation point
-        
-        
-        //TODO if we will reach the next turn point, turn and then... mais alors
-        // et si on rechoppe un teleporteur c chiant... fait un do while() ?
-    }
-    
-    
-    
-    
-    
-    
-    
+    this._pacman.move(elapsed, this._maze, this._status);
     this._pacman.animate(elapsed);
-    
-    
-    
-    
     
     for(var i=0; i<this._ghosts.length; i++)
     {
+        this._ghosts[i].move(elapsed, this._maze, this._status, this._pacman);
         this._ghosts[i].animate(elapsed);
     }
 };
@@ -2914,16 +2788,152 @@ Pacman.prototype.animate = function(elapsed)
     this._graphicscirclearc.setEndangle(this._mouthendangle);
 };
 
+Pacman.prototype.move = function(elapsed, maze, status)
+{
+    assert((elapsed > 0), "elapsed value is not valid");
+    
+    var movement = Math.round(PACMAN_SPEED * elapsed/1000);
+    var limit = 0;
+    var turndistance = 0;
+    
+    if (this._nextdirection !== null && this._nextturn !== null)
+    {
+        turndistance = this._nextturn.distanceToPoint(this._position);
+    }
+    
+    /* if we will have to turn */
+    if (this._nextdirection !== null
+     && this._nextturn !== null
+     && turndistance <= movement)
+    {
+        /* check if pacman will eat some pacdots... */
+        
+        var travelled1 = new Line(this._position, this._nextturn);
+        
+        var eatenpacdots = [];
+        
+        for(var i=0; i<maze.getPacdots().length; i++)
+        {
+            if (travelled1.containsPoint(maze.getPacdot(i).getPosition()))
+            {
+                status.increaseScore(PACDOT_POINT);
+                eatenpacdots.push(i);
+            }
+        }
+        
+        for(var i=0; i<eatenpacdots.length; i++)
+        {
+            /*
+                we need to delete from the biggest index to the lowest, because
+                when deleting an element of an array, the following ones will be
+                re-indexed (indexes decremented) => the registered indexes of
+                the next pacdots to delete will become incorrect
+            */
+            var index = eatenpacdots[eatenpacdots.length-1 - i];
+            maze.deletePacdot(index);
+        }
+        
+        /* move towards the intersection point */
+        
+        this.setPosition(this._nextturn.getX(), this._nextturn.getY());
+        this._direction = this._nextdirection;
+        this._nextdirection = null;
+        this._nextturn = null;
+        
+        movement -= turndistance;
+    }
+    
+    var newx = 0;
+    var newy = 0;
+    
+    var currentline = maze.currentLine(this._position, this._direction);
+    
+    if (this._direction === Direction.UP)
+    {
+        limit = currentline.getPoint1().getY();
+        newx = this._position.getX();
+        newy = (this._position.getY()-movement > limit) ? this._position.getY()-movement : limit ;
+    }
+    else if (this._direction === Direction.DOWN)
+    {
+        limit = currentline.getPoint2().getY();
+        newx = this._position.getX();
+        newy = (this._position.getY()+movement < limit) ? this._position.getY()+movement : limit ;
+    }
+    else if (this._direction === Direction.LEFT)
+    {
+        limit = currentline.getPoint1().getX();
+        newx = (this._position.getX()-movement > limit) ? this._position.getX()-movement : limit ;
+        newy = this._position.getY();
+    }
+    else
+    {
+        limit = currentline.getPoint2().getX();
+        newx = (this._position.getX()+movement < limit) ? this._position.getX()+movement : limit ;
+        newy = this._position.getY();
+    }
+    
+    /* check if pacman will eat some pacdots... */
+    
+    var travelled2 = new Line(this._position, new Point(newx, newy));
+    
+    var eatenpacdots = [];
+    
+    for(var i=0; i<maze.getPacdots().length; i++)
+    {
+        if (travelled2.containsPoint(maze.getPacdot(i).getPosition()))
+        {
+            status.increaseScore(PACDOT_POINT);
+            eatenpacdots.push(i);
+        }
+    }
+    
+    for(var i=0; i<eatenpacdots.length; i++)
+    {
+        var index = eatenpacdots[eatenpacdots.length-1 - i];
+        maze.deletePacdot(index);
+    }
+    
+    this.setPosition(newx, newy);
+    
+    /* if we enter a teleportation tunnel */
+    if (maze.isPortal(this._position.getX(), this._position.getY()))
+    {
+        var p = maze.associatedPortal(this._position.getX(), this._position.getY());
+        
+        this.setPosition(p.getPosition().getX(), p.getPosition().getY());
+        
+        /* search if we can now turn after the teleportation */
+        
+        if (this._nextdirection !== null
+         && this._nextturn === null)
+        {
+            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection);
+            
+            this.setNextTurn(nt);
+        }
+        
+        
+        //TODO move again, as we reached the limit of the teleportation point
+        
+        
+        //TODO if we will reach the next turn point, turn and then... mais alors
+        // et si on rechoppe un teleporteur c chiant... fait un do while() ?
+    }
+};
+
+
 /******************************************************************************/
 /******************************** Ghost class *********************************/
 /******************************************************************************/
 
-var Ghost = function(x, y, direction)
+var Ghost = function(id, x, y, direction)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
     
+    this._id = id;
     this._position = new Point(x, y);
     this._direction = direction;
     
@@ -2940,7 +2950,24 @@ Ghost.prototype.draw = function()
     var baseX = Math.floor(this._position.getX());
     var baseY = Math.floor(this._position.getY());
     
-    context.fillStyle = "red";
+    context.fillStyle = "white";
+    
+    if (this._id === GhostType.BLINKY)
+    {
+        context.fillStyle = "red";
+    }
+    if (this._id === GhostType.PINKY)
+    {
+        context.fillStyle = "pink";
+    }
+    if (this._id === GhostType.INKY)
+    {
+        context.fillStyle = "cyan";
+    }
+    if (this._id === GhostType.CLYDE)
+    {
+        context.fillStyle = "orange";
+    }
 
     var waveheight = 2 * Math.floor(GHOST_TOTALHEIGHT/10);
     
@@ -3080,7 +3107,7 @@ Ghost.prototype.draw = function()
     context.beginPath();
     context.arc(baseX + 1 + eyeradius + paddingX, baseY - GHOST_TOTALHEIGHT/2 + GHOST_WIDTH/2 - 2 + paddingY, irisradius, 0, 2*Math.PI);
     context.fill();
-}
+};
 
 Ghost.prototype.changeDirection = function(direction, maze)
 {
@@ -3185,14 +3212,39 @@ Ghost.prototype.translate = function(x, y)
     this._position.translate(x, y);
 };
 
+/*
+http://www.grospixels.com/site/trucpac.php
+http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
+http://www.developpez.net/forums/d306886/autres-langages/algorithmes/pacman-algorithme-poursuite/
+*/
+Ghost.prototype.move = function(elapsed, maze, status, pacman)
+{
+    if (this._id === GhostType.BLINKY)
+    {
+        
+    }
+    
+    if (this._id === GhostType.PINKY)
+    {
+        
+    }
+    
+    if (this._id === GhostType.INKY)
+    {
+        
+    }
+    
+    if (this._id === GhostType.CLYDE)
+    {
+        
+    }
+};
 
 
 /* TODO
-    - actuellement c'est PlayingState qui fait le move() du pacman en fait : voir si on peut pas ramener ça dans Pacman avec : move(elapsed, maze, status)
+    - faire le move() de Ghost
     - faire un classe mere commune a Pacman et a Ghost : Character (ou un truc du genre)
-    - pour le move() de ghost, il faudrait donc : move(elapsed, maze, status, pacman)
     - avoir en fait un update() pour les elements, et dedans y faire le move() ? (+ animate() si besoin ?)
-    - ajouter un argument ID dans le constructeur, pr definir l'identite du fantome (PINKY_GHOST, ...) ; mettre aussi cet id dans le litteral pour la map
 */
 
 
