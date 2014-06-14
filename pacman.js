@@ -59,7 +59,7 @@ var LOGIC_REFRESH_RATE = 60;
 
 var PAUSEMENUITEM_FONT_SIZE = 30;
 var PAUSEMENUITEM_FONT_HEIGHT = 1.3 * PAUSEMENUITEM_FONT_SIZE;
-var PAUSEMENUITEM_WIDTH = 500;
+var PAUSEMENUITEM_WIDTH = 370;
 var PAUSEMENUITEM_HEIGHT = PAUSEMENUITEM_FONT_HEIGHT;
 
 var PAUSEMENU_FONT = "sans-serif";
@@ -75,6 +75,10 @@ var PACMAN_SPEED = 400;
 var LINE_WIDTH = 2 * PACMAN_RADIUS + 8;
 var GRID_UNIT = 16;
 var PACDOT_POINT = 10;
+
+var GHOST_WIDTH = 2 * PACMAN_RADIUS;
+var GHOST_LOWERHEIGHT = PACMAN_RADIUS;
+var GHOST_TOTALHEIGHT = PACMAN_RADIUS + GHOST_LOWERHEIGHT;
 
 var CANVAS_BORDER_SIZE = 20;
 
@@ -192,7 +196,13 @@ var MAP_1 =
                     x:          0,
                     y:          0,
                     direction:  Direction.UP
-                }
+                },
+    ghosts:     [
+                    {x: 8, y: 10, direction: Direction.UP},
+                    {x: 11, y: 10, direction: Direction.DOWN},
+                    {x: 14, y: 10, direction: Direction.LEFT},
+                    {x: 17, y: 10, direction: Direction.RIGHT}
+                ]
 };
 
 maps.push(MAP_1);
@@ -1337,6 +1347,8 @@ var Map = function(litteral)
     this._portalsid = [];
     this._pacmanPosition = null;
     this._pacmanDirection = null;
+    this._ghostsPosition = [];
+    this._ghostsDirection = [];
     
     //computed data
     this._topleft = null;
@@ -1350,6 +1362,16 @@ var Map = function(litteral)
     
     this._pacmanPosition = new Point(litteral.pacman.x * GRID_UNIT, litteral.pacman.y * GRID_UNIT);
     this._pacmanDirection = litteral.pacman.direction;
+    
+    /*
+        load ghosts
+    */
+    
+    for(var i=0; i<litteral.ghosts.length; i++)
+    {
+        this._ghostsPosition.push(new Point(litteral.ghosts[i].x * GRID_UNIT, litteral.ghosts[i].y * GRID_UNIT));
+        this._ghostsDirection.push(litteral.ghosts[i].direction);
+    }
 
     /*
         load lines and pacdots, compute minimum and maximum coordinates
@@ -1499,6 +1521,18 @@ Map.prototype.getPortals = function()
 Map.prototype.getPacman = function()
 {
     return new Pacman(this._pacmanPosition.getX(), this._pacmanPosition.getY(), this._pacmanDirection);
+};
+
+Map.prototype.getGhosts = function()
+{
+    var ghosts = [];
+    
+    for(var i=0; i<this._ghostsPosition.length; i++)
+    {
+        ghosts.push(new Ghost(this._ghostsPosition[i].getX(), this._ghostsPosition[i].getY(), this._ghostsDirection[i]));
+    }
+    
+    return ghosts;
 };
 
 
@@ -1717,99 +1751,12 @@ var PauseState = function()
 {
     this._pausemenu = new PauseMenu();
     
-    this._menuWidth = 0;
-    this._menuHeight = 0;
-    this._minWidth = 0;
-    this._minHeight = 0;
-    
     this._firstdraw = true;
-    
-    this._computeDimensions();
-};
-
-PauseState.menuWidth = function()
-{
-    var textmaxwidth = 0;
-    var width = 0;
-    
-    context.font = PAUSEMENUITEM_FONT_SIZE + "px " + PAUSEMENU_FONT;
-    
-    for(var key in PauseMenuItem)
-    {
-        var itemwidth = context.measureText(PauseMenuItem[key].str).width;
-        
-        if (itemwidth > textmaxwidth)
-        {
-            textmaxwidth = itemwidth;
-        }
-    }
-    
-    width = PAUSEMENU_HPADDING + textmaxwidth + PAUSEMENU_HPADDING;
-    
-    return width;
-};
-
-PauseState.menuHeight = function()
-{
-    var textheight = 1.3 * PAUSEMENUITEM_FONT_SIZE;
-    var height = 0;
-    
-    height += PAUSEMENU_VPADDING;
-    
-    for(var key in PauseMenuItem)
-    {
-        height += textheight;
-        height += PAUSEMENU_ITEMSDISTANCE;
-    }
-    
-    height -= PAUSEMENU_ITEMSDISTANCE;
-    height += PAUSEMENU_VPADDING;
-    
-    return height;
-};
-
-PauseState.minWidth = function()
-{
-    return PauseState.menuWidth();
-};
-
-PauseState.minHeight = function()
-{
-    return PauseState.menuHeight();
 };
 
 PauseState.prototype.reinit = function()
 {
     this._pausemenu.setCurrent(PauseMenuItem.RESUME.id);
-};
-
-PauseState.prototype._computeDimensions = function()
-{
-    this._menuWidth = PauseState.menuWidth();
-    this._menuHeight = PauseState.menuHeight();
-    
-    this._minWidth = PauseState.minWidth();
-    this._minHeight = PauseState.minHeight();
-};
-
-PauseState.prototype.getMinWidth = function()
-{
-    return this._minWidth;
-};
-
-PauseState.prototype.getMinHeight = function()
-{
-    return this._minHeight;
-};
-
-PauseState.prototype.getMenuWidth = function()
-{
-    return this._menuWidth;
-};
-
-PauseState.prototype.getMenuHeight = function()
-{
-    return this._menuHeight;
 };
 
 PauseState.prototype.handleInput = function(key)
@@ -1903,6 +1850,7 @@ var PlayingState = function(litteral)
     this._status = new Status();
     this._maze = null;
     this._pacman = null;
+    this._ghosts = [];
     
     this.loadMap(litteral);
     
@@ -1955,6 +1903,7 @@ PlayingState.prototype.loadMap = function(litteral)
     var lines = this._map.getCorridors();
     var pacdots = this._map.getPacdots();
     var portals = this._map.getPortals();
+    var ghosts = this._map.getGhosts();
     var pacman = this._map.getPacman();
     
     var mapheight = this._map.getHeight();
@@ -1985,6 +1934,11 @@ PlayingState.prototype.loadMap = function(litteral)
     
     pacman.translate(xmappadding, ymappadding);
     
+    for(var i=0; i<ghosts.length; i++)
+    {
+        ghosts[i].translate(xmappadding, ymappadding);
+    }
+    
     /*
         create game elements
     */
@@ -2003,6 +1957,7 @@ PlayingState.prototype.loadMap = function(litteral)
     
     this._maze = new Maze(lines, pacdots, portals);
     this._pacman = pacman;
+    this._ghosts = ghosts;
 };
 
 PlayingState.prototype.restart = function()
@@ -2029,13 +1984,19 @@ PlayingState.prototype.restart = function()
     pacman.translate(xmappadding, ymappadding);
     
     this._pacman.reinit(pacman.getPosition().getX(), pacman.getPosition().getY(), pacman.getDirection());
-};
-
-PlayingState.prototype._statusMaxWidth = function()
-{
-    context.font = STATUS_FONT_SIZE + "px " + STATUS_FONT;
     
-    return STATUS_PADDINGLEFT + context.measureText("Score : 9 999 999").width + 50 + context.measureText("Lives : ").width + 3 * (10 + 2*STATUS_LIVES_RADIUS);
+    // reinit ghosts
+    var ghosts = this._map.getGhosts();
+    
+    for(var i=0; i<ghosts.length; i++)
+    {
+        ghosts[i].translate(xmappadding, ymappadding);
+    }
+    
+    for(var i=0; i<ghosts.length; i++)
+    {
+        this._ghosts[i].reinit(ghosts[i].getPosition().getX(), ghosts[i].getPosition().getY(), ghosts[i].getDirection());
+    }
 };
 
 PlayingState.prototype.handleInput = function(key)
@@ -2199,7 +2160,22 @@ PlayingState.prototype.move = function(elapsed)
         // et si on rechoppe un teleporteur c chiant... fait un do while() ?
     }
     
+    
+    
+    
+    
+    
+    
     this._pacman.animate(elapsed);
+    
+    
+    
+    
+    
+    for(var i=0; i<this._ghosts.length; i++)
+    {
+        this._ghosts[i].animate(elapsed);
+    }
 };
 
 PlayingState.prototype.update = function()
@@ -2247,6 +2223,10 @@ PlayingState.prototype.draw = function()
     
     this._maze.draw();
     this._pacman.draw();
+    for(var i=0; i<this._ghosts.length; i++)
+    {
+        this._ghosts[i].draw();
+    }
     this._maze.drawPortals();
     
     this._status.draw();
@@ -2849,14 +2829,11 @@ Pacman.prototype.translate = function(x, y)
 
 
 
-
 /* TODO
 - on aura des pacman.move(maze) et ghost.move(maze, pacman) et des .handle_collision(maze, ghosts), ...
-- ne pas mettre pacman dans maze, histoire de separer truc qui bougent
 - tte facon soit on a des move(maze, ...) soit on a dans playingstate un gros move() qui utilisera le maze et le pacman et les ghosts en propriétés
-- mais pr les collisions, comment faire ? et meme pr les deplacements ? enregistrer le trajet effectué pr chacun (chacun ayant un array de lignes representatn ce chemin) pendant le move() (sans tenir compte des collisions durant le move()), puis appeler pr chacun un handle_collisions() ? mais quand même, faut trouver comment detecter a quel endroit/moment a eu lieu la collision et tt, et agir en consequence... ; ou plutot un handle_collisions() global dans playingstate
+- mais pr les collisions, comment faire ? et meme pr les deplacements ? enregistrer le trajet effectué pr chacun (chacun ayant un array de lignes representatn ce chemin) pendant le move() (sans tenir compte des collisions durant le move()), puis appeler pr chacun un handle_collisions() ? mais quand même, faut trouver comment detecter a quel endroit/moment a eu lieu la collision et tt, et agir en consequence... ; ou plutot un handle_collisions() global dans playingstate (sachant que pas de collision entre les fantomes) ; penser a d'abord deplacer le pacman puis les fantomes ensuite, puisqu'ils le suivent ; quoique en fait chacun pourrait avoir son propre handle_collisions() du moment que en parametre on envoie les elements avec lesquels faut checker ça (meme si y'aura des tests redondants ; quoique ici non, y'a que les collision pacman-ghost et pas ghost-ghost)
 */
-
 
 
 
@@ -2937,6 +2914,287 @@ Pacman.prototype.animate = function(elapsed)
     this._graphicscirclearc.setEndangle(this._mouthendangle);
 };
 
+/******************************************************************************/
+/******************************** Ghost class *********************************/
+/******************************************************************************/
+
+var Ghost = function(x, y, direction)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((isDirection(direction)), "direction value is not valid");
+    
+    this._position = new Point(x, y);
+    this._direction = direction;
+    
+    this._nextdirection = null;     // direction requested
+    this._nextturn = null;          // intersection that allows movement in the requested direction
+    
+    this._animtime = 0;
+    this._normalwave = true;
+};
+
+/*TODO y'a plusieurs trucs a mettre en constantes */
+Ghost.prototype.draw = function()
+{
+    var baseX = Math.floor(this._position.getX());
+    var baseY = Math.floor(this._position.getY());
+    
+    context.fillStyle = "red";
+
+    var waveheight = 2 * Math.floor(GHOST_TOTALHEIGHT/10);
+    
+    /* draw the global shape */
+    
+    context.beginPath();
+    context.arc(baseX, baseY - Math.floor(GHOST_TOTALHEIGHT/2) + Math.floor(GHOST_WIDTH/2), Math.floor(GHOST_WIDTH/2), Math.PI, 0);
+    context.closePath();
+    context.fill();
+    
+    context.fillRect(baseX - Math.floor(GHOST_WIDTH/2),
+                     baseY + Math.floor(GHOST_TOTALHEIGHT/2) - GHOST_LOWERHEIGHT,
+                     GHOST_WIDTH,
+                     GHOST_LOWERHEIGHT - waveheight);
+    
+    /* draw the "waves" at the bottom */
+    
+    if (this._normalwave)
+    {
+        var Ssize = (0.3/4.2) * GHOST_WIDTH;
+        var Msize = (0.6/4.2) * GHOST_WIDTH;
+        var Lsize = (0.9/4.2) * GHOST_WIDTH;
+        
+        context.fillRect(baseX - GHOST_WIDTH/2,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Ssize,
+                         waveheight);
+        context.fillRect(baseX - GHOST_WIDTH/2 + Ssize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Ssize,
+                         waveheight/2);
+        
+        context.fillRect(baseX - GHOST_WIDTH/2 + 3*Ssize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Ssize,
+                         waveheight/2);
+        context.fillRect(baseX - GHOST_WIDTH/2 + 4*Ssize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Msize,
+                         waveheight);
+        
+        context.fillRect(baseX - GHOST_WIDTH/2 + 4*Ssize + Msize + Msize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Msize,
+                         waveheight);
+        context.fillRect(baseX - GHOST_WIDTH/2 + 4*Ssize + Msize + Msize + Msize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Ssize,
+                         waveheight/2);
+        
+        context.fillRect(baseX - GHOST_WIDTH/2 + 4*Ssize + Msize + Msize + Msize + 2*Ssize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Ssize,
+                         waveheight/2);
+        context.fillRect(baseX - GHOST_WIDTH/2 + 4*Ssize + Msize + Msize + Msize + 2*Ssize + Ssize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Ssize,
+                         waveheight);
+    }
+    else
+    {
+        var Ssize = (0.3/4.2) * GHOST_WIDTH;
+        var Msize = (0.4/4.2) * GHOST_WIDTH;
+        var Lsize = (0.5/4.2) * GHOST_WIDTH;
+        var XLsize = (0.6/4.2) * GHOST_WIDTH;
+        
+        context.fillRect(baseX - GHOST_WIDTH/2,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Lsize,
+                         waveheight);
+        
+        context.fillRect(baseX - GHOST_WIDTH/2 + Lsize + XLsize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Lsize,
+                         waveheight);
+        context.fillRect(baseX - GHOST_WIDTH/2 + Lsize + XLsize + Lsize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Ssize,
+                         waveheight/2);
+        
+        context.fillRect(baseX - GHOST_WIDTH/2 + Lsize + XLsize + Lsize + Ssize + Msize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Ssize,
+                         waveheight/2);
+        context.fillRect(baseX - GHOST_WIDTH/2 + Lsize + XLsize + Lsize + Ssize + Msize + Ssize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Lsize,
+                         waveheight);
+        
+        context.fillRect(baseX - GHOST_WIDTH/2 + Lsize + XLsize + Lsize + Ssize + Msize + Ssize + Lsize + XLsize,
+                         baseY + GHOST_TOTALHEIGHT/2 - waveheight,
+                         Lsize,
+                         waveheight);
+    }
+    
+    /* draw the eyes */
+    
+    context.fillStyle = "white";
+    
+    var eyeradius = GHOST_WIDTH/4 - 2;
+    var irisradius = eyeradius-2;
+    
+    context.beginPath();
+    context.arc(baseX - 1 - eyeradius, baseY - GHOST_TOTALHEIGHT/2 + GHOST_WIDTH/2 - 2, eyeradius, 0, 2*Math.PI);
+    context.fill();
+    context.beginPath();
+    context.arc(baseX + 1 + eyeradius, baseY - GHOST_TOTALHEIGHT/2 + GHOST_WIDTH/2 - 2, eyeradius, 0, 2*Math.PI);
+    context.fill();
+    
+    /* draw the irises */
+    
+    context.fillStyle = "blue";
+    
+    var paddingX = 0;
+    var paddingY = 0;
+    
+    if (this._direction === Direction.UP)
+    {
+        paddingY = -2;
+    }
+    if (this._direction === Direction.DOWN)
+    {
+        paddingY = 2;
+    }
+    if (this._direction === Direction.LEFT)
+    {
+        paddingX = -2;
+    }
+    if (this._direction === Direction.RIGHT)
+    {
+        paddingX = 2;
+    }
+    
+    context.beginPath();
+    context.arc(baseX - 1 - eyeradius + paddingX, baseY - GHOST_TOTALHEIGHT/2 + GHOST_WIDTH/2 - 2 + paddingY, irisradius, 0, 2*Math.PI);
+    context.fill();
+    context.beginPath();
+    context.arc(baseX + 1 + eyeradius + paddingX, baseY - GHOST_TOTALHEIGHT/2 + GHOST_WIDTH/2 - 2 + paddingY, irisradius, 0, 2*Math.PI);
+    context.fill();
+}
+
+Ghost.prototype.changeDirection = function(direction, maze)
+{
+    assert((isDirection(direction)), "direction value is not valid");
+    assert((maze instanceof Maze), "maze is not a Maze");
+    
+    if (direction === this._direction
+     || direction === this._nextdirection)
+    {
+        return;
+    }
+    
+    if ((isVertical(direction) && isVertical(this._direction))
+     || (isHorizontal(direction) && isHorizontal(this._direction)))
+    {
+        this._direction = direction;
+        this._nextdirection = null;
+        this._nextturn = null;
+    }
+    else
+    {
+        this._nextdirection = direction;
+        
+        var point = maze.nextTurn(this._position, this._direction, this._nextdirection);
+        
+        this._nextturn = (typeof point === "undefined") ? null : point ;
+    }
+};
+
+Ghost.prototype.reinit = function(x, y, direction)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((isDirection(direction)), "direction value is not valid");
+    
+    this._position.set(x, y);
+    this._direction = direction;
+    this._nextdirection = null;
+    this._nextturn = null;
+};
+
+Ghost.prototype.animate = function(elapsed)
+{
+    this._animtime = (this._animtime + elapsed) % (1000);
+    this._normalwave = (this._animtime < 250 || (this._animtime > 500 && this._animtime < 750));
+};
+
+Ghost.prototype.getPosition = function()
+{
+    return this._position;
+};
+
+Ghost.prototype.getDirection = function()
+{
+    return this._direction;
+};
+
+Ghost.prototype.getNextDirection = function()
+{
+    return this._nextdirection;
+};
+
+Ghost.prototype.setNextDirection = function(nextdirection)
+{
+    assert((isDirection(nextdirection) || nextdirection === null), "nextdirection value is not valid");
+
+    this._nextdirection = nextdirection;
+};
+
+Ghost.prototype.getNextTurn = function()
+{
+    return this._nextturn;
+};
+
+Ghost.prototype.setNextTurn = function(nextturn)
+{
+    assert((nextturn instanceof Point || nextturn === null), "nextturn value is not valid");
+
+    this._nextturn = nextturn;
+};
+
+Ghost.prototype.setDirection = function(direction)
+{
+    assert((isDirection(direction)), "direction value is not valid");
+
+    this._direction = direction;
+};
+
+Ghost.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+
+    this._position.setPosition(x, y);
+};
+
+Ghost.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+};
+
+
+
+/* TODO
+    - actuellement c'est PlayingState qui fait le move() du pacman en fait : voir si on peut pas ramener ça dans Pacman avec : move(elapsed, maze, status)
+    - faire un classe mere commune a Pacman et a Ghost : Character (ou un truc du genre)
+    - pour le move() de ghost, il faudrait donc : move(elapsed, maze, status, pacman)
+    - avoir en fait un update() pour les elements, et dedans y faire le move() ? (+ animate() si besoin ?)
+    - ajouter un argument ID dans le constructeur, pr definir l'identite du fantome (PINKY_GHOST, ...) ; mettre aussi cet id dans le litteral pour la map
+*/
+
 
 
 /******************************************************************************/
@@ -2962,6 +3220,9 @@ var blurEventListener= function(e)
     {
         state = GameState.PAUSE;
     }
+    /* TODO
+        - ca pose ptetre un probleme en fait, car il pourrait y avoir des touches appuyees avant le "blur", et faudrait s'en occuper avant de modif le state
+    */
 };
 
 
@@ -3073,14 +3334,16 @@ var logicLoop = function()
     
     - pour l'optimisation des perfs, etc, pr dessiner la meme image ou un truc d'un canvas cache, il suffira d'ajouter une methode drawFromXXX()
     
+    - pour l'etat de pause, faire en sorte que ca soit visible si on a ou non le focus, genre en rééclaircissant un peu le canvas ; creation de 2 sous etats a pause, genre pause_focus et pause_nofocus ? ou bien juste appel d'une fonction de PauseState ?
+    
+    - au lieu du firstdraw pr l'etat pause, renomme en redrawbkacground ? ou utiliser un redrawAll ? ajouter ce meme genre de truc a l'etat playing, pr ne pas redessiner tt le maze ?
+    
+    - ==========> ptetre qu'en fait, les XXXState ne devraient pas contenir les éléments ? mais que ces derniers devraient etre globaux ou dans une classe Game ?
     
     - =================> ca ira pas pour les graphics en general : certains trucs peuvent pas vraiment avoir des graphics, par exemple quand on dessinera des fantomes, etc... faudrait stocker pleins de propriété pour chaque element de son dessin... autant faire draw() par le fantome lui-meme, tant pis... => en fait faudrait arriver a avoir un unique objet a mettre en propriete, et qui permet de faire draw(), translate(), ...
 */
 
 /*
-=> chaque etat possede alors une largeur/hauteur minimale pour son affichage ; + les tailles pour son contenu, ou alors les mettre dans ce contenu...
-
-chaque etat doit avoir : draw(), handle_events(), update()
 chaque etat peut avoir des sous-etats ?
 
 dans logicloop, faut a un moment un truc pr changer l'etat si necessaire ; chaque etat pouvant dans une de ses fonctions modifier une variable nextstate ?
