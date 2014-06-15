@@ -41,8 +41,10 @@ Object.defineProperties(PacmanState,
 var GhostState = {};
 Object.defineProperties(GhostState,
 {
-    "NORMAL":   {value: 1, writable: false, configurable: false, enumerable: true},
-    "EATABLE":  {value: 2, writable: false, configurable: false, enumerable: true}
+    "ATHOME":     {value: 1, writable: false, configurable: false, enumerable: true},
+    "NORMAL":     {value: 2, writable: false, configurable: false, enumerable: true},
+    "FRIGHTENED": {value: 3, writable: false, configurable: false, enumerable: true},
+    "EATEN":      {value: 4, writable: false, configurable: false, enumerable: true}
 });
 
 var GhostType = {};
@@ -81,7 +83,7 @@ var PAUSEMENU_HEIGHT = 2 * PAUSEMENU_VPADDING + Object.keys(PauseMenuItem).lengt
 var PACMAN_RADIUS = 12;
 var PACDOTS_RADIUS = 2;
 var PACMAN_SPEED = 300;
-var GHOST_SPEED = 200;
+var GHOST_SPEED = 100;
 var LINE_WIDTH = 2 * PACMAN_RADIUS + 8;
 var GRID_UNIT = 16;
 var PACDOT_POINT = 10;
@@ -179,7 +181,9 @@ var MAP_1 =
                     
                     {x1: 10.5, y1: 12.5, x2: 10.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
                     {x1: 11.5, y1: 12.5, x2: 11.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
-                    {x1: 12.5, y1: 10, x2: 12.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
+                    //{x1: 12.5, y1: 10, x2: 12.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
+                    {x1: 12.5, y1: 12.5, x2: 12.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
+                    {x1: 12.5, y1: 10, x2: 12.5, y2: 12.5, nopacdots: "defined", link: "defined"},
                     {x1: 13.5, y1: 12.5, x2: 13.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
                     {x1: 14.5, y1: 12.5, x2: 14.5, y2: 13.5, nopacdots: "defined", ghosthouse: "defined"},
 
@@ -214,7 +218,7 @@ var MAP_1 =
                 },
     ghosts:     [
                     {id: GhostType.BLINKY, x: 8,  y: 10, direction: Direction.RIGHT},
-                    {id: GhostType.PINKY,  x: 11, y: 10, direction: Direction.UP},
+                    {id: GhostType.PINKY,  x: 12.5, y: 13.5, direction: Direction.UP},
                     {id: GhostType.INKY,   x: 14, y: 10, direction: Direction.LEFT},
                     {id: GhostType.CLYDE,  x: 17, y: 10, direction: Direction.DOWN}
                 ]
@@ -363,6 +367,34 @@ var isHorizontal = function(arg)
     {
         return (arg === Direction.LEFT || arg === Direction.RIGHT) ? true : false ;
     }
+};
+
+var concatenateLines = function(line1, line2)
+{
+    var minp1 = null;
+    var maxp2 = null;
+    
+    if (line1.getPoint1().getX() <= line2.getPoint1().getX()
+     && line1.getPoint1().getY() <= line2.getPoint1().getY())
+    {
+        minp1 = new Point(line1.getPoint1().getX(), line1.getPoint1().getY());
+    }
+    else
+    {
+        minp1 = new Point(line2.getPoint1().getX(), line2.getPoint1().getY());
+    }
+    
+    if (line1.getPoint2().getX() >= line2.getPoint2().getX()
+     && line1.getPoint2().getY() >= line2.getPoint2().getY())
+    {
+        maxp2 = new Point(line1.getPoint2().getX(), line1.getPoint2().getY());
+    }
+    else
+    {
+        maxp2 = new Point(line2.getPoint2().getX(), line2.getPoint2().getY());
+    }
+    
+    return new Line(minp1, maxp2);
 };
 
 var changeCanvasDimensions = function(w, h)
@@ -1358,6 +1390,7 @@ var Map = function(litteral)
     // loaded data
     this._corridorlines = [];
     this._ghosthouselines = [];
+    this._linklines = [];
     this._pacdotsposition = [];
     this._portalsposition = [];
     this._portalsid = [];
@@ -1405,14 +1438,18 @@ var Map = function(litteral)
         var line = new Line(new Point(litteral.mazelines[i].x1 * GRID_UNIT, litteral.mazelines[i].y1 * GRID_UNIT),
                             new Point(litteral.mazelines[i].x2 * GRID_UNIT, litteral.mazelines[i].y2 * GRID_UNIT));
         
-        // load corridor lines and ghosthouse lines
-        if (typeof litteral.mazelines[i].ghosthouse === "undefined")
+        // load corridor lines and ghosthouse lines and link lines
+        if (typeof litteral.mazelines[i].ghosthouse !== "undefined")
         {
-            this._corridorlines.push(line);
+            this._ghosthouselines.push(line);
+        }
+        else if (typeof litteral.mazelines[i].link !== "undefined")
+        {
+            this._linklines.push(line);
         }
         else
         {
-            this._ghosthouselines.push(line);
+            this._corridorlines.push(line);
         }
         
         // load pacdots
@@ -1530,6 +1567,19 @@ Map.prototype.getGhosthouse = function()
     }
     
     return ghosthouse;
+};
+
+Map.prototype.getLinks = function()
+{
+    var links = [];
+    
+    for(var i=0;i<this._linklines.length;i++)
+    {
+        links.push(new Corridor(new Point(this._linklines[i].getPoint1().getX(), this._linklines[i].getPoint1().getY()),
+                                     new Point(this._linklines[i].getPoint2().getX(), this._linklines[i].getPoint2().getY())));
+    }
+    
+    return links;
 };
 
 Map.prototype.getPacdots = function()
@@ -1940,6 +1990,7 @@ PlayingState.prototype.loadMap = function(litteral)
     
     var lines = this._map.getCorridors();
     var ghosthouse = this._map.getGhosthouse();
+    var links = this._map.getLinks();
     var pacdots = this._map.getPacdots();
     var portals = this._map.getPortals();
     var ghosts = this._map.getGhosts();
@@ -1964,6 +2015,11 @@ PlayingState.prototype.loadMap = function(litteral)
     for(var i=0; i<ghosthouse.length; i++)
     {
         ghosthouse[i].translate(xmappadding, ymappadding);
+    }
+    
+    for(var i=0; i<links.length; i++)
+    {
+        links[i].translate(xmappadding, ymappadding);
     }
     
     for(var i=0; i<pacdots.length; i++)
@@ -1999,7 +2055,7 @@ PlayingState.prototype.loadMap = function(litteral)
     
     //TODO ici, creer direct le this._maze et this._pacman, puis faire un maze.translate() et un pacman.translate() (creer ces fonctions en pensant a translater les graphics aussi)
     
-    this._maze = new Maze(ghosthouse, lines, pacdots, portals);
+    this._maze = new Maze(ghosthouse, lines, links, pacdots, portals);
     this._pacman = pacman;
     this._ghosts = ghosts;
 };
@@ -2274,7 +2330,7 @@ Status.prototype.draw = function()
 /********************************* Maze class *********************************/
 /******************************************************************************/
 
-var Maze = function(ghosthouse, corridors, pacdots, portals)
+var Maze = function(ghosthouse, corridors, links, pacdots, portals)
 {
     //TODO  check if lines don't overlap with one another => if overlap, create
     //      a new one containing the two lines overlapping (they need to be of
@@ -2283,6 +2339,7 @@ var Maze = function(ghosthouse, corridors, pacdots, portals)
     
     this._ghosthouse = ghosthouse;
     this._corridors = corridors;    // lines on which the pacman center can move
+    this._links = links;
     this._pacdots = pacdots;
     this._powerpellets = [];
     this._portals = portals;
@@ -2361,6 +2418,11 @@ Maze.prototype.getGhostHouse = function()
     return this._ghosthouse;
 };
 
+Maze.prototype.getLinks = function()
+{
+    return this._links;
+};
+
 Maze.prototype.getPacdots = function()
 {
     return this._pacdots;
@@ -2427,23 +2489,40 @@ Maze.prototype.deletePacdot = function(index)
     this._pacdots.splice(index, 1);
 };
 
-Maze.prototype.containsPoint = function(point)
+Maze.prototype.containsPoint = function(point, withcorridors, withghosthouse, withlinks)
 {
     assert((point instanceof Point), "point is not a Point");
     
-    for(var i=0;i<this._corridors.length;i++)
+    if (withcorridors === true)
     {
-        if (this._corridors[i].getLine().containsPoint(point))
+        for(var i=0;i<this._corridors.length;i++)
         {
-            return true;
+            if (this._corridors[i].getLine().containsPoint(point))
+            {
+                return true;
+            }
         }
     }
     
-    for(var i=0;i<this._ghosthouse.length;i++)
+    if (withghosthouse === true)
     {
-        if (this._ghosthouse[i].getLine().containsPoint(point))
+        for(var i=0;i<this._ghosthouse.length;i++)
         {
-            return true;
+            if (this._ghosthouse[i].getLine().containsPoint(point))
+            {
+                return true;
+            }
+        }
+    }
+    
+    if (withlinks === true)
+    {
+        for(var i=0;i<this._links.length;i++)
+        {
+            if (this._links[i].getLine().containsPoint(point))
+            {
+                return true;
+            }
         }
     }
     
@@ -2454,7 +2533,7 @@ Maze.prototype.currentLine = function(point, direction)
 {
     assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
-    assert((this.containsPoint(point)), "point is not inside the maze");
+    assert((this.containsPoint(point, true, true, true)), "point is not inside the maze");
     
     var line = null;
     
@@ -2466,6 +2545,17 @@ Maze.prototype.currentLine = function(point, direction)
           || (isHorizontal(direction) && isHorizontal(line)))
          && line.containsPoint(point))
         {
+            /* check if this line overlap with a link line */
+            for(var i=0; i<this._links.length; i++)
+            {
+                if (((isVertical(line) && isVertical(this._links[i].getLine()))
+                  || (isHorizontal(line) && isHorizontal(this._links[i].getLine())))
+                 && (this._links[i].getLine().containsPoint(line.getPoint1()) || this._links[i].getLine().containsPoint(line.getPoint2())))
+                {
+                    return concatenateLines(line, this._links[i].getLine());
+                }
+            }
+            
             return line;
         }
     }
@@ -2473,6 +2563,29 @@ Maze.prototype.currentLine = function(point, direction)
     for(var i=0; i<this._ghosthouse.length; i++)
     {
         line = this._ghosthouse[i].getLine();
+        
+        if (((isVertical(direction) && isVertical(line))
+          || (isHorizontal(direction) && isHorizontal(line)))
+         && line.containsPoint(point))
+        {
+            /* check if this line overlap with a link line */
+            for(var i=0; i<this._links.length; i++)
+            {
+                if (((isVertical(line) && isVertical(this._links[i].getLine()))
+                  || (isHorizontal(line) && isHorizontal(this._links[i].getLine())))
+                 && (this._links[i].getLine().containsPoint(line.getPoint1()) || this._links[i].getLine().containsPoint(line.getPoint2())))
+                {
+                    return concatenateLines(line, this._links[i].getLine());
+                }
+            }
+            
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._links.length; i++)
+    {
+        line = this._links[i].getLine();
         
         if (((isVertical(direction) && isVertical(line))
           || (isHorizontal(direction) && isHorizontal(line)))
@@ -2507,9 +2620,19 @@ Maze.prototype.currentLine = function(point, direction)
             return line;
         }
     }
+    
+    for(var i=0; i<this._links.length; i++)
+    {
+        line = this._links[i].getLine();
+        
+        if (line.containsPoint(point))
+        {
+            return line;
+        }
+    }
 };
 
-Maze.prototype.nextTurn = function(point, direction, nextdirection, withghosthouse)
+Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridors, withghosthouse, withlinks)
 {
     assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
@@ -2535,29 +2658,53 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withghosthou
     
     /* find all the lines on which we could turn */
     
-    for(var i=0;i<this._corridors.length;i++)
+    if (withcorridors === true)
     {
-        var l = this._corridors[i].getLine();
-        
-        /* if this line is crossing ours */
-        if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
+        for(var i=0;i<this._corridors.length;i++)
         {
-            /* if there is some place to turn */
-            if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
-             || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
-             || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
-             || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
+            var l = this._corridors[i].getLine();
+            
+            /* if this line is crossing ours */
+            if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
             {
-                lines.push(l);
+                /* if there is some place to turn */
+                if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
+                 || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
+                 || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
+                 || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
+                {
+                    lines.push(l);
+                }
             }
         }
-    }
+        }
     
     if (withghosthouse === true)
     {
         for(var i=0;i<this._ghosthouse.length;i++)
         {
             var l = this._ghosthouse[i].getLine();
+            
+            /* if this line is crossing ours */
+            if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
+            {
+                /* if there is some place to turn */
+                if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
+                 || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
+                 || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
+                 || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
+                {
+                    lines.push(l);
+                }
+            }
+        }
+    }
+    
+    if (withlinks === true)
+    {
+        for(var i=0;i<this._links.length;i++)
+        {
+            var l = this._links[i].getLine();
             
             /* if this line is crossing ours */
             if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
@@ -2626,6 +2773,11 @@ Maze.prototype.draw = function()
         this._ghosthouse[i].draw();
     }
     
+    for(var i=0; i<this._links.length; i++)
+    {
+        this._links[i].draw();
+    }
+    
     for(var i=0; i<this._pacdots.length; i++)
     {
         this._pacdots[i].draw();
@@ -2651,6 +2803,64 @@ Maze.prototype.drawPortals = function()
 
 
 /******************************************************************************/
+/******************************** Movable class *******************************/
+/******************************************************************************/
+
+var Movable = function(x, y, direction)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((isDirection(direction)), "direction value is not valid");
+    
+    this._position = new Point(x, y);
+    this._direction = direction;
+    
+    this._nextdirection = null;     // direction requested
+    this._nextturn = null;          // intersection that allows movement in the requested direction
+};
+
+Movable.prototype.getPosition = function()
+{
+    return this._position;
+};
+
+Movable.prototype.getDirection = function()
+{
+    return this._direction;
+};
+
+Movable.prototype.getNextDirection = function()
+{
+    return this._nextdirection;
+};
+
+Movable.prototype.setNextDirection = function(nextdirection)
+{
+    assert((isDirection(nextdirection) || nextdirection === null), "nextdirection value is not valid");
+
+    this._nextdirection = nextdirection;
+};
+
+Movable.prototype.getNextTurn = function()
+{
+    return this._nextturn;
+};
+
+Movable.prototype.setNextTurn = function(nextturn)
+{
+    assert((nextturn instanceof Point || nextturn === null), "nextturn value is not valid");
+
+    this._nextturn = nextturn;
+};
+
+Movable.prototype.setDirection = function(direction)
+{
+    assert((isDirection(direction)), "direction value is not valid");
+
+    this._direction = direction;
+};
+
+/******************************************************************************/
 /******************************** Pacman class ********************************/
 /******************************************************************************/
 
@@ -2660,13 +2870,9 @@ var Pacman = function(x, y, direction)
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
     
+    Movable.call(this, x, y, direction);
+    
     this._state = PacmanState.NORMAL;
-    
-    this._position = new Point(x, y);
-    this._direction = direction;
-    
-    this._nextdirection = null;     // direction requested
-    this._nextturn = null;          // intersection that allows movement in the requested direction
     
     this._animtime = 0;
     this._mouthstartangle = 0;
@@ -2676,6 +2882,9 @@ var Pacman = function(x, y, direction)
     
     this._generateGraphics();
 };
+
+Pacman.prototype = Object.create(Movable.prototype);
+Pacman.prototype.constructor = Pacman;
 
 Pacman.prototype._generateGraphics = function()
 {
@@ -2736,47 +2945,6 @@ Pacman.prototype.getMouthendangle = function()
     return this._mouthendangle;
 };
 
-Pacman.prototype.getPosition = function()
-{
-    return this._position;
-};
-
-Pacman.prototype.getDirection = function()
-{
-    return this._direction;
-};
-
-Pacman.prototype.getNextDirection = function()
-{
-    return this._nextdirection;
-};
-
-Pacman.prototype.setNextDirection = function(nextdirection)
-{
-    assert((isDirection(nextdirection) || nextdirection === null), "nextdirection value is not valid");
-
-    this._nextdirection = nextdirection;
-};
-
-Pacman.prototype.getNextTurn = function()
-{
-    return this._nextturn;
-};
-
-Pacman.prototype.setNextTurn = function(nextturn)
-{
-    assert((nextturn instanceof Point || nextturn === null), "nextturn value is not valid");
-
-    this._nextturn = nextturn;
-};
-
-Pacman.prototype.setDirection = function(direction)
-{
-    assert((isDirection(direction)), "direction value is not valid");
-
-    this._direction = direction;
-};
-
 Pacman.prototype.setPosition = function(x, y)
 {
     assert((typeof x === "number"), "x is not a number");
@@ -2832,7 +3000,7 @@ Pacman.prototype.changeDirection = function(direction, maze)
     {
         this._nextdirection = direction;
         
-        var point = maze.nextTurn(this._position, this._direction, this._nextdirection, false);
+        var point = maze.nextTurn(this._position, this._direction, this._nextdirection, true, false, false);
         
         this._nextturn = (typeof point === "undefined") ? null : point ;
     }
@@ -3005,7 +3173,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
         if (this._nextdirection !== null
          && this._nextturn === null)
         {
-            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, false);
+            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, true, false, false);
             
             this.setNextTurn(nt);
         }
@@ -3030,18 +3198,20 @@ var Ghost = function(id, x, y, direction)
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
     
+    Movable.call(this, x, y, direction);
+    
+    this._state = GhostState.ATHOME;
+    
     this._id = id;
-    this._position = new Point(x, y);
-    this._direction = direction;
     
     this._newdirtime = 0;       // TEMPORAIRE (tests)
-    
-    this._nextdirection = null;     // direction requested
-    this._nextturn = null;          // intersection that allows movement in the requested direction
     
     this._animtime = 0;
     this._normalwave = true;
 };
+
+Ghost.prototype = Object.create(Movable.prototype);
+Ghost.prototype.constructor = Ghost;
 
 /*TODO y'a plusieurs trucs a mettre en constantes */
 Ghost.prototype.draw = function()
@@ -3230,7 +3400,29 @@ Ghost.prototype.changeDirection = function(direction, maze)
     {
         this._nextdirection = direction;
         
-        var point = maze.nextTurn(this._position, this._direction, this._nextdirection, true);
+        var withcorridors = false;
+        var withghosthouse = false;
+        var withlinks = false;
+        
+        if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
+        {
+            withcorridors = true;
+        }
+        
+        if (this._state === GhostState.ATHOME)
+        {
+            withghosthouse = true;
+            withlinks = true;
+        }
+        
+        if (this._state === GhostState.EATEN)
+        {
+            withcorridors = true;
+            withghosthouse = true;
+            withlinks = true;
+        }
+        
+        var point = maze.nextTurn(this._position, this._direction, this._nextdirection, withcorridors, withghosthouse, withlinks);
         
         this._nextturn = (typeof point === "undefined") ? null : point ;
     }
@@ -3242,6 +3434,7 @@ Ghost.prototype.reinit = function(x, y, direction)
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
     
+    this._state = GhostState.ATHOME;
     this._position.set(x, y);
     this._direction = direction;
     this._nextdirection = null;
@@ -3252,47 +3445,6 @@ Ghost.prototype.animate = function(elapsed)
 {
     this._animtime = (this._animtime + elapsed) % (1000);
     this._normalwave = (this._animtime < 250 || (this._animtime > 500 && this._animtime < 750));
-};
-
-Ghost.prototype.getPosition = function()
-{
-    return this._position;
-};
-
-Ghost.prototype.getDirection = function()
-{
-    return this._direction;
-};
-
-Ghost.prototype.getNextDirection = function()
-{
-    return this._nextdirection;
-};
-
-Ghost.prototype.setNextDirection = function(nextdirection)
-{
-    assert((isDirection(nextdirection) || nextdirection === null), "nextdirection value is not valid");
-
-    this._nextdirection = nextdirection;
-};
-
-Ghost.prototype.getNextTurn = function()
-{
-    return this._nextturn;
-};
-
-Ghost.prototype.setNextTurn = function(nextturn)
-{
-    assert((nextturn instanceof Point || nextturn === null), "nextturn value is not valid");
-
-    this._nextturn = nextturn;
-};
-
-Ghost.prototype.setDirection = function(direction)
-{
-    assert((isDirection(direction)), "direction value is not valid");
-
-    this._direction = direction;
 };
 
 Ghost.prototype.setPosition = function(x, y)
@@ -3337,6 +3489,18 @@ Ghost.prototype.move = function(elapsed, maze)
         this._nextturn = null;
         
         movement -= turndistance;
+        
+        /* if we were inside the ghosthouse, and now we leaved it */
+        if (this._state === GhostState.ATHOME && maze.containsPoint(this._position, true, false, false))
+        {
+            this._state = GhostState.NORMAL;
+        }
+        
+        /* if we were outside the ghosthouse and needed to go inside, and now we went inside */
+        if (this._state === GhostState.EATEN && maze.containsPoint(this._position, false, true, false))
+        {
+            this._state = GhostState.ATHOME;
+        }
     }
     
     var newx = 0;
@@ -3371,6 +3535,18 @@ Ghost.prototype.move = function(elapsed, maze)
     
     this.setPosition(newx, newy);
     
+    /* if we were inside the ghosthouse, and now we leaved it */
+    if (this._state === GhostState.ATHOME && maze.containsPoint(this._position, true, false, false))
+    {
+        this._state = GhostState.NORMAL;
+    }
+    
+    /* if we were outside the ghosthouse and needed to go inside, and now we went inside */
+    if (this._state === GhostState.EATEN && maze.containsPoint(this._position, false, true, false))
+    {
+        this._state = GhostState.ATHOME;
+    }
+    
     /* if we enter a teleportation tunnel */
     if (maze.isPortal(this._position.getX(), this._position.getY()))
     {
@@ -3383,9 +3559,29 @@ Ghost.prototype.move = function(elapsed, maze)
         if (this._nextdirection !== null
          && this._nextturn === null)
         {
-            //TODO penser que normalement une fois la ghost sorti, faut pas qu'il puisse re-rentrer dedans,
-            // a moins qu'il ait ete mangé... creer 3 etats : pr insidehouse, pr outsidehouse, pr dead
-            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, true);
+            var withcorridors = false;
+            var withghosthouse = false;
+            var withlinks = false;
+        
+            if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
+            {
+                withcorridors = true;
+            }
+            
+            if (this._state === GhostState.ATHOME)
+            {
+                withghosthouse = true;
+                withlinks = true;
+            }
+            
+            if (this._state === GhostState.EATEN)
+            {
+                withcorridors = true;
+                withghosthouse = true;
+                withlinks = true;
+            }
+            
+            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, withcorridors, withghosthouse, withlinks);
             
             this.setNextTurn(nt);
         }
@@ -3401,6 +3597,10 @@ Ghost.prototype.move = function(elapsed, maze)
 
 Ghost.prototype.movementAI = function(elapsed, maze, pacman)
 {
+    /*
+        if GhostState.ATHOME/NORMAL/FRIGHTENED/EATEN ...
+    */
+    
     /*if (this._id === GhostType.BLINKY)
     {
         
@@ -3447,9 +3647,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         http://www.grospixels.com/site/trucpac.php
         http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
         http://www.developpez.net/forums/d306886/autres-langages/algorithmes/pacman-algorithme-poursuite/
-
-    - faire une classe mere commune a Pacman et a Ghost : Character (ou un truc du genre)
+    
     - avoir en fait un update() pour les elements, et dedans y faire le move() ? (+ animate() si besoin ?)
+    - pour l'instant, on suppose que au debut les ghosts ont l'etat ATHOME, mais il serait tt a fait possible que la map les ait positionnés en dehors de la ghosthouse, puisque dans l'original le rouge est deja sorti devant !
+      specifier ca dans le litteral ? ou le deduire via la classe Map quand on genere le ghost avec getghosts() ? ou autre ?
+    - plus tard faudra ptetre ajouter un etat LEAVINGHOME, pour pas que l'etat ATHOME permette de se balader aleatoirement sur les links... a moins qu'en fait les ghosts
+      se baladent pas aleatoirement mais restent a leur position de depart en faisant juste haut/bas/haut/bas... ?
 */
 
 
