@@ -41,10 +41,11 @@ Object.defineProperties(PacmanState,
 var GhostState = {};
 Object.defineProperties(GhostState,
 {
-    "ATHOME":     {value: 1, writable: false, configurable: false, enumerable: true},
-    "NORMAL":     {value: 2, writable: false, configurable: false, enumerable: true},
-    "FRIGHTENED": {value: 3, writable: false, configurable: false, enumerable: true},
-    "EATEN":      {value: 4, writable: false, configurable: false, enumerable: true}
+    "ATHOME":      {value: 1, writable: false, configurable: false, enumerable: true},
+    "LEAVINGHOME": {value: 2, writable: false, configurable: false, enumerable: true},
+    "NORMAL":      {value: 3, writable: false, configurable: false, enumerable: true},
+    "FRIGHTENED":  {value: 4, writable: false, configurable: false, enumerable: true},
+    "EATEN":       {value: 5, writable: false, configurable: false, enumerable: true}
 });
 
 var GhostType = {};
@@ -347,6 +348,12 @@ var isVertical = function(arg)
     
     if (arg instanceof Line)
     {
+        if (arg.getPoint1().getX() === arg.getPoint2().getX()
+         && arg.getPoint1().getY() === arg.getPoint2().getY())
+        {
+            return false;
+        }
+        
         return (arg.getPoint1().getX() === arg.getPoint2().getX()) ? true : false ;
     }
     else
@@ -361,6 +368,12 @@ var isHorizontal = function(arg)
     
     if (arg instanceof Line)
     {
+        if (arg.getPoint1().getX() === arg.getPoint2().getX()
+         && arg.getPoint1().getY() === arg.getPoint2().getY())
+        {
+            return false;
+        }
+        
         return (arg.getPoint1().getY() === arg.getPoint2().getY()) ? true : false ;
     }
     else
@@ -1008,7 +1021,7 @@ Line.prototype.size = function()
 
 Line.prototype.XAxis = function()
 {
-    if (isVertical(this))
+    if (isHorizontal(this) !== true)
     {
         return this._point1.getX();
     }
@@ -1016,7 +1029,7 @@ Line.prototype.XAxis = function()
 
 Line.prototype.YAxis = function()
 {
-    if (isHorizontal(this))
+    if (isVertical(this) !== true)
     {
         return this._point1.getY();
     }
@@ -1052,9 +1065,20 @@ Line.prototype.isInYIntervalOf = function(line)
     }
 };
 
+Line.prototype.isPoint = function()
+{
+    return (this._point1.getX() === this._point2.getX() && this._point1.getY() === this._point2.getY());
+};
+
 Line.prototype.isCrossing = function(line)
 {
     assert((line instanceof Line), "line is not a Line");
+    
+    if ((isVertical(this) && isVertical(line))
+     || (isHorizontal(this) && isHorizontal(line)))
+    {
+        return false;
+    }
     
     if ((this.isInYIntervalOf(line) && line.isInXIntervalOf(this))
      || (this.isInXIntervalOf(line) && line.isInYIntervalOf(this)))
@@ -1067,12 +1091,32 @@ Line.prototype.isCrossing = function(line)
     }
 };
 
+Line.prototype.hasSameDirection = function(line)
+{
+    return ((isVertical(this) && isVertical(line)) || (isHorizontal(this) && isHorizontal(line)));
+};
+
 Line.prototype.containsPoint = function(point)
 {
     assert((point instanceof Point), "point is not a Point");
     
     if (point.getY() >= this._point1.getY() && point.getY() <= this._point2.getY()
      && point.getX() >= this._point1.getX() && point.getX() <= this._point2.getX())
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+Line.prototype.isExtremity = function(point)
+{
+    assert((point instanceof Point), "point is not a Point");
+    
+    if (this._point1.equalsPoint(point) === true
+     || this._point2.equalsPoint(point) === true)
     {
         return true;
     }
@@ -2677,7 +2721,7 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
                 }
             }
         }
-        }
+    }
     
     if (withghosthouse === true)
     {
@@ -2753,6 +2797,242 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
             return new Point(point.getX(), nearest);
         }
     }
+};
+
+Maze.prototype.nextIntersection = function(point, direction)
+{
+    var line = this.currentLine(point, direction);
+    
+    var lines = [];
+    var xlimit = null;
+    var ylimit = null;
+    
+    if (direction === Direction.UP)         {xlimit = point.getX(); ylimit = line.getPoint1().getY();}
+    else if (direction === Direction.DOWN)  {xlimit = point.getX(); ylimit = line.getPoint2().getY();}
+    else if (direction === Direction.LEFT)  {xlimit = line.getPoint1().getX(); ylimit = point.getY();}
+    else if (direction === Direction.RIGHT) {xlimit = line.getPoint2().getX(); ylimit = point.getY();}
+    
+    var current = new Line(point, new Point(xlimit, ylimit));
+    //var ispoint = current.isPoint();
+    
+    for(var i=0; i<this._corridors.length; i++)
+    {
+        var l = this._corridors[i].getLine();
+        
+        if (l.hasSameDirection(line) === false)
+        {
+            if (l.isCrossing(current))
+            {
+                lines.push(l);
+            }
+        }
+    }
+    
+    for(var i=0; i<this._ghosthouse.length; i++)
+    {
+        var l = this._ghosthouse[i].getLine();
+        
+        if (l.hasSameDirection(line) === false)
+        {
+            if (l.isCrossing(current))
+            {
+                lines.push(l);
+            }
+        }
+    }
+    
+    for(var i=0; i<this._links.length; i++)
+    {
+        var l = this._links[i].getLine();
+        
+        if (l.hasSameDirection(line) === false)
+        {
+            if (l.isCrossing(current))
+            {
+                lines.push(l);
+            }
+        }
+    }
+    
+    if (lines.length === 0)
+    {
+        return;     /* "undefined" */
+    }
+    else
+    {
+        /* find the nearest line */
+        
+        var nearest = (isHorizontal(direction)) ? lines[0].XAxis() : lines[0].YAxis() ;
+        
+        for(var i=1;i<lines.length;i++)
+        {
+            if ((direction === Direction.LEFT && lines[i].XAxis() > nearest)
+             || (direction === Direction.RIGHT && lines[i].XAxis() < nearest)
+             || (direction === Direction.UP && lines[i].YAxis() > nearest)
+             || (direction === Direction.DOWN && lines[i].YAxis() < nearest))
+            {
+                nearest = (isHorizontal(direction)) ? lines[i].XAxis() : lines[i].YAxis() ;
+            }
+        }
+        
+        /* return the intersection */
+        
+        if (isHorizontal(direction))
+        {
+            return new Point(nearest, point.getY());
+        }
+        else
+        {
+            return new Point(point.getX(), nearest);
+        }
+    }
+};
+
+Maze.prototype.possibleDirections = function(point)
+{
+    /*TODO (faut encore tout reparcourir... tant pis héhé)*/
+    // si line.containsstrictly() alors ajout des 2 directions de la ligne
+    // sinon si line.contains() alors forcement c'est une extremite et donc ajouter la direction adequate
+    // sinon rien
+    var upIsPossible = false;
+    var rightIsPossible = false;
+    var downIsPossible = false;
+    var leftIsPossible = false;
+    
+    var directions = [];
+    
+    for(var i=0; i<this._corridors.length; i++)
+    {
+        var l = this._corridors[i].getLine();
+        
+        if (l.containsPoint(point))
+        {
+            if (isVertical(l))
+            {
+                if (l.getPoint1().equalsPoint(point) === true)
+                {
+                    downIsPossible = true;
+                }
+                else if (l.getPoint2().equalsPoint(point) === true)
+                {
+                    upIsPossible = true;
+                }
+                else
+                {
+                    upIsPossible = true;
+                    downIsPossible = true;
+                }
+            }
+            
+            if (isHorizontal(l))
+            {
+                if (l.getPoint1().equalsPoint(point) === true)
+                {
+                    rightIsPossible = true;
+                }
+                else if (l.getPoint2().equalsPoint(point) === true)
+                {
+                    leftIsPossible = true;
+                }
+                else
+                {
+                    rightIsPossible = true;
+                    leftIsPossible = true;
+                }
+            }
+        }
+    }
+    
+    for(var i=0; i<this._ghosthouse.length; i++)
+    {
+        var l = this._ghosthouse[i].getLine();
+        
+        if (l.containsPoint(point))
+        {
+            if (isVertical(l))
+            {
+                if (l.getPoint1().equalsPoint(point) === true)
+                {
+                    downIsPossible = true;
+                }
+                else if (l.getPoint2().equalsPoint(point) === true)
+                {
+                    upIsPossible = true;
+                }
+                else
+                {
+                    upIsPossible = true;
+                    downIsPossible = true;
+                }
+            }
+            
+            if (isHorizontal(l))
+            {
+                if (l.getPoint1().equalsPoint(point) === true)
+                {
+                    rightIsPossible = true;
+                }
+                else if (l.getPoint2().equalsPoint(point) === true)
+                {
+                    leftIsPossible = true;
+                }
+                else
+                {
+                    rightIsPossible = true;
+                    leftIsPossible = true;
+                }
+            }
+        }
+    }
+    
+    for(var i=0; i<this._links.length; i++)
+    {
+        var l = this._links[i].getLine();
+        
+        if (l.containsPoint(point))
+        {
+            if (isVertical(l))
+            {
+                if (l.getPoint1().equalsPoint(point) === true)
+                {
+                    downIsPossible = true;
+                }
+                else if (l.getPoint2().equalsPoint(point) === true)
+                {
+                    upIsPossible = true;
+                }
+                else
+                {
+                    upIsPossible = true;
+                    downIsPossible = true;
+                }
+            }
+            
+            if (isHorizontal(l))
+            {
+                if (l.getPoint1().equalsPoint(point) === true)
+                {
+                    rightIsPossible = true;
+                }
+                else if (l.getPoint2().equalsPoint(point) === true)
+                {
+                    leftIsPossible = true;
+                }
+                else
+                {
+                    rightIsPossible = true;
+                    leftIsPossible = true;
+                }
+            }
+        }
+    }
+    
+    if (upIsPossible === true)    {directions.push(Direction.UP);}
+    if (rightIsPossible === true) {directions.push(Direction.RIGHT);}
+    if (downIsPossible === true)  {directions.push(Direction.DOWN);}
+    if (leftIsPossible === true)  {directions.push(Direction.LEFT);}
+    
+    return directions;
 };
 
 Maze.prototype.draw = function()
@@ -3200,7 +3480,7 @@ var Ghost = function(id, x, y, direction)
     
     Movable.call(this, x, y, direction);
     
-    this._state = GhostState.ATHOME;
+    this._state = GhostState.LEAVINGHOME;
     
     this._id = id;
     
@@ -3412,10 +3692,10 @@ Ghost.prototype.changeDirection = function(direction, maze)
         if (this._state === GhostState.ATHOME)
         {
             withghosthouse = true;
-            withlinks = true;
+            //withlinks = true;
         }
         
-        if (this._state === GhostState.EATEN)
+        if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
         {
             withcorridors = true;
             withghosthouse = true;
@@ -3621,7 +3901,8 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         
     }*/
     
-    if (this._newdirtime % 2000 > (this._newdirtime + elapsed) % 2000) // on change une fois toutes les 2s
+    
+    /*if (this._newdirtime % 1000 > (this._newdirtime + elapsed) % 1000) // on change une fois toutes les secondes
     {
         var nextdir = 1 + Math.floor(Math.random() * ((4-1)+1));
         
@@ -3636,9 +3917,95 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
             case 4: this.changeDirection(Direction.LEFT, maze);
                     break;
         }
-    }
+    }*/
     
-    this._newdirtime = (this._newdirtime + elapsed) % (2000);
+    
+    /*if (this._state !== GhostState.FRIGHTENED && Math.random() < 0.1)
+    {
+        this._state = GhostState.FRIGHTENED;
+    }*/
+    
+    //this._newdirtime = (this._newdirtime + elapsed) % (1000);
+    
+    // return a Point even if the corridor just make a 90° angle,
+    // but doesn't return anything if it's a dead end
+    var int = maze.nextIntersection(this._position, this._direction);
+    
+    if (typeof int !== "undefined")
+    {
+        var directions = maze.possibleDirections(int);
+        
+        if (this._id === GhostType.PINKY)
+        //if (this._id === GhostType.CLYDE)
+        {
+            //console.log("argh length: " + directions.length);
+        }
+        
+        var bestdirection = null;
+        var bestdistance = Number.MAX_VALUE;
+        
+        for(var i=0; i<directions.length; i++)
+        {
+            // if choosing that direction would not cause the ghost to go back (the ghost can't go back ; cf original pacman rules)
+            if ((directions[i] === Direction.UP && this._direction !== Direction.DOWN)
+             || (directions[i] === Direction.RIGHT && this._direction !== Direction.LEFT)
+             || (directions[i] === Direction.DOWN && this._direction !== Direction.UP)
+             || (directions[i] === Direction.LEFT && this._direction !== Direction.RIGHT))
+            {
+                var possibleposition = null;
+                
+                if (directions[i] === Direction.UP)
+                {
+                    possibleposition = new Point(int.getX(), int.getY() - GRID_UNIT);
+                }
+                
+                if (directions[i] === Direction.RIGHT)
+                {
+                    possibleposition = new Point(int.getX() + GRID_UNIT, int.getY());
+                }
+                
+                if (directions[i] === Direction.DOWN)
+                {
+                    possibleposition = new Point(int.getX(), int.getY() + GRID_UNIT);
+                }
+                
+                if (directions[i] === Direction.LEFT)
+                {
+                    possibleposition = new Point(int.getX() - GRID_UNIT, int.getY());
+                }
+                
+                var possibledistance = possibleposition.distanceToPoint(pacman.getPosition());
+                
+                /*TODO
+                    - pense que si egalite, y'a un ordre dans le choix des directions, cf dossier pacman du site
+                    - euh apparemment y'a des fantomes qui vont quand meme en arriere la, ca va pas ca ; tester avec un seul et faire des console.log
+                */
+                
+                if (possibledistance < bestdistance)
+                {
+                    bestdistance = possibledistance;
+                    bestdirection = directions[i];
+                }
+            }
+        }
+        
+        if (this._id === GhostType.PINKY)
+        //if (this._id === GhostType.CLYDE)
+        {
+            //console.log("argh direction: " + bestdirection);
+        }
+        
+        this.changeDirection(bestdirection, maze);
+        
+        if (this._id === GhostType.PINKY)
+        //if (this._id === GhostType.CLYDE)
+        {
+            //console.log("argh newdirection: " + this._direction);
+        }
+    }
+    /*
+        else it's a dead end / teleporter, and the ghost has to continue
+    */
 };
 
 
@@ -3651,8 +4018,6 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     - avoir en fait un update() pour les elements, et dedans y faire le move() ? (+ animate() si besoin ?)
     - pour l'instant, on suppose que au debut les ghosts ont l'etat ATHOME, mais il serait tt a fait possible que la map les ait positionnés en dehors de la ghosthouse, puisque dans l'original le rouge est deja sorti devant !
       specifier ca dans le litteral ? ou le deduire via la classe Map quand on genere le ghost avec getghosts() ? ou autre ?
-    - plus tard faudra ptetre ajouter un etat LEAVINGHOME, pour pas que l'etat ATHOME permette de se balader aleatoirement sur les links... a moins qu'en fait les ghosts
-      se baladent pas aleatoirement mais restent a leur position de depart en faisant juste haut/bas/haut/bas... ?
 */
 
 
