@@ -2700,6 +2700,8 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
     else if (direction === Direction.LEFT)  {xlimit = line.getPoint1().getX(); ylimit = point.getY();}
     else if (direction === Direction.RIGHT) {xlimit = line.getPoint2().getX(); ylimit = point.getY();}
     
+    var current = new Line(point, new Point(xlimit, ylimit));
+    
     /* find all the lines on which we could turn */
     
     if (withcorridors === true)
@@ -2708,8 +2710,7 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
         {
             var l = this._corridors[i].getLine();
             
-            /* if this line is crossing ours */
-            if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
+            if (l.hasSameDirection(line) === false && l.isCrossing(current))
             {
                 /* if there is some place to turn */
                 if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
@@ -2717,7 +2718,13 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
                  || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
                  || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
                 {
-                    lines.push(l);
+                    // if our "remaining" current line is a point
+                    // or if our point is not an intersection created by this line and our current line, and our "remaining" current line is not a point
+                    if (current.isPoint()
+                     || (!current.isPoint() && !l.containsPoint(point)))
+                    {
+                        lines.push(l);
+                    }
                 }
             }
         }
@@ -2729,16 +2736,20 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
         {
             var l = this._ghosthouse[i].getLine();
             
-            /* if this line is crossing ours */
-            if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
+            if (l.hasSameDirection(line) === false && l.isCrossing(current))
             {
-                /* if there is some place to turn */
                 if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
                  || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
                  || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
                  || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
                 {
-                    lines.push(l);
+                    // if our "remaining" current line is a point
+                    // or if our point is not an intersection created by this line and our current line, and our "remaining" current line is not a point
+                    if (current.isPoint()
+                     || (!current.isPoint() && !l.containsPoint(point)))
+                    {
+                        lines.push(l);
+                    }
                 }
             }
         }
@@ -2750,16 +2761,20 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
         {
             var l = this._links[i].getLine();
             
-            /* if this line is crossing ours */
-            if (l.isCrossing(new Line(point, new Point(xlimit, ylimit))))
+            if (l.hasSameDirection(line) === false && l.isCrossing(current))
             {
-                /* if there is some place to turn */
                 if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
                  || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
                  || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
                  || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
                 {
-                    lines.push(l);
+                    // if our "remaining" current line is a point
+                    // or if our point is not an intersection created by this line and our current line, and our "remaining" current line is not a point
+                    if (current.isPoint()
+                     || (!current.isPoint() && !l.containsPoint(point)))
+                    {
+                        lines.push(l);
+                    }
                 }
             }
         }
@@ -2813,7 +2828,6 @@ Maze.prototype.nextIntersection = function(point, direction)
     else if (direction === Direction.RIGHT) {xlimit = line.getPoint2().getX(); ylimit = point.getY();}
     
     var current = new Line(point, new Point(xlimit, ylimit));
-    //var ispoint = current.isPoint();
     
     for(var i=0; i<this._corridors.length; i++)
     {
@@ -2823,7 +2837,13 @@ Maze.prototype.nextIntersection = function(point, direction)
         {
             if (l.isCrossing(current))
             {
-                lines.push(l);
+                // if our "remaining" current line is a point
+                // or if our point is not an intersection created by this line and our current line, and our "remaining" current line is not a point
+                if (current.isPoint()
+                 || (!current.isPoint() && !l.containsPoint(point)))
+                {
+                    lines.push(l);
+                }
             }
         }
     }
@@ -2836,7 +2856,11 @@ Maze.prototype.nextIntersection = function(point, direction)
         {
             if (l.isCrossing(current))
             {
-                lines.push(l);
+                if (current.isPoint()
+                 || (!current.isPoint() && !l.containsPoint(point)))
+                {
+                    lines.push(l);
+                }
             }
         }
     }
@@ -2849,7 +2873,11 @@ Maze.prototype.nextIntersection = function(point, direction)
         {
             if (l.isCrossing(current))
             {
-                lines.push(l);
+                if (current.isPoint()
+                 || (!current.isPoint() && !l.containsPoint(point)))
+                {
+                    lines.push(l);
+                }
             }
         }
     }
@@ -3901,52 +3929,29 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         
     }*/
     
-    
-    /*if (this._newdirtime % 1000 > (this._newdirtime + elapsed) % 1000) // on change une fois toutes les secondes
-    {
-        var nextdir = 1 + Math.floor(Math.random() * ((4-1)+1));
-        
-        switch(nextdir)
-        {
-            case 1: this.changeDirection(Direction.UP, maze);
-                    break;
-            case 2: this.changeDirection(Direction.RIGHT, maze);
-                    break;
-            case 3: this.changeDirection(Direction.DOWN, maze);
-                    break;
-            case 4: this.changeDirection(Direction.LEFT, maze);
-                    break;
-        }
-    }*/
-    
-    
     /*if (this._state !== GhostState.FRIGHTENED && Math.random() < 0.1)
     {
         this._state = GhostState.FRIGHTENED;
     }*/
     
-    //this._newdirtime = (this._newdirtime + elapsed) % (1000);
     
-    // return a Point even if the corridor just make a 90° angle,
+    
+    // - return a Point even if the corridor just make a 90° angle,
     // but doesn't return anything if it's a dead end
+    // - return the intersection if the ghost is exactly on it, only if the "remaining" line of the ghost is a point
     var int = maze.nextIntersection(this._position, this._direction);
     
     if (typeof int !== "undefined")
     {
         var directions = maze.possibleDirections(int);
         
-        if (this._id === GhostType.PINKY)
-        //if (this._id === GhostType.CLYDE)
-        {
-            //console.log("argh length: " + directions.length);
-        }
-        
         var bestdirection = null;
         var bestdistance = Number.MAX_VALUE;
         
         for(var i=0; i<directions.length; i++)
         {
-            // if choosing that direction would not cause the ghost to go back (the ghost can't go back ; cf original pacman rules)
+            // if choosing that direction would not cause the ghost to go back
+            // (original pacman rules : the ghost can't go back)
             if ((directions[i] === Direction.UP && this._direction !== Direction.DOWN)
              || (directions[i] === Direction.RIGHT && this._direction !== Direction.LEFT)
              || (directions[i] === Direction.DOWN && this._direction !== Direction.UP)
@@ -3976,31 +3981,33 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 
                 var possibledistance = possibleposition.distanceToPoint(pacman.getPosition());
                 
-                /*TODO
-                    - pense que si egalite, y'a un ordre dans le choix des directions, cf dossier pacman du site
-                    - euh apparemment y'a des fantomes qui vont quand meme en arriere la, ca va pas ca ; tester avec un seul et faire des console.log
-                */
-                
                 if (possibledistance < bestdistance)
                 {
                     bestdistance = possibledistance;
                     bestdirection = directions[i];
                 }
+                else if (possibledistance === bestdistance)
+                {
+                    // (original pacman rules : if equal distance, priority for chosen direction is up > left > down)
+                    if (bestdirection === Direction.RIGHT
+                     || (bestdirection === Direction.DOWN && (directions[i] === Direction.LEFT || directions[i] === Direction.UP))
+                     || (bestdirection === Direction.LEFT && directions[i] === Direction.UP))
+                    {
+                        bestdirection = directions[i];
+                    }
+                }
             }
         }
         
-        if (this._id === GhostType.PINKY)
-        //if (this._id === GhostType.CLYDE)
+        if (bestdirection === this._direction)
         {
-            //console.log("argh direction: " + bestdirection);
+            this._nextdirection = null;
+            this._nextturn = null;
         }
-        
-        this.changeDirection(bestdirection, maze);
-        
-        if (this._id === GhostType.PINKY)
-        //if (this._id === GhostType.CLYDE)
+        else
         {
-            //console.log("argh newdirection: " + this._direction);
+            this._nextdirection = bestdirection;
+            this._nextturn = new Point(int.getX(), int.getY());
         }
     }
     /*
