@@ -213,14 +213,14 @@ var MAP_1 =
                 ],
     
     pacman:     {
-                    x:          0,
-                    y:          0,
-                    direction:  Direction.UP
+                    x:          14,
+                    y:          22,
+                    direction:  Direction.LEFT
                 },
     ghosts:     [
-                    {id: GhostType.BLINKY, x: 8,  y: 10, direction: Direction.RIGHT},
-                    {id: GhostType.PINKY,  x: 12.5, y: 13.5, direction: Direction.UP},
+                    {id: GhostType.BLINKY, x: 12.5, y: 10, direction: Direction.LEFT},
                     {id: GhostType.INKY,   x: 10.5, y: 13.5, direction: Direction.UP},
+                    {id: GhostType.PINKY,  x: 12.5, y: 13.5, direction: Direction.UP},
                     {id: GhostType.CLYDE,  x: 14.5, y: 13.5, direction: Direction.UP}
                 ]
 };
@@ -3743,6 +3743,7 @@ Ghost.prototype.reinit = function(id, x, y, direction)
     
     this._position.set(x, y);
     this._direction = direction;
+    
     this._nextdirection = null;
     this._nextturn = null;
     
@@ -3926,9 +3927,23 @@ Ghost.prototype.move = function(elapsed, maze)
 
 Ghost.prototype.movementAIToTarget = function(elapsed, maze, target)
 {
-    // - return a Point even if the corridor just make a 90° angle,
-    // but doesn't return anything if it's a dead end
+    // - return a Point even if the corridor just make a 90° angle
+    // - doesn't return anything if the corridor is a dead end
     // - return the intersection if the ghost is exactly on it, only if the "remaining" line of the ghost is a point
+    
+    if (this._position.equalsPoint(target))
+    {
+        /*this._direction = null;
+        this._nextdirection = null;
+        this._nextturn = null;*/
+        return;
+    }
+    
+    /* TODO
+        - if this._direction === null, then check possibledirections()
+          and choose the bestdirection and assign it to this._direction, and then continue
+    */
+    
     var int = maze.nextIntersection(this._position, this._direction);
     
     if (typeof int !== "undefined")
@@ -3949,25 +3964,10 @@ Ghost.prototype.movementAIToTarget = function(elapsed, maze, target)
             {
                 var possibleposition = null;
                 
-                if (directions[i] === Direction.UP)
-                {
-                    possibleposition = new Point(int.getX(), int.getY() - GRID_UNIT);
-                }
-                
-                if (directions[i] === Direction.RIGHT)
-                {
-                    possibleposition = new Point(int.getX() + GRID_UNIT, int.getY());
-                }
-                
-                if (directions[i] === Direction.DOWN)
-                {
-                    possibleposition = new Point(int.getX(), int.getY() + GRID_UNIT);
-                }
-                
-                if (directions[i] === Direction.LEFT)
-                {
-                    possibleposition = new Point(int.getX() - GRID_UNIT, int.getY());
-                }
+                if (directions[i] === Direction.UP)     {possibleposition = new Point(int.getX(), int.getY() - GRID_UNIT);}
+                if (directions[i] === Direction.RIGHT)  {possibleposition = new Point(int.getX() + GRID_UNIT, int.getY());}
+                if (directions[i] === Direction.DOWN)   {possibleposition = new Point(int.getX(), int.getY() + GRID_UNIT);}
+                if (directions[i] === Direction.LEFT)   {possibleposition = new Point(int.getX() - GRID_UNIT, int.getY());}
                 
                 var withcorridors = false;
                 var withghosthouse = false;
@@ -4054,221 +4054,152 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
             var links = maze.getLinks();
             var target = null;
             
+            // use as a target the first link extremity which is not inside the ghost house
             for(var i=0; i<links.length; i++)
             {
                 var p1 = links[i].getLine().getPoint1();
                 var p2 = links[i].getLine().getPoint2();
                 
-                if (!maze.containsPoint(p1, false, true, false))
-                {
-                    target = p1;
-                    break;
-                }
-                
-                if (!maze.containsPoint(p2, false, true, false))
-                {
-                    target = p2;
-                    break;
-                }
+                if (!maze.containsPoint(p1, false, true, false))    {target = p1; break;}
+                if (!maze.containsPoint(p2, false, true, false))    {target = p2; break;}
             }
             
             this.movementAIToTarget(elapsed, maze, target);
-            
-            return;
         }
         
         if (this._state === GhostState.NORMAL)
         {
             this.movementAIToTarget(elapsed, maze, pacman.getPosition());
-            return;
         }
     }
     
     /******************************* "INKY" AI *******************************/
     
-    if (this._id === GhostType.INKY
-     && this._state === GhostState.ATHOME
-     && maze.getEatenPacdots() < 30)
+    if (this._id === GhostType.INKY)
     {
-        var current = maze.currentLine(this._position, this._direction);
-        
-        if (isVertical(current))
+        if (maze.getEatenPacdots() < 30)
         {
-            // make the ghost do up/down/up/down/... moves
-            
-            if (current.getPoint1().equalsPoint(this._position))
+            if (this._state === GhostState.ATHOME)
             {
-                this._direction = Direction.DOWN;
-                this._nextdirection = null;
-                this._nextturn = null;
-            }
-            
-            if (current.getPoint2().equalsPoint(this._position))
-            {
-                this._direction = Direction.UP;
-                this._nextdirection = null;
-                this._nextturn = null;
-            }
-        }
-        
-        if (isHorizontal(current))
-        {
-            // make the ghost do left/right/left/right/... moves
-            
-            if (current.getPoint1().equalsPoint(this._position))
-            {
-                this._direction = Direction.RIGHT;
-                this._nextdirection = null;
-                this._nextturn = null;
-            }
-            
-            if (current.getPoint2().equalsPoint(this._position))
-            {
-                this._direction = Direction.LEFT;
-                this._nextdirection = null;
-                this._nextturn = null;
-            }
-        }
-        
-        return;
-    }
-    
-    if (this._id === GhostType.INKY
-     && maze.getEatenPacdots() >= 30)
-    {
-        if (this._state === GhostState.ATHOME)
-        {
-            this._state = GhostState.LEAVINGHOME;
-        }
-        
-        if (this._state === GhostState.LEAVINGHOME)
-        {
-            // go to the link extremity which is not inside the ghost house
-            
-            var links = maze.getLinks();
-            var target = null;
-            
-            for(var i=0; i<links.length; i++)
-            {
-                var p1 = links[i].getLine().getPoint1();
-                var p2 = links[i].getLine().getPoint2();
+                var current = maze.currentLine(this._position, this._direction);
                 
-                if (!maze.containsPoint(p1, false, true, false))
+                var newdirection = this._direction;
+                
+                // make the ghost do up/down/up/down/... moves
+                if (isVertical(current))
                 {
-                    target = p1;
-                    break;
+                    if (current.getPoint1().equalsPoint(this._position))    {newdirection = Direction.DOWN;}
+                    if (current.getPoint2().equalsPoint(this._position))    {newdirection = Direction.UP;}
                 }
                 
-                if (!maze.containsPoint(p2, false, true, false))
+                // make the ghost do left/right/left/right/... moves
+                if (isHorizontal(current))
                 {
-                    target = p2;
-                    break;
+                    if (current.getPoint1().equalsPoint(this._position))    {newdirection = Direction.RIGHT;}
+                    if (current.getPoint2().equalsPoint(this._position))    {newdirection = Direction.LEFT;}
                 }
+                
+                this._direction = newdirection;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+        }
+        else
+        {
+            if (this._state === GhostState.ATHOME)
+            {
+                this._state = GhostState.LEAVINGHOME;
             }
             
-            this.movementAIToTarget(elapsed, maze, target);
+            if (this._state === GhostState.LEAVINGHOME)
+            {
+                // go to the link extremity which is not inside the ghost house
+                
+                var links = maze.getLinks();
+                var target = null;
+                
+                // use as a target the first link extremity which is not inside the ghost house
+                for(var i=0; i<links.length; i++)
+                {
+                    var p1 = links[i].getLine().getPoint1();
+                    var p2 = links[i].getLine().getPoint2();
+                    
+                    if (!maze.containsPoint(p1, false, true, false))    {target = p1; break;}
+                    if (!maze.containsPoint(p2, false, true, false))    {target = p2; break;}
+                }
+                
+                this.movementAIToTarget(elapsed, maze, target);
+            }
             
-            return;
-        }
-        
-        if (this._state === GhostState.NORMAL)
-        {
-            this.movementAIToTarget(elapsed, maze, pacman.getPosition());
-            return;
+            if (this._state === GhostState.NORMAL)
+            {
+                this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+            }
         }
     }
     
     /******************************* "CLYDE" AI ******************************/
     
-    if (this._id === GhostType.CLYDE
-     && this._state === GhostState.ATHOME
-     && maze.getEatenPacdots() < (maze.getTotalPacdots())/3)
+    if (this._id === GhostType.CLYDE)
     {
-        var current = maze.currentLine(this._position, this._direction);
-        
-        if (isVertical(current))
+        if (maze.getEatenPacdots() < (maze.getTotalPacdots())/3)
         {
-            // make the ghost do up/down/up/down/... moves
-            
-            if (current.getPoint1().equalsPoint(this._position))
+            if (this._state === GhostState.ATHOME)
             {
-                this._direction = Direction.DOWN;
-                this._nextdirection = null;
-                this._nextturn = null;
-            }
-            
-            if (current.getPoint2().equalsPoint(this._position))
-            {
-                this._direction = Direction.UP;
-                this._nextdirection = null;
-                this._nextturn = null;
-            }
-        }
-        
-        if (isHorizontal(current))
-        {
-            // make the ghost do left/right/left/right/... moves
-            
-            if (current.getPoint1().equalsPoint(this._position))
-            {
-                this._direction = Direction.RIGHT;
-                this._nextdirection = null;
-                this._nextturn = null;
-            }
-            
-            if (current.getPoint2().equalsPoint(this._position))
-            {
-                this._direction = Direction.LEFT;
-                this._nextdirection = null;
-                this._nextturn = null;
-            }
-        }
-        
-        return;
-    }
-    
-    if (this._id === GhostType.CLYDE
-     && maze.getEatenPacdots() >= (maze.getTotalPacdots())/3)
-    {
-        if (this._state === GhostState.ATHOME)
-        {
-            this._state = GhostState.LEAVINGHOME;
-        }
-        
-        if (this._state === GhostState.LEAVINGHOME)
-        {
-            // go to the link extremity which is not inside the ghost house
-            
-            var links = maze.getLinks();
-            var target = null;
-            
-            for(var i=0; i<links.length; i++)
-            {
-                var p1 = links[i].getLine().getPoint1();
-                var p2 = links[i].getLine().getPoint2();
+                var current = maze.currentLine(this._position, this._direction);
                 
-                if (!maze.containsPoint(p1, false, true, false))
+                var newdirection = this._direction;
+                
+                // make the ghost do up/down/up/down/... moves
+                if (isVertical(current))
                 {
-                    target = p1;
-                    break;
+                    if (current.getPoint1().equalsPoint(this._position))    {newdirection = Direction.DOWN;}
+                    if (current.getPoint2().equalsPoint(this._position))    {newdirection = Direction.UP;}
                 }
                 
-                if (!maze.containsPoint(p2, false, true, false))
+                // make the ghost do left/right/left/right/... moves
+                if (isHorizontal(current))
                 {
-                    target = p2;
-                    break;
+                    if (current.getPoint1().equalsPoint(this._position))    {newdirection = Direction.RIGHT;}
+                    if (current.getPoint2().equalsPoint(this._position))    {newdirection = Direction.LEFT;}
                 }
+                
+                this._direction = newdirection;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+        }
+        else
+        {
+            if (this._state === GhostState.ATHOME)
+            {
+                this._state = GhostState.LEAVINGHOME;
             }
             
-            this.movementAIToTarget(elapsed, maze, target);
+            if (this._state === GhostState.LEAVINGHOME)
+            {
+                // go to the link extremity which is not inside the ghost house
+                
+                var links = maze.getLinks();
+                var target = null;
+                
+                // use as a target the first link extremity which is not inside the ghost house
+                for(var i=0; i<links.length; i++)
+                {
+                    var p1 = links[i].getLine().getPoint1();
+                    var p2 = links[i].getLine().getPoint2();
+                    
+                    if (!maze.containsPoint(p1, false, true, false))    {target = p1; break;}
+                    if (!maze.containsPoint(p2, false, true, false))    {target = p2; break;}
+                }
+                
+                this.movementAIToTarget(elapsed, maze, target);
+            }
             
-            return;
-        }
-        
-        if (this._state === GhostState.NORMAL)
-        {
-            this.movementAIToTarget(elapsed, maze, pacman.getPosition());
-            return;
+            if (this._state === GhostState.NORMAL)
+            {
+                this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+            }
         }
     }
 };
@@ -4282,7 +4213,10 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     
     - faire que les fantomes aillent dans leur coin aussi au debut ?
     - avoir en fait un update() pour les elements, et dedans y faire le move() ? (+ animate() si besoin ?)
-    - se debarrasser des directions de depart ?
+    - specifier les etats dans le litteral
+    - le orange va a gauche au lieu d'aller a droite quand je me met en haut a droite
+    - faire le todo de movementAIToTarget()
+    - revoie le move() (de maniere generale, celui de pacman aussi), et voir si on fait bien les changements d'etat dans le move() et pas dans le movementAI(), et penser que si c'est dans le move(), si y'a eu un long "elapsed" alors faudra que le move() fasse ptetre un movementAI() pour connaitre la prochaine direction a prendre, vu que la ghost pourrait atteindre une intersection ou autre
 */
 
 
@@ -4395,6 +4329,8 @@ var logicLoop = function()
 
     //  better performances : draw in a hidden canvas and then drawImage() or putimagedata()
     //  cf: http://stackoverflow.com/questions/13916066/speed-up-the-drawing-of-many-points-on-a-html5-canvas-element
+    
+    - futur multi: mode CTF, avec pacman et ghosts au meme niveau de vitesse etc
     
     - utiliser getImageData() et putImageData() pour les boutons ingame et les
     faire changer de couleur/forme, ou simplement redessiner si ça pose pas de
