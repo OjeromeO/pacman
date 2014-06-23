@@ -220,8 +220,8 @@ var MAP_1 =
     ghosts:     [
                     {id: GhostType.BLINKY, x: 8,  y: 10, direction: Direction.RIGHT},
                     {id: GhostType.PINKY,  x: 12.5, y: 13.5, direction: Direction.UP},
-                    {id: GhostType.INKY,   x: 14, y: 10, direction: Direction.LEFT},
-                    {id: GhostType.CLYDE,  x: 17, y: 10, direction: Direction.DOWN}
+                    {id: GhostType.INKY,   x: 10.5, y: 13.5, direction: Direction.LEFT},
+                    {id: GhostType.CLYDE,  x: 14.5, y: 13.5, direction: Direction.DOWN}
                 ]
 };
 
@@ -2293,6 +2293,7 @@ Status.prototype.getScore = function()
     return this._score;
 };
 
+
 Status.prototype.increaseScore = function(incr)
 {
     assert((typeof incr === "number"), "incr is not a number");
@@ -2388,6 +2389,9 @@ var Maze = function(ghosthouse, corridors, links, pacdots, portals)
     this._powerpellets = [];
     this._portals = portals;
     
+    this._totalpacdots = this._pacdots.length;
+    this._eatenpacdots = 0;
+    
     this._graphicsborder = null;
     this._graphicsbackground = null;
     
@@ -2416,6 +2420,26 @@ Maze.prototype.reinit = function(pacdots)
     this._pacdots.length = 0;
     this._pacdots = pacdots;
     this._powerpellets.length = 0;
+    
+    this._totalpacdots = this._pacdots.length;
+    this._eatenpacdots = 0;
+};
+
+Maze.prototype.increaseEatenPacdots = function(incr)
+{
+    assert((typeof incr === "number"), "incr is not a number");
+    
+    this._eatenpacdots += incr;
+};
+
+Maze.prototype.getEatenPacdots = function()
+{
+    return this._eatenpacdots;
+};
+
+Maze.prototype.getTotalPacdots = function()
+{
+    return this._totalpacdots;
 };
 
 Maze.prototype.getWidth = function()
@@ -3390,6 +3414,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
             if (travelled1.containsPoint(maze.getPacdot(i).getPosition()))
             {
                 status.increaseScore(PACDOT_POINT);
+                maze.increaseEatenPacdots(1);
                 eatenpacdots.push(i);
             }
         }
@@ -3457,6 +3482,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
         if (travelled2.containsPoint(maze.getPacdot(i).getPosition()))
         {
             status.increaseScore(PACDOT_POINT);
+            maze.increaseEatenPacdots(1);
             eatenpacdots.push(i);
         }
     }
@@ -3508,14 +3534,30 @@ var Ghost = function(id, x, y, direction)
     
     Movable.call(this, x, y, direction);
     
-    this._state = GhostState.LEAVINGHOME;
-    
     this._id = id;
-    
-    this._newdirtime = 0;       // TEMPORAIRE (tests)
     
     this._animtime = 0;
     this._normalwave = true;
+    
+    if (this._id === GhostType.BLINKY)
+    {
+        this._state = GhostState.NORMAL;
+    }
+    
+    if (this._id === GhostType.PINKY)
+    {
+        this._state = GhostState.LEAVINGHOME;
+    }
+    
+    if (this._id === GhostType.INKY)
+    {
+        this._state = GhostState.ATHOME;
+    }
+    
+    if (this._id === GhostType.CLYDE)
+    {
+        this._state = GhostState.ATHOME;
+    }
 };
 
 Ghost.prototype = Object.create(Movable.prototype);
@@ -3686,7 +3728,7 @@ Ghost.prototype.draw = function()
     context.fill();
 };
 
-Ghost.prototype.changeDirection = function(direction, maze)
+/*Ghost.prototype.changeDirection = function(direction, maze)
 {
     assert((isDirection(direction)), "direction value is not valid");
     assert((maze instanceof Maze), "maze is not a Maze");
@@ -3720,7 +3762,6 @@ Ghost.prototype.changeDirection = function(direction, maze)
         if (this._state === GhostState.ATHOME)
         {
             withghosthouse = true;
-            //withlinks = true;
         }
         
         if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
@@ -3734,7 +3775,7 @@ Ghost.prototype.changeDirection = function(direction, maze)
         
         this._nextturn = (typeof point === "undefined") ? null : point ;
     }
-};
+};*/
 
 Ghost.prototype.reinit = function(x, y, direction)
 {
@@ -3799,7 +3840,7 @@ Ghost.prototype.move = function(elapsed, maze)
         movement -= turndistance;
         
         /* if we were inside the ghosthouse, and now we leaved it */
-        if (this._state === GhostState.ATHOME && maze.containsPoint(this._position, true, false, false))
+        if (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, true, false, false))
         {
             this._state = GhostState.NORMAL;
         }
@@ -3844,7 +3885,7 @@ Ghost.prototype.move = function(elapsed, maze)
     this.setPosition(newx, newy);
     
     /* if we were inside the ghosthouse, and now we leaved it */
-    if (this._state === GhostState.ATHOME && maze.containsPoint(this._position, true, false, false))
+    if (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, true, false, false))
     {
         this._state = GhostState.NORMAL;
     }
@@ -3903,39 +3944,8 @@ Ghost.prototype.move = function(elapsed, maze)
     }
 };
 
-Ghost.prototype.movementAI = function(elapsed, maze, pacman)
+Ghost.prototype.movementAIToTarget = function(elapsed, maze, target)
 {
-    /*
-        if GhostState.ATHOME/NORMAL/FRIGHTENED/EATEN ...
-    */
-    
-    /*if (this._id === GhostType.BLINKY)
-    {
-        
-    }
-    
-    if (this._id === GhostType.PINKY)
-    {
-        
-    }
-    
-    if (this._id === GhostType.INKY)
-    {
-        
-    }
-    
-    if (this._id === GhostType.CLYDE)
-    {
-        
-    }*/
-    
-    /*if (this._state !== GhostState.FRIGHTENED && Math.random() < 0.1)
-    {
-        this._state = GhostState.FRIGHTENED;
-    }*/
-    
-    
-    
     // - return a Point even if the corridor just make a 90° angle,
     // but doesn't return anything if it's a dead end
     // - return the intersection if the ghost is exactly on it, only if the "remaining" line of the ghost is a point
@@ -3979,21 +3989,45 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                     possibleposition = new Point(int.getX() - GRID_UNIT, int.getY());
                 }
                 
-                var possibledistance = possibleposition.distanceToPoint(pacman.getPosition());
-                
-                if (possibledistance < bestdistance)
+                var withcorridors = false;
+                var withghosthouse = false;
+                var withlinks = false;
+            
+                if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
                 {
-                    bestdistance = possibledistance;
-                    bestdirection = directions[i];
+                    withcorridors = true;
                 }
-                else if (possibledistance === bestdistance)
+                
+                if (this._state === GhostState.ATHOME)
                 {
-                    // (original pacman rules : if equal distance, priority for chosen direction is up > left > down)
-                    if (bestdirection === Direction.RIGHT
-                     || (bestdirection === Direction.DOWN && (directions[i] === Direction.LEFT || directions[i] === Direction.UP))
-                     || (bestdirection === Direction.LEFT && directions[i] === Direction.UP))
+                    withghosthouse = true;
+                }
+                
+                if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
+                {
+                    withcorridors = true;
+                    withghosthouse = true;
+                    withlinks = true;
+                }
+                
+                if (maze.containsPoint(possibleposition, withcorridors, withghosthouse, withlinks))
+                {
+                    var possibledistance = possibleposition.distanceToPoint(target);
+                    
+                    if (possibledistance < bestdistance)
                     {
+                        bestdistance = possibledistance;
                         bestdirection = directions[i];
+                    }
+                    else if (possibledistance === bestdistance)
+                    {
+                        // (original pacman rules : if equal distance, priority for chosen direction is up > left > down)
+                        if (bestdirection === Direction.RIGHT
+                         || (bestdirection === Direction.DOWN && (directions[i] === Direction.LEFT || directions[i] === Direction.UP))
+                         || (bestdirection === Direction.LEFT && directions[i] === Direction.UP))
+                        {
+                            bestdirection = directions[i];
+                        }
                     }
                 }
             }
@@ -4015,6 +4049,172 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     */
 };
 
+Ghost.prototype.movementAI = function(elapsed, maze, pacman)
+{
+    /****************************** "BLINKY" AI ******************************/
+    
+    if (this._id === GhostType.BLINKY)
+    {
+        this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+    }
+    
+    /******************************* "PINKY" AI ******************************/
+    
+    if (this._id === GhostType.PINKY)
+    {
+        if (this._state === GhostState.ATHOME)
+        {
+            this._state = GhostState.LEAVINGHOME;
+        }
+        
+        if (this._state === GhostState.LEAVINGHOME)
+        {
+            // go to the link extremity which is not inside the ghost house
+            
+            var links = maze.getLinks();
+            var target = null;
+            
+            for(var i=0; i<links.length; i++)
+            {
+                var p1 = links[i].getLine().getPoint1();
+                var p2 = links[i].getLine().getPoint2();
+                
+                if (!maze.containsPoint(p1, false, true, false))
+                {
+                    target = p1;
+                    break;
+                }
+                
+                if (!maze.containsPoint(p2, false, true, false))
+                {
+                    target = p2;
+                    break;
+                }
+            }
+            
+            this.movementAIToTarget(elapsed, maze, target);
+            
+            return;
+        }
+        
+        if (this._state === GhostState.NORMAL)
+        {
+            this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+            return;
+        }
+    }
+    
+    /******************************* "INKY" AI *******************************/
+    
+    if (this._id === GhostType.INKY
+     && this._state === GhostState.ATHOME
+     && maze.getEatenPacdots() < 30)
+    {
+        //TODO haut/bas/haut/...
+        return;
+    }
+    
+    if (this._id === GhostType.INKY
+     && maze.getEatenPacdots() >= 30)
+    {
+        if (this._state === GhostState.ATHOME)
+        {
+            this._state = GhostState.LEAVINGHOME;
+        }
+        
+        if (this._state === GhostState.LEAVINGHOME)
+        {
+            // go to the link extremity which is not inside the ghost house
+            
+            var links = maze.getLinks();
+            var target = null;
+            
+            for(var i=0; i<links.length; i++)
+            {
+                var p1 = links[i].getLine().getPoint1();
+                var p2 = links[i].getLine().getPoint2();
+                
+                if (!maze.containsPoint(p1, false, true, false))
+                {
+                    target = p1;
+                    break;
+                }
+                
+                if (!maze.containsPoint(p2, false, true, false))
+                {
+                    target = p2;
+                    break;
+                }
+            }
+            
+            this.movementAIToTarget(elapsed, maze, target);
+            
+            return;
+        }
+        
+        if (this._state === GhostState.NORMAL)
+        {
+            this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+            return;
+        }
+    }
+    
+    /******************************* "CLYDE" AI ******************************/
+    
+    if (this._id === GhostType.CLYDE
+     && this._state === GhostState.ATHOME
+     && maze.getEatenPacdots() < (maze.getTotalPacdots())/3)
+    {
+        //TODO haut/bas/haut/...
+        return;
+    }
+    
+    if (this._id === GhostType.CLYDE
+     && maze.getEatenPacdots() >= (maze.getTotalPacdots())/3)
+    {
+        if (this._state === GhostState.ATHOME)
+        {
+            this._state = GhostState.LEAVINGHOME;
+        }
+        
+        if (this._state === GhostState.LEAVINGHOME)
+        {
+            // go to the link extremity which is not inside the ghost house
+            
+            var links = maze.getLinks();
+            var target = null;
+            
+            for(var i=0; i<links.length; i++)
+            {
+                var p1 = links[i].getLine().getPoint1();
+                var p2 = links[i].getLine().getPoint2();
+                
+                if (!maze.containsPoint(p1, false, true, false))
+                {
+                    target = p1;
+                    break;
+                }
+                
+                if (!maze.containsPoint(p2, false, true, false))
+                {
+                    target = p2;
+                    break;
+                }
+            }
+            
+            this.movementAIToTarget(elapsed, maze, target);
+            
+            return;
+        }
+        
+        if (this._state === GhostState.NORMAL)
+        {
+            this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+            return;
+        }
+    }
+};
+
 
 /* TODO
     - faire le movementAI() de Ghost
@@ -4023,8 +4223,8 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         http://www.developpez.net/forums/d306886/autres-langages/algorithmes/pacman-algorithme-poursuite/
     
     - avoir en fait un update() pour les elements, et dedans y faire le move() ? (+ animate() si besoin ?)
-    - pour l'instant, on suppose que au debut les ghosts ont l'etat ATHOME, mais il serait tt a fait possible que la map les ait positionnés en dehors de la ghosthouse, puisque dans l'original le rouge est deja sorti devant !
-      specifier ca dans le litteral ? ou le deduire via la classe Map quand on genere le ghost avec getghosts() ? ou autre ?
+    - se debarrasser des directions de depart ?
+    - quand on restart, le rouge se bloque a droite => a cause des directions de depart ou autre, ou car pr l'instant y'a pas de methode reinit pour les ghosts ?
 */
 
 
