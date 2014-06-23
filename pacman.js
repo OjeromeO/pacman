@@ -220,8 +220,8 @@ var MAP_1 =
     ghosts:     [
                     {id: GhostType.BLINKY, x: 8,  y: 10, direction: Direction.RIGHT},
                     {id: GhostType.PINKY,  x: 12.5, y: 13.5, direction: Direction.UP},
-                    {id: GhostType.INKY,   x: 10.5, y: 13.5, direction: Direction.LEFT},
-                    {id: GhostType.CLYDE,  x: 14.5, y: 13.5, direction: Direction.DOWN}
+                    {id: GhostType.INKY,   x: 10.5, y: 13.5, direction: Direction.UP},
+                    {id: GhostType.CLYDE,  x: 14.5, y: 13.5, direction: Direction.UP}
                 ]
 };
 
@@ -2139,7 +2139,7 @@ PlayingState.prototype.restart = function()
     
     for(var i=0; i<ghosts.length; i++)
     {
-        this._ghosts[i].reinit(ghosts[i].getPosition().getX(), ghosts[i].getPosition().getY(), ghosts[i].getDirection());
+        this._ghosts[i].reinit(ghosts[i].getID(), ghosts[i].getPosition().getX(), ghosts[i].getPosition().getY(), ghosts[i].getDirection());
     }
 };
 
@@ -3563,6 +3563,11 @@ var Ghost = function(id, x, y, direction)
 Ghost.prototype = Object.create(Movable.prototype);
 Ghost.prototype.constructor = Ghost;
 
+Ghost.prototype.getID = function()
+{
+    return this._id;
+};
+
 /*TODO y'a plusieurs trucs a mettre en constantes */
 Ghost.prototype.draw = function()
 {
@@ -3728,66 +3733,41 @@ Ghost.prototype.draw = function()
     context.fill();
 };
 
-/*Ghost.prototype.changeDirection = function(direction, maze)
-{
-    assert((isDirection(direction)), "direction value is not valid");
-    assert((maze instanceof Maze), "maze is not a Maze");
-    
-    if (direction === this._direction
-     || direction === this._nextdirection)
-    {
-        return;
-    }
-    
-    if ((isVertical(direction) && isVertical(this._direction))
-     || (isHorizontal(direction) && isHorizontal(this._direction)))
-    {
-        this._direction = direction;
-        this._nextdirection = null;
-        this._nextturn = null;
-    }
-    else
-    {
-        this._nextdirection = direction;
-        
-        var withcorridors = false;
-        var withghosthouse = false;
-        var withlinks = false;
-        
-        if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
-        {
-            withcorridors = true;
-        }
-        
-        if (this._state === GhostState.ATHOME)
-        {
-            withghosthouse = true;
-        }
-        
-        if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
-        {
-            withcorridors = true;
-            withghosthouse = true;
-            withlinks = true;
-        }
-        
-        var point = maze.nextTurn(this._position, this._direction, this._nextdirection, withcorridors, withghosthouse, withlinks);
-        
-        this._nextturn = (typeof point === "undefined") ? null : point ;
-    }
-};*/
-
-Ghost.prototype.reinit = function(x, y, direction)
+Ghost.prototype.reinit = function(id, x, y, direction)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     assert((isDirection(direction)), "direction value is not valid");
     
-    this._state = GhostState.ATHOME;
+    this._id = id;
+    
     this._position.set(x, y);
     this._direction = direction;
     this._nextdirection = null;
     this._nextturn = null;
+    
+    this._animtime = 0;
+    this._normalwave = true;
+    
+    if (this._id === GhostType.BLINKY)
+    {
+        this._state = GhostState.NORMAL;
+    }
+    
+    if (this._id === GhostType.PINKY)
+    {
+        this._state = GhostState.LEAVINGHOME;
+    }
+    
+    if (this._id === GhostType.INKY)
+    {
+        this._state = GhostState.ATHOME;
+    }
+    
+    if (this._id === GhostType.CLYDE)
+    {
+        this._state = GhostState.ATHOME;
+    }
 };
 
 Ghost.prototype.animate = function(elapsed)
@@ -4110,7 +4090,46 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
      && this._state === GhostState.ATHOME
      && maze.getEatenPacdots() < 30)
     {
-        //TODO haut/bas/haut/...
+        var current = maze.currentLine(this._position, this._direction);
+        
+        if (isVertical(current))
+        {
+            // make the ghost do up/down/up/down/... moves
+            
+            if (current.getPoint1().equalsPoint(this._position))
+            {
+                this._direction = Direction.DOWN;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+            
+            if (current.getPoint2().equalsPoint(this._position))
+            {
+                this._direction = Direction.UP;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+        }
+        
+        if (isHorizontal(current))
+        {
+            // make the ghost do left/right/left/right/... moves
+            
+            if (current.getPoint1().equalsPoint(this._position))
+            {
+                this._direction = Direction.RIGHT;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+            
+            if (current.getPoint2().equalsPoint(this._position))
+            {
+                this._direction = Direction.LEFT;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+        }
+        
         return;
     }
     
@@ -4165,7 +4184,46 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
      && this._state === GhostState.ATHOME
      && maze.getEatenPacdots() < (maze.getTotalPacdots())/3)
     {
-        //TODO haut/bas/haut/...
+        var current = maze.currentLine(this._position, this._direction);
+        
+        if (isVertical(current))
+        {
+            // make the ghost do up/down/up/down/... moves
+            
+            if (current.getPoint1().equalsPoint(this._position))
+            {
+                this._direction = Direction.DOWN;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+            
+            if (current.getPoint2().equalsPoint(this._position))
+            {
+                this._direction = Direction.UP;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+        }
+        
+        if (isHorizontal(current))
+        {
+            // make the ghost do left/right/left/right/... moves
+            
+            if (current.getPoint1().equalsPoint(this._position))
+            {
+                this._direction = Direction.RIGHT;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+            
+            if (current.getPoint2().equalsPoint(this._position))
+            {
+                this._direction = Direction.LEFT;
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+        }
+        
         return;
     }
     
@@ -4222,9 +4280,9 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
         http://www.developpez.net/forums/d306886/autres-langages/algorithmes/pacman-algorithme-poursuite/
     
+    - faire que les fantomes aillent dans leur coin aussi au debut ?
     - avoir en fait un update() pour les elements, et dedans y faire le move() ? (+ animate() si besoin ?)
     - se debarrasser des directions de depart ?
-    - quand on restart, le rouge se bloque a droite => a cause des directions de depart ou autre, ou car pr l'instant y'a pas de methode reinit pour les ghosts ?
 */
 
 
