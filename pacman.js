@@ -31,6 +31,14 @@ Object.defineProperties(GameState,
     "PLAYING": {value: 3, writable: false, configurable: false, enumerable: true}
 });
 
+var MovableState = {};
+Object.defineProperties(MovableState,
+{
+    "MOVING":   {value: 1, writable: false, configurable: false, enumerable: true},
+    "IMMOBILE":   {value: 2, writable: false, configurable: false, enumerable: true},
+    "PAUSED": {value: 3, writable: false, configurable: false, enumerable: true}
+});
+
 var PacmanState = {};
 Object.defineProperties(PacmanState,
 {
@@ -277,6 +285,20 @@ var isDirection = function(direction)
       || direction === Direction.DOWN
       || direction === Direction.RIGHT
       || direction === Direction.LEFT))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+};
+
+var isMovableState = function(state)
+{
+    if (state === MovableState.MOVING
+     || state === MovableState.IMMOBILE
+     || state === MovableState.PAUSED)
     {
         return true;
     }
@@ -1652,7 +1674,7 @@ Map.prototype.getPortals = function()
 
 Map.prototype.getPacman = function()
 {
-    return new Pacman(this._pacmanPosition.getX(), this._pacmanPosition.getY(), this._pacmanDirection);
+    return new Pacman(this._pacmanPosition.getX(), this._pacmanPosition.getY(), MovableState.MOVING, this._pacmanDirection);
 };
 
 Map.prototype.getGhosts = function()
@@ -1661,7 +1683,7 @@ Map.prototype.getGhosts = function()
     
     for(var i=0; i<this._ghostsPosition.length; i++)
     {
-        ghosts.push(new Ghost(this._ghostsId[i], this._ghostsPosition[i].getX(), this._ghostsPosition[i].getY(), this._ghostsDirection[i]));
+        ghosts.push(new Ghost(this._ghostsId[i], this._ghostsPosition[i].getX(), this._ghostsPosition[i].getY(), MovableState.MOVING, this._ghostsDirection[i]));
     }
     
     return ghosts;
@@ -2127,7 +2149,7 @@ PlayingState.prototype.restart = function()
     
     pacman.translate(xmappadding, ymappadding);
     
-    this._pacman.reinit(pacman.getPosition().getX(), pacman.getPosition().getY(), pacman.getDirection());
+    this._pacman.reinit(pacman.getPosition().getX(), pacman.getPosition().getY(), MovableState.MOVING, pacman.getDirection());
     
     // reinit ghosts
     var ghosts = this._map.getGhosts();
@@ -2139,7 +2161,7 @@ PlayingState.prototype.restart = function()
     
     for(var i=0; i<ghosts.length; i++)
     {
-        this._ghosts[i].reinit(ghosts[i].getID(), ghosts[i].getPosition().getX(), ghosts[i].getPosition().getY(), ghosts[i].getDirection());
+        this._ghosts[i].reinit(ghosts[i].getID(), ghosts[i].getPosition().getX(), ghosts[i].getPosition().getY(), MovableState.MOVING, ghosts[i].getDirection());
     }
 };
 
@@ -2147,26 +2169,11 @@ PlayingState.prototype.handleInput = function(key)
 {
     assert((isVirtualKeyCode(key)), "key is not a virtual key code");
     
-    if (key === 37)         /* left arrow */
-    {
-        this._pacman.changeDirection(Direction.LEFT, this._maze);
-    }
-    else if (key === 38)    /* up arrow */
-    {
-        this._pacman.changeDirection(Direction.UP, this._maze);
-    }
-    else if (key === 39)    /* right arrow */
-    {
-        this._pacman.changeDirection(Direction.RIGHT, this._maze);
-    }
-    else if (key === 40)    /* down arrow */
-    {
-        this._pacman.changeDirection(Direction.DOWN, this._maze);
-    }
-    else if (key === 32)    /* space bar */
-    {
-        return GameState.PAUSE;
-    }
+    if (key === 37)         {this._pacman.makeMovementToDirection(Direction.LEFT, this._maze);}     /* left arrow */
+    else if (key === 38)    {this._pacman.makeMovementToDirection(Direction.UP, this._maze);}       /* up arrow */
+    else if (key === 39)    {this._pacman.makeMovementToDirection(Direction.RIGHT, this._maze);}    /* right arrow */
+    else if (key === 40)    {this._pacman.makeMovementToDirection(Direction.DOWN, this._maze);}     /* down arrow */
+    else if (key === 32)    {return GameState.PAUSE;}                                               /* space bar */
     
     return GameState.PLAYING;
 };
@@ -2885,6 +2892,11 @@ Maze.prototype.currentLine = function(point, direction)
     }
 };
 
+/**
+ * Return the nearest intersection where we can turn into the specified direction.
+ * If we are exactly on a usable intersection, this intersection is not returned,
+ * except if we are at the end of our current line.
+ */
 Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridors, withghosthouse, withlinks)
 {
     assert((point instanceof Point), "point is not a Point");
@@ -3276,33 +3288,15 @@ Maze.prototype.draw = function()
     context.fillStyle = "blue";
     this._graphicsbackground.draw();
     
-    for(var i=0; i<this._corridors.length; i++)
-    {
-        this._corridors[i].draw();
-    }
-    
-    for(var i=0; i<this._ghosthouse.length; i++)
-    {
-        this._ghosthouse[i].draw();
-    }
-    
-    for(var i=0; i<this._links.length; i++)
-    {
-        this._links[i].draw();
-    }
-    
-    for(var i=0; i<this._pacdots.length; i++)
-    {
-        this._pacdots[i].draw();
-    }
+    for(var i=0; i<this._corridors.length; i++)     {this._corridors[i].draw();}
+    for(var i=0; i<this._ghosthouse.length; i++)    {this._ghosthouse[i].draw();}
+    for(var i=0; i<this._links.length; i++)         {this._links[i].draw();}
+    for(var i=0; i<this._pacdots.length; i++)       {this._pacdots[i].draw();}
 };
 
 Maze.prototype.drawPortals = function()
 {
-    for(var i=0; i<this._portals.length; i++)
-    {
-        this._portals[i].draw();
-    }
+    for(var i=0; i<this._portals.length; i++)       {this._portals[i].draw();}
 };
 
 
@@ -3319,34 +3313,75 @@ Maze.prototype.drawPortals = function()
 /******************************** Movable class *******************************/
 /******************************************************************************/
 
-var Movable = function(x, y, direction)
+var Movable = function(x, y, state, direction)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
-    assert((isDirection(direction)), "direction value is not valid");
+    assert((isMovableState(state)), "state is not a MovableState");
+    assert((isDirection(direction)
+         || (!isDirection(direction) && state === MovableState.IMMOBILE)), "direction value is not valid");
     
     this._position = new Point(x, y);
     this._direction = direction;
     
     this._nextdirection = null;     // direction requested
     this._nextturn = null;          // intersection that allows movement in the requested direction
+    
+    this._movablestate = state;
+};
+
+Movable.prototype.reinit = function(x, y, state, direction)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((isMovableState(state)), "state is not a MovableState");
+    assert((isDirection(direction)
+         || (!isDirection(direction) && state === MovableState.IMMOBILE)), "direction value is not valid");
+    
+    this._position = new Point(x, y);
+    this._direction = direction;
+    
+    this._nextdirection = null;
+    this._nextturn = null;
+    
+    this._movablestate = state;
 };
 
 Movable.prototype.getPosition = function()
 {
     return this._position;
 };
+Movable.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.set(x, y);
+};
+
+Movable.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+};
 
 Movable.prototype.getDirection = function()
 {
     return this._direction;
+};
+Movable.prototype.setDirection = function(direction)
+{
+    assert((isDirection(direction)), "direction value is not valid");
+
+    this._direction = direction;
 };
 
 Movable.prototype.getNextDirection = function()
 {
     return this._nextdirection;
 };
-
 Movable.prototype.setNextDirection = function(nextdirection)
 {
     assert((isDirection(nextdirection) || nextdirection === null), "nextdirection value is not valid");
@@ -3358,7 +3393,6 @@ Movable.prototype.getNextTurn = function()
 {
     return this._nextturn;
 };
-
 Movable.prototype.setNextTurn = function(nextturn)
 {
     assert((nextturn instanceof Point || nextturn === null), "nextturn value is not valid");
@@ -3366,12 +3400,11 @@ Movable.prototype.setNextTurn = function(nextturn)
     this._nextturn = nextturn;
 };
 
-Movable.prototype.setDirection = function(direction)
-{
-    assert((isDirection(direction)), "direction value is not valid");
-
-    this._direction = direction;
-};
+/*
+startMoving(direction[, nextdirection, nextturn])
+pausemoving()
+stopMoving()
+*/
 
 /* XXX: should use booleans like pause and stop maybe ?
 Movable.prototype.pause = function()
@@ -3391,13 +3424,15 @@ Movable.prototype.stop = function()
 /******************************** Pacman class ********************************/
 /******************************************************************************/
 
-var Pacman = function(x, y, direction)
+var Pacman = function(x, y, movablestate, direction)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
-    assert((isDirection(direction)), "direction value is not valid");
+    assert((isMovableState(movablestate)), "state is not a MovableState");
+    assert((isDirection(direction)
+         || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.call(this, x, y, direction);
+    Movable.call(this, x, y, movablestate, direction);
     
     this._state = PacmanState.NORMAL;
     
@@ -3408,6 +3443,21 @@ var Pacman = function(x, y, direction)
 
 Pacman.prototype = Object.create(Movable.prototype);
 Pacman.prototype.constructor = Pacman;
+
+Pacman.prototype.reinit = function(x, y, movablestate, direction)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((isMovableState(movablestate)), "state is not a MovableState");
+    assert((isDirection(direction)
+         || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
+    
+    Movable.prototype.reinit.call(this, x, y, movablestate, direction);
+    
+    this._animtime = 0;
+    this._mouthstartangle = 0;
+    this._mouthendangle = 0;
+};
 
 Pacman.prototype.draw = function()
 {
@@ -3427,7 +3477,6 @@ Pacman.prototype.getState = function()
 {
     return this._state;
 };
-
 Pacman.prototype.setState = function(state)
 {
     assert((isPacmanState(state)), "state value is not valid");
@@ -3435,46 +3484,29 @@ Pacman.prototype.setState = function(state)
     this._state = state;
 };
 
-Pacman.prototype.reinit = function(x, y, direction)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    assert((isDirection(direction)), "direction value is not valid");
-    
-    this._position.set(x, y);
-    this._direction = direction;
-    this._nextdirection = null;
-    this._nextturn = null;
-    this._animtime = 0;
-    this._mouthstartangle = 0;
-    this._mouthendangle = 0;
-};
-
 Pacman.prototype.getMouthstartangle = function()
 {
     return this._mouthstartangle;
+};
+Pacman.prototype.setMouthstartangle = function(angle)
+{
+    assert((typeof angle === "number"), "angle is not a number");
+    
+    this._mouthstartangle = angle;
 };
 
 Pacman.prototype.getMouthendangle = function()
 {
     return this._mouthendangle;
 };
-
-Pacman.prototype.setPosition = function(x, y)
+Pacman.prototype.setMouthendangle = function(angle)
 {
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-
-    this._position.setPosition(x, y);
-};
-
-Pacman.prototype.translate = function(x, y)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
+    assert((typeof angle === "number"), "angle is not a number");
     
-    this._position.translate(x, y);
+    this._mouthendangle = angle;
 };
+
+
 
 
 
@@ -3489,32 +3521,57 @@ Pacman.prototype.translate = function(x, y)
 
 
 
-
-Pacman.prototype.changeDirection = function(direction, maze)
+/**
+ * If possible, make the pacman immediately move to this direction,
+ * otherwise plan to turn at the next intersection that allows that change.
+ * If pacman is IMMOBILE, make him MOVING if going to this direction is possible.
+ */
+Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
 {
-    assert((isDirection(direction)), "direction value is not valid");
+    assert((isDirection(newdirection)), "newdirection value is not valid");
     assert((maze instanceof Maze), "maze is not a Maze");
     
-    if (direction === this._direction
-     || direction === this._nextdirection)
+    if (this._movablestate === MovableState.IMMOBILE)
     {
-        return;
-    }
-    
-    if ((isVertical(direction) && isVertical(this._direction))
-     || (isHorizontal(direction) && isHorizontal(this._direction)))
-    {
-        this._direction = direction;
-        this._nextdirection = null;
-        this._nextturn = null;
+        //TODO
+        // chercher notre ligne, prendre une verticale si newdirection verticale, horizontale si horionzalte...
     }
     else
     {
-        this._nextdirection = direction;
+        if (newdirection === this._direction
+         || newdirection === this._nextdirection)
+        {
+            return;
+        }
         
-        var point = maze.nextTurn(this._position, this._direction, this._nextdirection, true, false, false);
-        
-        this._nextturn = (typeof point === "undefined") ? null : point ;
+        if ((isVertical(newdirection) && isVertical(this._direction))
+         || (isHorizontal(newdirection) && isHorizontal(this._direction)))
+        {
+            this._direction = newdirection;
+            this._nextdirection = null;
+            this._nextturn = null;
+        }
+        else
+        {
+            var point = maze.nextTurn(this._position, this._direction, newdirection, true, false, false);
+            
+            if (typeof point === "undefined")
+            {
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+            else
+            {
+                this._nextdirection = newdirection;
+                this._nextturn = point;
+            }
+            /*this._nextdirection = newdirection;
+            this._nextturn = (typeof point === "undefined") ? null : point ;*/
+            /* TODO
+                en fait le truc d'avant marchait car on gardait le this._nextdirection et dans le move() on faisait une recherche dès qu'on depassait un teleporteur...
+                => changer ça, maintenant faut verifier que si point est undefined, alors verifier si on arrivera pas a un teleporter, et chercher celui associé, et utiliser hlinecontainer/vlinecontainer pr sa ligne courante et ainsi trouver la prochaine intersection correspondante et l'enregistrer si une telle intersection existe
+            */
+        }
     }
 };
 
@@ -3532,31 +3589,16 @@ Pacman.prototype.animate = function(elapsed)
     
     this._animtime = (this._animtime + elapsed) % (1000);
     
-    if (this._direction === Direction.UP)
-    {
-        baseangle = 3*Math.PI/2;
-    }
-    else if (this._direction === Direction.DOWN)
-    {
-        baseangle = Math.PI/2;
-    }
-    else if (this._direction === Direction.LEFT)
-    {
-        baseangle = Math.PI;
-    }
+    if (this._movablestate === MovableState.IMMOBILE)   {baseangle = 0;}
     else
     {
-        baseangle = 0;
+        if (this._direction === Direction.UP)           {baseangle = 3*Math.PI/2;}
+        else if (this._direction === Direction.DOWN)    {baseangle = Math.PI/2;}
+        else if (this._direction === Direction.LEFT)    {baseangle = Math.PI;}
+        else if (this._direction === Direction.RIGHT)   {baseangle = 0;}
     }
     
-    if (this._animtime < 500)
-    {
-        mouthhalfangle = 6/10 * this._animtime/500;
-    }
-    else
-    {
-        mouthhalfangle = 6/10 * (1000-this._animtime)/500;
-    }
+    mouthhalfangle = 6/10 * ((this._animtime < 500) ? this._animtime : 1000-this._animtime)/500;
     
     this._mouthstartangle = baseangle + mouthhalfangle;
     this._mouthendangle = baseangle - mouthhalfangle;
@@ -3708,42 +3750,50 @@ Pacman.prototype.move = function(elapsed, maze, status)
 /******************************** Ghost class *********************************/
 /******************************************************************************/
 
-var Ghost = function(id, x, y, direction)
+var Ghost = function(id, x, y, movablestate, direction)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
-    assert((isDirection(direction)), "direction value is not valid");
+    assert((isMovableState(movablestate)), "state is not a MovableState");
+    assert((isDirection(direction)
+         || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.call(this, x, y, direction);
+    Movable.call(this, x, y, movablestate, direction);
     
     this._id = id;
     
     this._animtime = 0;
     this._normalwave = true;
     
-    if (this._id === GhostType.BLINKY)
-    {
-        this._state = GhostState.NORMAL;
-    }
-    
-    if (this._id === GhostType.PINKY)
-    {
-        this._state = GhostState.LEAVINGHOME;
-    }
-    
-    if (this._id === GhostType.INKY)
-    {
-        this._state = GhostState.ATHOME;
-    }
-    
-    if (this._id === GhostType.CLYDE)
-    {
-        this._state = GhostState.ATHOME;
-    }
+    if (this._id === GhostType.BLINKY)      {this._state = GhostState.NORMAL;}
+    else if (this._id === GhostType.PINKY)  {this._state = GhostState.LEAVINGHOME;}
+    else if (this._id === GhostType.INKY)   {this._state = GhostState.ATHOME;}
+    else if (this._id === GhostType.CLYDE)  {this._state = GhostState.ATHOME;}
 };
 
 Ghost.prototype = Object.create(Movable.prototype);
 Ghost.prototype.constructor = Ghost;
+
+Ghost.prototype.reinit = function(id, x, y, movablestate, direction)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    assert((isMovableState(movablestate)), "state is not a MovableState");
+    assert((isDirection(direction)
+         || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
+    
+    Movable.prototype.reinit.call(this, x, y, movablestate, direction);
+    
+    this._id = id;
+    
+    this._animtime = 0;
+    this._normalwave = true;
+    
+    if (this._id === GhostType.BLINKY)      {this._state = GhostState.NORMAL;}
+    else if (this._id === GhostType.PINKY)  {this._state = GhostState.LEAVINGHOME;}
+    else if (this._id === GhostType.INKY)   {this._state = GhostState.ATHOME;}
+    else if (this._id === GhostType.CLYDE)  {this._state = GhostState.ATHOME;}
+};
 
 Ghost.prototype.getID = function()
 {
@@ -3758,22 +3808,10 @@ Ghost.prototype.draw = function()
     
     context.fillStyle = "white";
     
-    if (this._id === GhostType.BLINKY)
-    {
-        context.fillStyle = "red";
-    }
-    if (this._id === GhostType.PINKY)
-    {
-        context.fillStyle = "pink";
-    }
-    if (this._id === GhostType.INKY)
-    {
-        context.fillStyle = "cyan";
-    }
-    if (this._id === GhostType.CLYDE)
-    {
-        context.fillStyle = "orange";
-    }
+    if (this._id === GhostType.BLINKY)      {context.fillStyle = "red";}
+    else if (this._id === GhostType.PINKY)  {context.fillStyle = "pink";}
+    else if (this._id === GhostType.INKY)   {context.fillStyle = "cyan";}
+    else if (this._id === GhostType.CLYDE)  {context.fillStyle = "orange";}
 
     var waveheight = 2 * Math.floor(GHOST_TOTALHEIGHT/10);
     
@@ -3890,21 +3928,13 @@ Ghost.prototype.draw = function()
     var paddingX = 0;
     var paddingY = 0;
     
-    if (this._direction === Direction.UP)
+    if (this._movablestate === MovableState.IMMOBILE)   {paddingX = 0; paddingY = 0;}
+    else
     {
-        paddingY = -2;
-    }
-    if (this._direction === Direction.DOWN)
-    {
-        paddingY = 2;
-    }
-    if (this._direction === Direction.LEFT)
-    {
-        paddingX = -2;
-    }
-    if (this._direction === Direction.RIGHT)
-    {
-        paddingX = 2;
+        if (this._direction === Direction.UP)           {paddingY = -2;}
+        else if (this._direction === Direction.DOWN)    {paddingY = 2;}
+        else if (this._direction === Direction.LEFT)    {paddingX = -2;}
+        else if (this._direction === Direction.RIGHT)   {paddingX = 2;}
     }
     
     context.beginPath();
@@ -3915,64 +3945,10 @@ Ghost.prototype.draw = function()
     context.fill();
 };
 
-Ghost.prototype.reinit = function(id, x, y, direction)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    assert((isDirection(direction)), "direction value is not valid");
-    
-    this._id = id;
-    
-    this._position.set(x, y);
-    this._direction = direction;
-    
-    this._nextdirection = null;
-    this._nextturn = null;
-    
-    this._animtime = 0;
-    this._normalwave = true;
-    
-    if (this._id === GhostType.BLINKY)
-    {
-        this._state = GhostState.NORMAL;
-    }
-    
-    if (this._id === GhostType.PINKY)
-    {
-        this._state = GhostState.LEAVINGHOME;
-    }
-    
-    if (this._id === GhostType.INKY)
-    {
-        this._state = GhostState.ATHOME;
-    }
-    
-    if (this._id === GhostType.CLYDE)
-    {
-        this._state = GhostState.ATHOME;
-    }
-};
-
 Ghost.prototype.animate = function(elapsed)
 {
     this._animtime = (this._animtime + elapsed) % (1000);
     this._normalwave = (this._animtime < 250 || (this._animtime > 500 && this._animtime < 750));
-};
-
-Ghost.prototype.setPosition = function(x, y)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-
-    this._position.setPosition(x, y);
-};
-
-Ghost.prototype.translate = function(x, y)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    
-    this._position.translate(x, y);
 };
 
 Ghost.prototype.move = function(elapsed, maze)
@@ -4478,8 +4454,9 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     - implementer les etats CHASE et SCATTER (qui remplaceront NORMAL)
     - utiliser des booleens pause et stop, cf XXX dans le movable, au lieu de s'occuper a gérer des cas avec direction=null : direction doit obligatoirement etre different de null (toute facon le checkconfig forcera le litteral a avoir une direction) ; quoique, en fait on pourrait tt a fait avoir un ghost ou meme un pacman sans direction au debut (le pacman attend un input et le ghost sera updaté automatiquement) ?
         ===> MovementState.NORMAL/PAUSE/STOP ; le litteral doit definir une direction sauf si on a un etat de depart à STOP
-    - penser que pacman.changedirection() et le maze.nextturn() sont a revoir si le this._direction=null, et donc si le direction du nextturn() est a null...
+    - penser que pacman.makeMovementToDirection() et le maze.nextturn() sont a revoir si le this._direction=null, et donc si le direction du nextturn() est a null...
     - revoir le move() (de maniere generale, celui de pacman aussi), et voir si on fait bien les changements d'etat dans le move() et pas dans le movementAI(), et penser que si c'est dans le move(), si y'a eu un long "elapsed" alors faudra que le move() fasse ptetre un movementAI() pour connaitre la prochaine direction a prendre, vu que la ghost pourrait atteindre une intersection ou autre
+    - terminer le Pacman.makeMovementToDirection ; terminer de revoir la classe Pacman (a partir donc du makemovementtodirection) et specifiquement les mouvements, et terminer d'y integrer les movablestate ; faire meme chose pour les ghosts
 */
 
 
