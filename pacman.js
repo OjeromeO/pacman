@@ -2597,11 +2597,196 @@ Maze.prototype.containsPoint = function(point, withcorridors, withghosthouse, wi
     return false;
 };
 
+Maze.prototype.HLineContainer = function(point)
+{
+    assert((point instanceof Point), "point is not a Point");
+    
+    var line = null;
+    
+    for(var i=0; i<this._corridors.length; i++)
+    {
+        line = this._corridors[i].getLine();
+        
+        if (isHorizontal(line) && line.containsPoint(point))
+        {
+            /* check if this line overlap with a link line */
+            for(var i=0; i<this._links.length; i++)
+            {
+                if (isHorizontal(this._links[i].getLine())
+                 && (this._links[i].getLine().containsPoint(line.getPoint1()) || this._links[i].getLine().containsPoint(line.getPoint2())))
+                {
+                    return concatenateLines(line, this._links[i].getLine());
+                }
+            }
+            
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._ghosthouse.length; i++)
+    {
+        line = this._ghosthouse[i].getLine();
+        
+        if (isHorizontal(line) && line.containsPoint(point))
+        {
+            /* check if this line overlap with a link line */
+            for(var i=0; i<this._links.length; i++)
+            {
+                if (isHorizontal(this._links[i].getLine())
+                 && (this._links[i].getLine().containsPoint(line.getPoint1()) || this._links[i].getLine().containsPoint(line.getPoint2())))
+                {
+                    return concatenateLines(line, this._links[i].getLine());
+                }
+            }
+            
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._links.length; i++)
+    {
+        line = this._links[i].getLine();
+        
+        if (isHorizontal(line) && line.containsPoint(point))
+        {
+            return line;
+        }
+    }
+    
+    /*
+        if we reach this place, that means that the point has a perpendicular
+        direction on its current line ; this is possible when manually setting the
+        element on the maze
+    */
+    
+    for(var i=0; i<this._corridors.length; i++)
+    {
+        line = this._corridors[i].getLine();
+        
+        if (line.containsPoint(point))
+        {
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._ghosthouse.length; i++)
+    {
+        line = this._ghosthouse[i].getLine();
+        
+        if (line.containsPoint(point))
+        {
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._links.length; i++)
+    {
+        line = this._links[i].getLine();
+        
+        if (line.containsPoint(point))
+        {
+            return line;
+        }
+    }
+};
+
+Maze.prototype.VLineContainer = function(point)
+{
+    assert((point instanceof Point), "point is not a Point");
+    
+    var line = null;
+    
+    for(var i=0; i<this._corridors.length; i++)
+    {
+        line = this._corridors[i].getLine();
+        
+        if (isVertical(line) && line.containsPoint(point))
+        {
+            /* check if this line overlap with a link line */
+            for(var i=0; i<this._links.length; i++)
+            {
+                if (isVertical(this._links[i].getLine())
+                 && (this._links[i].getLine().containsPoint(line.getPoint1()) || this._links[i].getLine().containsPoint(line.getPoint2())))
+                {
+                    return concatenateLines(line, this._links[i].getLine());
+                }
+            }
+            
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._ghosthouse.length; i++)
+    {
+        line = this._ghosthouse[i].getLine();
+        
+        if (isVertical(line) && line.containsPoint(point))
+        {
+            /* check if this line overlap with a link line */
+            for(var i=0; i<this._links.length; i++)
+            {
+                if (isVertical(this._links[i].getLine())
+                 && (this._links[i].getLine().containsPoint(line.getPoint1()) || this._links[i].getLine().containsPoint(line.getPoint2())))
+                {
+                    return concatenateLines(line, this._links[i].getLine());
+                }
+            }
+            
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._links.length; i++)
+    {
+        line = this._links[i].getLine();
+        
+        if (isVertical(line) && line.containsPoint(point))
+        {
+            return line;
+        }
+    }
+    
+    /*
+        if we reach this place, that means that the point has a perpendicular
+        direction on its current line ; this is possible when manually setting the
+        element on the maze
+    */
+    
+    for(var i=0; i<this._corridors.length; i++)
+    {
+        line = this._corridors[i].getLine();
+        
+        if (line.containsPoint(point))
+        {
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._ghosthouse.length; i++)
+    {
+        line = this._ghosthouse[i].getLine();
+        
+        if (line.containsPoint(point))
+        {
+            return line;
+        }
+    }
+    
+    for(var i=0; i<this._links.length; i++)
+    {
+        line = this._links[i].getLine();
+        
+        if (line.containsPoint(point))
+        {
+            return line;
+        }
+    }
+};
+
 Maze.prototype.currentLine = function(point, direction)
 {
     assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
-    assert((this.containsPoint(point, true, true, true)), "point is not inside the maze");
     
     var line = null;
     
@@ -2665,8 +2850,8 @@ Maze.prototype.currentLine = function(point, direction)
     
     /*
         if we reach this place, that means that the point has a perpendicular
-        direction on its current line ; this is only possible when setting the
-        pacman on the maze at the beginning
+        direction on its current line ; this is possible when manually setting the
+        element on the maze
     */
     
     for(var i=0; i<this._corridors.length; i++)
@@ -2942,10 +3127,6 @@ Maze.prototype.nextIntersection = function(point, direction)
 
 Maze.prototype.possibleDirections = function(point)
 {
-    /*TODO (faut encore tout reparcourir... tant pis héhé)*/
-    // si line.containsstrictly() alors ajout des 2 directions de la ligne
-    // sinon si line.contains() alors forcement c'est une extremite et donc ajouter la direction adequate
-    // sinon rien
     var upIsPossible = false;
     var rightIsPossible = false;
     var downIsPossible = false;
@@ -3192,6 +3373,20 @@ Movable.prototype.setDirection = function(direction)
     this._direction = direction;
 };
 
+/* XXX: should use booleans like pause and stop maybe ?
+Movable.prototype.pause = function()
+{
+    this._direction = null;
+};
+
+
+Movable.prototype.stop = function()
+{
+    this._direction = null;
+    this._nextdirection = null;
+    this._nextturn = null;
+};
+*/
 /******************************************************************************/
 /******************************** Pacman class ********************************/
 /******************************************************************************/
@@ -3209,34 +3404,22 @@ var Pacman = function(x, y, direction)
     this._animtime = 0;
     this._mouthstartangle = 0;
     this._mouthendangle = 0;
-    
-    this._graphicscirclearc = null;
-    
-    this._generateGraphics();
 };
 
 Pacman.prototype = Object.create(Movable.prototype);
 Pacman.prototype.constructor = Pacman;
-
-Pacman.prototype._generateGraphics = function()
-{
-    var circlearc = new DrawableCircleArc(this._position.getX(),
-                                          this._position.getY(),
-                                          PACMAN_RADIUS,
-                                          this._mouthstartangle,
-                                          this._mouthendangle);
-    
-    this._graphicscirclearc = circlearc;
-};
 
 Pacman.prototype.draw = function()
 {
     context.fillStyle = "yellow";
     
     context.beginPath();
-    context.moveTo(this._graphicscirclearc.getPosition().getX(),
-                   this._graphicscirclearc.getPosition().getY());
-    this._graphicscirclearc.drawInPath();
+    context.moveTo(this._position.getX(), this._position.getY());
+    context.arc(this._position.getX(),
+                this._position.getY(),
+                PACMAN_RADIUS,
+                this._mouthstartangle,
+                this._mouthendangle);
     context.fill();
 };
 
@@ -3262,9 +3445,9 @@ Pacman.prototype.reinit = function(x, y, direction)
     this._direction = direction;
     this._nextdirection = null;
     this._nextturn = null;
-    
-    this._graphicscirclearc.setPosition(this._position.getX(),
-                                        this._position.getY());
+    this._animtime = 0;
+    this._mouthstartangle = 0;
+    this._mouthendangle = 0;
 };
 
 Pacman.prototype.getMouthstartangle = function()
@@ -3283,8 +3466,6 @@ Pacman.prototype.setPosition = function(x, y)
     assert((typeof y === "number"), "y is not a number");
 
     this._position.setPosition(x, y);
-    this._graphicscirclearc.setPosition(this._position.getX(),
-                                        this._position.getY());
 };
 
 Pacman.prototype.translate = function(x, y)
@@ -3293,7 +3474,6 @@ Pacman.prototype.translate = function(x, y)
     assert((typeof y === "number"), "y is not a number");
     
     this._position.translate(x, y);
-    this._graphicscirclearc.translate(x, y);
 };
 
 
@@ -3380,14 +3560,16 @@ Pacman.prototype.animate = function(elapsed)
     
     this._mouthstartangle = baseangle + mouthhalfangle;
     this._mouthendangle = baseangle - mouthhalfangle;
-    
-    this._graphicscirclearc.setStartangle(this._mouthstartangle);
-    this._graphicscirclearc.setEndangle(this._mouthendangle);
 };
 
 Pacman.prototype.move = function(elapsed, maze, status)
 {
     assert((elapsed > 0), "elapsed value is not valid");
+    
+    if (this._direction == null)
+    {
+        return;
+    }
     
     var movement = Math.round(PACMAN_SPEED * elapsed/1000);
     var limit = 0;
@@ -3797,6 +3979,11 @@ Ghost.prototype.move = function(elapsed, maze)
 {
     assert((elapsed > 0), "elapsed value is not valid");
     
+    if (this._direction == null)
+    {
+        return;
+    }
+    
     var movement = Math.round(GHOST_SPEED * elapsed/1000);
     var limit = 0;
     var turndistance = 0;
@@ -3925,7 +4112,92 @@ Ghost.prototype.move = function(elapsed, maze)
     }
 };
 
-Ghost.prototype.movementAIToTarget = function(elapsed, maze, target)
+Ghost.prototype.movementAIToTargetFromPoint = function(maze, target, point)
+{
+    var directions = maze.possibleDirections(point);
+    
+    var bestdirection = null;
+    var bestdistance = Number.MAX_VALUE;
+    
+    for(var i=0; i<directions.length; i++)
+    {
+        // if choosing that direction would not cause the ghost to go back
+        // (original pacman rules : the ghost can't go back)
+        if ((directions[i] === Direction.UP && this._direction !== Direction.DOWN)
+         || (directions[i] === Direction.RIGHT && this._direction !== Direction.LEFT)
+         || (directions[i] === Direction.DOWN && this._direction !== Direction.UP)
+         || (directions[i] === Direction.LEFT && this._direction !== Direction.RIGHT))
+        {
+            var possibleposition = null;
+            
+            if (directions[i] === Direction.UP)     {possibleposition = new Point(point.getX(), point.getY() - GRID_UNIT);}
+            if (directions[i] === Direction.RIGHT)  {possibleposition = new Point(point.getX() + GRID_UNIT, point.getY());}
+            if (directions[i] === Direction.DOWN)   {possibleposition = new Point(point.getX(), point.getY() + GRID_UNIT);}
+            if (directions[i] === Direction.LEFT)   {possibleposition = new Point(point.getX() - GRID_UNIT, point.getY());}
+            
+            var withcorridors = false;
+            var withghosthouse = false;
+            var withlinks = false;
+        
+            if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
+            {
+                withcorridors = true;
+            }
+            
+            if (this._state === GhostState.ATHOME)
+            {
+                withghosthouse = true;
+            }
+            
+            if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
+            {
+                withcorridors = true;
+                withghosthouse = true;
+                withlinks = true;
+            }
+            
+            if (maze.containsPoint(possibleposition, withcorridors, withghosthouse, withlinks))
+            {
+                var possibledistance = possibleposition.distanceToPoint(target);
+                
+                if (possibledistance < bestdistance)
+                {
+                    bestdistance = possibledistance;
+                    bestdirection = directions[i];
+                }
+                else if (possibledistance === bestdistance)
+                {
+                    // (original pacman rules : if equal distance, priority for chosen direction is up > left > down)
+                    if (bestdirection === Direction.RIGHT
+                     || (bestdirection === Direction.DOWN && (directions[i] === Direction.LEFT || directions[i] === Direction.UP))
+                     || (bestdirection === Direction.LEFT && directions[i] === Direction.UP))
+                    {
+                        bestdirection = directions[i];
+                    }
+                }
+            }
+        }
+    }
+    
+    if (this._direction == null)
+    {
+        this._direction = bestdirection;
+        this._nextdirection = null;
+        this._nextturn = null;
+    }
+    else if (this._direction === bestdirection)
+    {
+        this._nextdirection = null;
+        this._nextturn = null;
+    }
+    else
+    {
+        this._nextdirection = bestdirection;
+        this._nextturn = new Point(point.getX(), point.getY());
+    }
+};
+
+Ghost.prototype.movementAIToTarget = function(maze, target)
 {
     // - return a Point even if the corridor just make a 90° angle
     // - doesn't return anything if the corridor is a dead end
@@ -3933,100 +4205,49 @@ Ghost.prototype.movementAIToTarget = function(elapsed, maze, target)
     
     if (this._position.equalsPoint(target))
     {
-        /*this._direction = null;
-        this._nextdirection = null;
-        this._nextturn = null;*/
         return;
     }
     
-    /* TODO
-        - if this._direction === null, then check possibledirections()
-          and choose the bestdirection and assign it to this._direction, and then continue
-    */
+    if (this._direction == null)
+    {
+        this.movementAIToTargetFromPoint(maze, target, this._position);
+    }
     
     var int = maze.nextIntersection(this._position, this._direction);
     
-    if (typeof int !== "undefined")
+    if (typeof int !== "undefined" && !int.equalsPoint(target))
     {
-        var directions = maze.possibleDirections(int);
-        
-        var bestdirection = null;
-        var bestdistance = Number.MAX_VALUE;
-        
-        for(var i=0; i<directions.length; i++)
-        {
-            // if choosing that direction would not cause the ghost to go back
-            // (original pacman rules : the ghost can't go back)
-            if ((directions[i] === Direction.UP && this._direction !== Direction.DOWN)
-             || (directions[i] === Direction.RIGHT && this._direction !== Direction.LEFT)
-             || (directions[i] === Direction.DOWN && this._direction !== Direction.UP)
-             || (directions[i] === Direction.LEFT && this._direction !== Direction.RIGHT))
-            {
-                var possibleposition = null;
-                
-                if (directions[i] === Direction.UP)     {possibleposition = new Point(int.getX(), int.getY() - GRID_UNIT);}
-                if (directions[i] === Direction.RIGHT)  {possibleposition = new Point(int.getX() + GRID_UNIT, int.getY());}
-                if (directions[i] === Direction.DOWN)   {possibleposition = new Point(int.getX(), int.getY() + GRID_UNIT);}
-                if (directions[i] === Direction.LEFT)   {possibleposition = new Point(int.getX() - GRID_UNIT, int.getY());}
-                
-                var withcorridors = false;
-                var withghosthouse = false;
-                var withlinks = false;
-            
-                if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
-                {
-                    withcorridors = true;
-                }
-                
-                if (this._state === GhostState.ATHOME)
-                {
-                    withghosthouse = true;
-                }
-                
-                if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
-                {
-                    withcorridors = true;
-                    withghosthouse = true;
-                    withlinks = true;
-                }
-                
-                if (maze.containsPoint(possibleposition, withcorridors, withghosthouse, withlinks))
-                {
-                    var possibledistance = possibleposition.distanceToPoint(target);
-                    
-                    if (possibledistance < bestdistance)
-                    {
-                        bestdistance = possibledistance;
-                        bestdirection = directions[i];
-                    }
-                    else if (possibledistance === bestdistance)
-                    {
-                        // (original pacman rules : if equal distance, priority for chosen direction is up > left > down)
-                        if (bestdirection === Direction.RIGHT
-                         || (bestdirection === Direction.DOWN && (directions[i] === Direction.LEFT || directions[i] === Direction.UP))
-                         || (bestdirection === Direction.LEFT && directions[i] === Direction.UP))
-                        {
-                            bestdirection = directions[i];
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (bestdirection === this._direction)
-        {
-            this._nextdirection = null;
-            this._nextturn = null;
-        }
-        else
-        {
-            this._nextdirection = bestdirection;
-            this._nextturn = new Point(int.getX(), int.getY());
-        }
+        this.movementAIToTargetFromPoint(maze, target, int);
     }
     /*
-        else it's a dead end / teleporter, and the ghost has to continue
+        else it's a dead end (maybe a teleporter), and the ghost has to continue
     */
+};
+
+Ghost.prototype.movementAIRandom = function(maze)
+{
+        //TODO sauf qu'en fait faut faire tout ca que a une intersection, on change pas la direction comme ça tt le temps... ; et si on a null, on fait comme dans movementAIToTarget => d'abord on se choisit une direction aleatoire, puis on continue et on decide pr la prochaine intersection
+        
+    var directions = maze.possibleDirections(point);
+    
+    var newdirection = directions[Math.floor(Math.random()*(directions.length))];
+    
+    if (this._direction == null)
+    {
+        this._direction = newdirection;
+        this._nextdirection = null;
+        this._nextturn = null;
+    }
+    else if (this._direction === newdirection)
+    {
+        this._nextdirection = null;
+        this._nextturn = null;
+    }
+    else
+    {
+        this._nextdirection = bestdirection;
+        this._nextturn = new Point(point.getX(), point.getY());
+    }
 };
 
 Ghost.prototype.movementAI = function(elapsed, maze, pacman)
@@ -4035,7 +4256,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     
     if (this._id === GhostType.BLINKY)
     {
-        this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+        this.movementAIToTarget(maze, pacman.getPosition());
     }
     
     /******************************* "PINKY" AI ******************************/
@@ -4064,12 +4285,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 if (!maze.containsPoint(p2, false, true, false))    {target = p2; break;}
             }
             
-            this.movementAIToTarget(elapsed, maze, target);
+            this.movementAIToTarget(maze, target);
         }
         
         if (this._state === GhostState.NORMAL)
         {
-            this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+            this.movementAIToTarget(maze, pacman.getPosition());
         }
     }
     
@@ -4081,7 +4302,27 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         {
             if (this._state === GhostState.ATHOME)
             {
-                var current = maze.currentLine(this._position, this._direction);
+                var current = null;
+                
+                if (this._direction == null)
+                {
+                    var vline = Maze.VLineContainer(this._position);
+                    
+                    if (typeof vline === "undefined")
+                    {
+                        current = Maze.HLineContainer(this._position);
+                        this._direction = Direction.LEFT;
+                    }
+                    else
+                    {
+                        current = vline;
+                        this._direction = Direction.UP;
+                    }
+                }
+                else
+                {
+                    current = maze.currentLine(this._position, this._direction);
+                }
                 
                 var newdirection = this._direction;
                 
@@ -4128,12 +4369,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                     if (!maze.containsPoint(p2, false, true, false))    {target = p2; break;}
                 }
                 
-                this.movementAIToTarget(elapsed, maze, target);
+                this.movementAIToTarget(maze, target);
             }
             
             if (this._state === GhostState.NORMAL)
             {
-                this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+                this.movementAIToTarget(maze, pacman.getPosition());
             }
         }
     }
@@ -4146,7 +4387,27 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         {
             if (this._state === GhostState.ATHOME)
             {
-                var current = maze.currentLine(this._position, this._direction);
+                var current = null;
+                
+                if (this._direction == null)
+                {
+                    var vline = Maze.VLineContainer(this._position);
+                    
+                    if (typeof vline === "undefined")
+                    {
+                        current = Maze.HLineContainer(this._position);
+                        this._direction = Direction.LEFT;
+                    }
+                    else
+                    {
+                        current = vline;
+                        this._direction = Direction.UP;
+                    }
+                }
+                else
+                {
+                    current = maze.currentLine(this._position, this._direction);
+                }
                 
                 var newdirection = this._direction;
                 
@@ -4193,12 +4454,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                     if (!maze.containsPoint(p2, false, true, false))    {target = p2; break;}
                 }
                 
-                this.movementAIToTarget(elapsed, maze, target);
+                this.movementAIToTarget(maze, target);
             }
             
             if (this._state === GhostState.NORMAL)
             {
-                this.movementAIToTarget(elapsed, maze, pacman.getPosition());
+                this.movementAIToTarget(maze, pacman.getPosition());
             }
         }
     }
@@ -4206,17 +4467,19 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
 
 
 /* TODO
-    - faire le movementAI() de Ghost
+    - compléter movementAI() et cie...
         http://www.grospixels.com/site/trucpac.php
         http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
         http://www.developpez.net/forums/d306886/autres-langages/algorithmes/pacman-algorithme-poursuite/
     
-    - faire que les fantomes aillent dans leur coin aussi au debut ?
-    - avoir en fait un update() pour les elements, et dedans y faire le move() ? (+ animate() si besoin ?)
+    - faire que les fantomes aillent dans leur coin aussi au debut
     - specifier les etats dans le litteral
-    - le orange va a gauche au lieu d'aller a droite quand je me met en haut a droite
-    - faire le todo de movementAIToTarget()
-    - revoie le move() (de maniere generale, celui de pacman aussi), et voir si on fait bien les changements d'etat dans le move() et pas dans le movementAI(), et penser que si c'est dans le move(), si y'a eu un long "elapsed" alors faudra que le move() fasse ptetre un movementAI() pour connaitre la prochaine direction a prendre, vu que la ghost pourrait atteindre une intersection ou autre
+    - terminer le TODO de movementAIRandom()
+    - implementer les etats CHASE et SCATTER (qui remplaceront NORMAL)
+    - utiliser des booleens pause et stop, cf XXX dans le movable, au lieu de s'occuper a gérer des cas avec direction=null : direction doit obligatoirement etre different de null (toute facon le checkconfig forcera le litteral a avoir une direction) ; quoique, en fait on pourrait tt a fait avoir un ghost ou meme un pacman sans direction au debut (le pacman attend un input et le ghost sera updaté automatiquement) ?
+        ===> MovementState.NORMAL/PAUSE/STOP ; le litteral doit definir une direction sauf si on a un etat de depart à STOP
+    - penser que pacman.changedirection() et le maze.nextturn() sont a revoir si le this._direction=null, et donc si le direction du nextturn() est a null...
+    - revoir le move() (de maniere generale, celui de pacman aussi), et voir si on fait bien les changements d'etat dans le move() et pas dans le movementAI(), et penser que si c'est dans le move(), si y'a eu un long "elapsed" alors faudra que le move() fasse ptetre un movementAI() pour connaitre la prochaine direction a prendre, vu que la ghost pourrait atteindre une intersection ou autre
 */
 
 
