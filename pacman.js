@@ -35,8 +35,8 @@ var MovableState = {};
 Object.defineProperties(MovableState,
 {
     "MOVING":   {value: 1, writable: false, configurable: false, enumerable: true},
-    "IMMOBILE":   {value: 2, writable: false, configurable: false, enumerable: true},
-    "PAUSED": {value: 3, writable: false, configurable: false, enumerable: true}
+    "IMMOBILE": {value: 2, writable: false, configurable: false, enumerable: true},
+    "PAUSED":   {value: 3, writable: false, configurable: false, enumerable: true}
 });
 
 var PacmanState = {};
@@ -2659,42 +2659,6 @@ Maze.prototype.HLineContainer = function(point)
             return line;
         }
     }
-    
-    /*
-        if we reach this place, that means that the point has a perpendicular
-        direction on its current line ; this is possible when manually setting the
-        element on the maze
-    */
-    
-    for(var i=0; i<this._corridors.length; i++)
-    {
-        line = this._corridors[i].getLine();
-        
-        if (line.containsPoint(point))
-        {
-            return line;
-        }
-    }
-    
-    for(var i=0; i<this._ghosthouse.length; i++)
-    {
-        line = this._ghosthouse[i].getLine();
-        
-        if (line.containsPoint(point))
-        {
-            return line;
-        }
-    }
-    
-    for(var i=0; i<this._links.length; i++)
-    {
-        line = this._links[i].getLine();
-        
-        if (line.containsPoint(point))
-        {
-            return line;
-        }
-    }
 };
 
 Maze.prototype.VLineContainer = function(point)
@@ -2748,42 +2712,6 @@ Maze.prototype.VLineContainer = function(point)
         line = this._links[i].getLine();
         
         if (isVertical(line) && line.containsPoint(point))
-        {
-            return line;
-        }
-    }
-    
-    /*
-        if we reach this place, that means that the point has a perpendicular
-        direction on its current line ; this is possible when manually setting the
-        element on the maze
-    */
-    
-    for(var i=0; i<this._corridors.length; i++)
-    {
-        line = this._corridors[i].getLine();
-        
-        if (line.containsPoint(point))
-        {
-            return line;
-        }
-    }
-    
-    for(var i=0; i<this._ghosthouse.length; i++)
-    {
-        line = this._ghosthouse[i].getLine();
-        
-        if (line.containsPoint(point))
-        {
-            return line;
-        }
-    }
-    
-    for(var i=0; i<this._links.length; i++)
-    {
-        line = this._links[i].getLine();
-        
-        if (line.containsPoint(point))
         {
             return line;
         }
@@ -3432,13 +3360,14 @@ var Pacman = function(x, y, movablestate, direction)
     assert((isDirection(direction)
          || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.call(this, x, y, movablestate, direction);
+    //Movable.call(this, x, y, movablestate, direction);
+    Movable.call(this, x, y, MovableState.IMMOBILE, direction);
     
     this._state = PacmanState.NORMAL;
     
     this._animtime = 0;
-    this._mouthstartangle = 0;
-    this._mouthendangle = 0;
+    this._mouthstartangle = 6/10;
+    this._mouthendangle = -6/10;
 };
 
 Pacman.prototype = Object.create(Movable.prototype);
@@ -3533,10 +3462,42 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
     
     if (this._movablestate === MovableState.IMMOBILE)
     {
-        //TODO
-        // chercher notre ligne, prendre une verticale si newdirection verticale, horizontale si horionzalte...
+        var currentline = null;
+        
+        if (isVertical(newdirection))
+        {
+            currentline = maze.VLineContainer(this._position);
+        }
+        
+        if (isHorizontal(newdirection))
+        {
+            currentline = maze.HLineContainer(this._position);
+        }
+        
+        if (typeof currentline !== "undefined")
+        {
+            // if we are at the end of the line and we want to go beyond that end...
+            if ((isVertical(newdirection)
+              && ((newdirection === Direction.UP && currentline.getPoint1().equalsPoint(this._position))
+               || (newdirection === Direction.DOWN && currentline.getPoint2().equalsPoint(this._position))))
+             || (isHorizontal(newdirection)
+              && ((newdirection === Direction.LEFT && currentline.getPoint1().equalsPoint(this._position))
+               || (newdirection === Direction.RIGHT && currentline.getPoint2().equalsPoint(this._position)))))
+            {
+                return;
+            }
+            else
+            {
+                this._direction = newdirection;
+                this._nextdirection = null;
+                this._nextturn = null;
+                
+                this._movablestate = MovableState.MOVING;
+            }
+        }
     }
-    else
+    else if (this._movablestate === MovableState.MOVING
+          || this._movablestate === MovableState.PAUSED)
     {
         if (newdirection === this._direction
          || newdirection === this._nextdirection)
@@ -3579,6 +3540,12 @@ Pacman.prototype.animate = function(elapsed)
 {
     assert((elapsed > 0), "elapsed value is not valid");
     
+    if (this._movablestate === MovableState.IMMOBILE
+     || this._movablestate === MovableState.PAUSED)
+    {
+        return;
+    }
+    
     /*
         max half angle : 6/10 rad
         mouth animation speed : 2 * MAX_HALF_ANGLE rad/s
@@ -3589,16 +3556,13 @@ Pacman.prototype.animate = function(elapsed)
     
     this._animtime = (this._animtime + elapsed) % (1000);
     
-    if (this._movablestate === MovableState.IMMOBILE)   {baseangle = 0;}
-    else
-    {
-        if (this._direction === Direction.UP)           {baseangle = 3*Math.PI/2;}
-        else if (this._direction === Direction.DOWN)    {baseangle = Math.PI/2;}
-        else if (this._direction === Direction.LEFT)    {baseangle = Math.PI;}
-        else if (this._direction === Direction.RIGHT)   {baseangle = 0;}
-    }
+    if (this._direction === Direction.UP)           {baseangle = 3*Math.PI/2;}
+    else if (this._direction === Direction.DOWN)    {baseangle = Math.PI/2;}
+    else if (this._direction === Direction.LEFT)    {baseangle = Math.PI;}
+    else if (this._direction === Direction.RIGHT)   {baseangle = 0;}
     
-    mouthhalfangle = 6/10 * ((this._animtime < 500) ? this._animtime : 1000-this._animtime)/500;
+    // at this._animtime = 0, we have the same angle that at the start or when we are IMMOBILE
+    mouthhalfangle = 6/10 * ((this._animtime < 500) ? 500-this._animtime : this._animtime-500)/500;
     
     this._mouthstartangle = baseangle + mouthhalfangle;
     this._mouthendangle = baseangle - mouthhalfangle;
@@ -3607,6 +3571,12 @@ Pacman.prototype.animate = function(elapsed)
 Pacman.prototype.move = function(elapsed, maze, status)
 {
     assert((elapsed > 0), "elapsed value is not valid");
+    
+    if (this._movablestate === MovableState.IMMOBILE
+     || this._movablestate === MovableState.PAUSED)
+    {
+        return;
+    }
     
     if (this._direction == null)
     {
@@ -4456,7 +4426,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         ===> MovementState.NORMAL/PAUSE/STOP ; le litteral doit definir une direction sauf si on a un etat de depart à STOP
     - penser que pacman.makeMovementToDirection() et le maze.nextturn() sont a revoir si le this._direction=null, et donc si le direction du nextturn() est a null...
     - revoir le move() (de maniere generale, celui de pacman aussi), et voir si on fait bien les changements d'etat dans le move() et pas dans le movementAI(), et penser que si c'est dans le move(), si y'a eu un long "elapsed" alors faudra que le move() fasse ptetre un movementAI() pour connaitre la prochaine direction a prendre, vu que la ghost pourrait atteindre une intersection ou autre
-    - terminer le Pacman.makeMovementToDirection ; terminer de revoir la classe Pacman (a partir donc du makemovementtodirection) et specifiquement les mouvements, et terminer d'y integrer les movablestate ; faire meme chose pour les ghosts
+    - terminer le Pacman.makeMovementToDirection() ; terminer de revoir la classe Pacman (a partir donc du makemovementtodirection) et specifiquement les mouvements, et terminer d'y integrer les movablestate ; faire meme chose pour les ghosts
 */
 
 
