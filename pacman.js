@@ -2718,6 +2718,16 @@ Maze.prototype.VLineContainer = function(point)
     }
 };
 
+Maze.prototype.isIntersection = function(point)
+{
+    assert((point instanceof Point), "point is not a Point");
+    
+    var vl = this.VLineContainer(point);
+    var hl = this.HLineContainer(point);
+    
+    return (typeof vl !== "undefined" && typeof hl !== "undefined");
+};
+
 Maze.prototype.currentLine = function(point, direction)
 {
     assert((point instanceof Point), "point is not a Point");
@@ -2818,6 +2828,23 @@ Maze.prototype.currentLine = function(point, direction)
             return line;
         }
     }
+};
+
+Maze.prototype.remainingLine = function(point, direction)
+{
+    var current = this.currentLine(point, direction);
+    
+    var xlimit = null;
+    var ylimit = null;
+    
+    if (direction === Direction.UP)         {xlimit = point.getX(); ylimit = current.getPoint1().getY();}
+    else if (direction === Direction.DOWN)  {xlimit = point.getX(); ylimit = current.getPoint2().getY();}
+    else if (direction === Direction.LEFT)  {xlimit = current.getPoint1().getX(); ylimit = point.getY();}
+    else if (direction === Direction.RIGHT) {xlimit = current.getPoint2().getX(); ylimit = point.getY();}
+    
+    var remaining = new Line(new Point(point.getX(), point.getY()), new Point(xlimit, ylimit));
+    
+    return remaining;
 };
 
 /**
@@ -3360,8 +3387,8 @@ var Pacman = function(x, y, movablestate, direction)
     assert((isDirection(direction)
          || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    //Movable.call(this, x, y, movablestate, direction);
-    Movable.call(this, x, y, MovableState.IMMOBILE, direction);
+    Movable.call(this, x, y, movablestate, direction);
+    //Movable.call(this, x, y, MovableState.IMMOBILE, direction);
     
     this._state = PacmanState.NORMAL;
     
@@ -3453,7 +3480,8 @@ Pacman.prototype.setMouthendangle = function(angle)
 /**
  * If possible, make the pacman immediately move to this direction,
  * otherwise plan to turn at the next intersection that allows that change.
- * If pacman is IMMOBILE, make him MOVING if going to this direction is possible.
+ * If pacman is IMMOBILE, make him MOVING if going to this direction is immediately possible.
+ * If pacman is PAUSED, make him MOVING if going to this direction is immediately or later (at an intersection) possible.
  */
 Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
 {
@@ -3484,7 +3512,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
               && ((newdirection === Direction.LEFT && currentline.getPoint1().equalsPoint(this._position))
                || (newdirection === Direction.RIGHT && currentline.getPoint2().equalsPoint(this._position)))))
             {
-                return;
+                //return;
             }
             else
             {
@@ -3496,25 +3524,106 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
             }
         }
     }
-    else if (this._movablestate === MovableState.MOVING
-          || this._movablestate === MovableState.PAUSED)
+    else if (this._movablestate === MovableState.PAUSED
+          || this._movablestate === MovableState.MOVING)
     {
-        if (newdirection === this._direction
-         || newdirection === this._nextdirection)
+        /*if (this._movablestate === MovableState.MOVING
+         && (newdirection === this._direction
+          || newdirection === this._nextdirection))
         {
-            return;
+            //return;
         }
+        //else if (this._movablestate === MovableState.PAUSED
+        //      && (newdirection === this._direction
+        //      || newdirection === this._nextdirection))
+        //{
+        //    return;
+        //}*/
         
-        if ((isVertical(newdirection) && isVertical(this._direction))
-         || (isHorizontal(newdirection) && isHorizontal(this._direction)))
+        if (maze.remainingLine(this._position, this._direction).isPoint()
+         && (maze.isIntersection(this._position) === false
+          || (maze.isIntersection(this._position) === true /*&& TODO directionIsAvailable(this._position, newdirection) === false */)))
+        {
+        }
+        else if (newdirection === this._direction
+              || newdirection === this._nextdirection)
+        {
+            if (this._movablestate === MovableState.MOVING)
+            {
+            }
+            else if (this._movablestate === MovableState.PAUSED)
+            {
+                this._movablestate = MovableState.MOVING;
+            }
+        }
+        else if ((isVertical(newdirection) && isVertical(this._direction))
+              || (isHorizontal(newdirection) && isHorizontal(this._direction)))
         {
             this._direction = newdirection;
             this._nextdirection = null;
             this._nextturn = null;
+            
+            if (this._movablestate === MovableState.PAUSED)
+            {
+                this._movablestate = MovableState.MOVING;
+            }
         }
         else
         {
-            var point = maze.nextTurn(this._position, this._direction, newdirection, true, false, false);
+            /*
+            var point = null;
+            
+            if (isIntersection(this._position) === true) // + AND we can move to newdirection
+            {
+                point = this._position;
+            }
+            else
+            {
+                point = maze.nextTurn(this._position, this._direction, newdirection, true, false, false);
+            }
+            
+            while(typeof point === "undefined")
+            {
+                //TODO
+                // si on se dirige vers un teleporteur
+                    // alors    trouver celui correspondant
+                                trouver la currentline de apres le teleporteur
+                                si c'est une ligne horizontale et qu'on veut aller en vertical alors c'est bon, idem ds l'autre sens
+                                et alors point = maze.nextturn(positionteleporteurcorrespondant, directionpdeuis teleporteur, newdirection, ...)
+                                mais si le teleporteur nous met sur une ligne de direction perpendiculaure a celle actuelle, que faire ?
+                    // sinon break
+                
+                var currentline = maze.currentLine(this._position, this._direction);
+                
+                // if we are going to a teleporter
+                if ((isVertical(currentline) && )
+                 || (isHorizontal(currentline) && )
+                 || is point ????)
+                {
+                    
+                }
+            }
+            
+            if (typeof point === "undefined")
+            {
+                this._nextdirection = null;
+                this._nextturn = null;
+            }
+            else
+            {
+                this._nextdirection = newdirection;
+                this._nextturn = point;
+                
+                if (this._movablestate === MovableState.PAUSED)
+                {
+                    this._movablestate = MovableState.MOVING;
+                }
+            }
+            */
+            
+            var point = null;
+            
+            point = maze.nextTurn(this._position, this._direction, newdirection, true, false, false);
             
             if (typeof point === "undefined")
             {
@@ -3561,7 +3670,7 @@ Pacman.prototype.animate = function(elapsed)
     else if (this._direction === Direction.LEFT)    {baseangle = Math.PI;}
     else if (this._direction === Direction.RIGHT)   {baseangle = 0;}
     
-    // at this._animtime = 0, we have the same angle that at the start or when we are IMMOBILE
+    // at this._animtime = 0, we have the same angle that at the start
     mouthhalfangle = 6/10 * ((this._animtime < 500) ? 500-this._animtime : this._animtime-500)/500;
     
     this._mouthstartangle = baseangle + mouthhalfangle;
