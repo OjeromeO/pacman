@@ -3092,6 +3092,44 @@ Maze.prototype.nextIntersection = function(point, direction)
     }
 };
 
+Maze.prototype.directionIsAvailable = function(point, direction)
+{
+    assert((point instanceof Point), "point is not a Point");
+    assert((isDirection(direction)), "direction value is not valid");
+    
+    var vl = this.VLineContainer(point);
+    var hl = this.HLineContainer(point);
+    
+    if (typeof vl !== "undefined")
+    {
+        if (isVertical(direction))
+        {
+            if ((vl.getPoint1().equalsPoint(point) === false && vl.getPoint2().equalsPoint(point) === false)
+             || (vl.getPoint1().equalsPoint(point) === true && direction === Direction.DOWN)
+             || (vl.getPoint2().equalsPoint(point) === true && direction === Direction.UP))
+            {
+                return true;
+            }
+        }
+    }
+    
+    if (typeof hl !== "undefined")
+    {
+        if (isHorizontal(direction))
+        {
+            if ((hl.getPoint1().equalsPoint(point) === false && hl.getPoint2().equalsPoint(point) === false)
+             || (hl.getPoint1().equalsPoint(point) === true && direction === Direction.RIGHT)
+             || (hl.getPoint2().equalsPoint(point) === true && direction === Direction.LEFT))
+            {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+};
+
+//TODO renommer en availableDirections, et utiliser H/VLineContainer comme pour directionIsAvailable, et prendre exemple sur directionIsAvailable
 Maze.prototype.possibleDirections = function(point)
 {
     var upIsPossible = false;
@@ -3540,18 +3578,24 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
         //    return;
         //}*/
         
-        if (maze.remainingLine(this._position, this._direction).isPoint()
-         && (maze.isIntersection(this._position) === false
-          || (maze.isIntersection(this._position) === true /*&& TODO directionIsAvailable(this._position, newdirection) === false */)))
+        if (maze.remainingLine(this._position, this._direction).isPoint())
         {
+            if (maze.directionIsAvailable(this._position, newdirection))
+            {
+                this._direction = newdirection;
+                this._nextdirection = null;
+                this._nextturn = null;
+                
+                if (this._movablestate === MovableState.PAUSED)
+                {
+                    this._movablestate = MovableState.MOVING;
+                }
+            }
         }
         else if (newdirection === this._direction
               || newdirection === this._nextdirection)
         {
-            if (this._movablestate === MovableState.MOVING)
-            {
-            }
-            else if (this._movablestate === MovableState.PAUSED)
+            if (this._movablestate === MovableState.PAUSED)
             {
                 this._movablestate = MovableState.MOVING;
             }
@@ -3640,6 +3684,10 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
             /* TODO
                 en fait le truc d'avant marchait car on gardait le this._nextdirection et dans le move() on faisait une recherche dès qu'on depassait un teleporteur...
                 => changer ça, maintenant faut verifier que si point est undefined, alors verifier si on arrivera pas a un teleporter, et chercher celui associé, et utiliser hlinecontainer/vlinecontainer pr sa ligne courante et ainsi trouver la prochaine intersection correspondante et l'enregistrer si une telle intersection existe
+            */
+            /* TODO
+                - etant donne que maintenant on a isIntersection() et remainingLine(), nextTurn() devrait ptetre plus renvoyer le turn si on est dessus et ceci quelle que soit la situation , et ptetre pareil pr nextIntersection() ?
+                - y'a probablement des fonctions de maze qui devraient avoir les 3 parametres withXXX : car là le pacman risque d'aller à des endroits où il a pas le droit non ?
             */
         }
     }
