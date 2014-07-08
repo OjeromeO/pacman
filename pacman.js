@@ -1113,9 +1113,14 @@ Line.prototype.isCrossing = function(line)
     }
 };
 
-Line.prototype.hasSameDirection = function(line)
+Line.prototype.isParallelTo = function(line)
 {
     return ((isVertical(this) && isVertical(line)) || (isHorizontal(this) && isHorizontal(line)));
+};
+
+Line.prototype.isParallelToDirection = function(direction)
+{
+    return ((isVertical(this) && isVertical(direction)) || (isHorizontal(this) && isHorizontal(direction)));
 };
 
 Line.prototype.containsPoint = function(point)
@@ -2847,10 +2852,41 @@ Maze.prototype.remainingLine = function(point, direction)
     return remaining;
 };
 
+Maze.prototype.goingFromPortalDirection = function(position)
+{
+    // a portal can only be at the end on only one line
+    var line = this.HLineContainer(position);
+    if (typeof line === "undefined") {line = this.VLineContainer(position);}
+    
+    if (isVertical(line))
+    {
+        return (line.getPoint1().equalsPoint(position)) ? Direction.DOWN : Direction.UP ;
+    }
+    else if (isHorizontal(line))
+    {
+        return (line.getPoint1().equalsPoint(position)) ? Direction.RIGHT : Direction.LEFT ;
+    }
+};
+
+Maze.prototype.goingToPortalDirection = function(position)
+{
+    // a portal can only be at the end on only one line
+    var line = this.HLineContainer(position);
+    if (typeof line === "undefined") {line = this.VLineContainer(position);}
+    
+    if (isVertical(line))
+    {
+        return (line.getPoint1().equalsPoint(position)) ? Direction.UP : Direction.DOWN ;
+    }
+    else if (isHorizontal(line))
+    {
+        return (line.getPoint1().equalsPoint(position)) ? Direction.LEFT : Direction.RIGHT ;
+    }
+};
+
 /**
- * Return the nearest intersection where we can turn into the specified direction.
- * If we are exactly on a usable intersection, this intersection is not returned,
- * except if we are at the end of our current line.
+ * Return the NEXT intersection where we can turn into the specified direction ; this means
+ * that even if we are exactly on a usable intersection, this intersection is NOT returned.
  */
 Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridors, withghosthouse, withlinks)
 {
@@ -2862,21 +2898,16 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
     if ((isVertical(direction) && isVertical(nextdirection))
      || (isHorizontal(direction) && isHorizontal(nextdirection)))
     {
-        return;     /* "undefined" */
+        return;
     }
     
-    var line = this.currentLine(point, direction);
-    
     var lines = [];
-    var xlimit = null;
-    var ylimit = null;
+    var remaining = this.remainingLine(point, direction);
     
-    if (direction === Direction.UP)         {xlimit = point.getX(); ylimit = line.getPoint1().getY();}
-    else if (direction === Direction.DOWN)  {xlimit = point.getX(); ylimit = line.getPoint2().getY();}
-    else if (direction === Direction.LEFT)  {xlimit = line.getPoint1().getX(); ylimit = point.getY();}
-    else if (direction === Direction.RIGHT) {xlimit = line.getPoint2().getX(); ylimit = point.getY();}
-    
-    var current = new Line(point, new Point(xlimit, ylimit));
+    if (remaining.isPoint())
+    {
+        return;
+    }
     
     /* find all the lines on which we could turn */
     
@@ -2886,18 +2917,16 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
         {
             var l = this._corridors[i].getLine();
             
-            if (l.hasSameDirection(line) === false && l.isCrossing(current))
+            if (l.isCrossing(remaining))
             {
-                /* if there is some place to turn */
+                // if there is some place to turn
                 if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
                  || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
                  || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
                  || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
                 {
-                    // if our "remaining" current line is a point
-                    // or if our point is not an intersection created by this line and our current line, and our "remaining" current line is not a point
-                    if (current.isPoint()
-                     || (!current.isPoint() && !l.containsPoint(point)))
+                    // if our point is not an intersection created by this line and our remaining line
+                    if (!l.containsPoint(point))
                     {
                         lines.push(l);
                     }
@@ -2912,17 +2941,14 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
         {
             var l = this._ghosthouse[i].getLine();
             
-            if (l.hasSameDirection(line) === false && l.isCrossing(current))
+            if (l.isCrossing(remaining))
             {
                 if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
                  || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
                  || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
                  || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
                 {
-                    // if our "remaining" current line is a point
-                    // or if our point is not an intersection created by this line and our current line, and our "remaining" current line is not a point
-                    if (current.isPoint()
-                     || (!current.isPoint() && !l.containsPoint(point)))
+                    if (!l.containsPoint(point))
                     {
                         lines.push(l);
                     }
@@ -2937,17 +2963,14 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
         {
             var l = this._links[i].getLine();
             
-            if (l.hasSameDirection(line) === false && l.isCrossing(current))
+            if (l.isCrossing(remaining))
             {
                 if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
                  || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
                  || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
                  || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
                 {
-                    // if our "remaining" current line is a point
-                    // or if our point is not an intersection created by this line and our current line, and our "remaining" current line is not a point
-                    if (current.isPoint()
-                     || (!current.isPoint() && !l.containsPoint(point)))
+                    if (!l.containsPoint(point))
                     {
                         lines.push(l);
                     }
@@ -2958,7 +2981,7 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
     
     if (lines.length === 0)
     {
-        return;     /* "undefined" */
+        return;
     }
     else
     {
@@ -2977,8 +3000,6 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
             }
         }
         
-        /* return the intersection */
-        
         if (isVertical(nextdirection))
         {
             return new Point(nearest, point.getY());
@@ -2995,21 +3016,13 @@ Maze.prototype.nextIntersection = function(point, direction)
     var line = this.currentLine(point, direction);
     
     var lines = [];
-    var xlimit = null;
-    var ylimit = null;
-    
-    if (direction === Direction.UP)         {xlimit = point.getX(); ylimit = line.getPoint1().getY();}
-    else if (direction === Direction.DOWN)  {xlimit = point.getX(); ylimit = line.getPoint2().getY();}
-    else if (direction === Direction.LEFT)  {xlimit = line.getPoint1().getX(); ylimit = point.getY();}
-    else if (direction === Direction.RIGHT) {xlimit = line.getPoint2().getX(); ylimit = point.getY();}
-    
-    var current = new Line(point, new Point(xlimit, ylimit));
+    var current = this.remainingLine(point, direction);
     
     for(var i=0; i<this._corridors.length; i++)
     {
         var l = this._corridors[i].getLine();
         
-        if (l.hasSameDirection(line) === false)
+        if (l.isParallelTo(line) === false)
         {
             if (l.isCrossing(current))
             {
@@ -3028,7 +3041,7 @@ Maze.prototype.nextIntersection = function(point, direction)
     {
         var l = this._ghosthouse[i].getLine();
         
-        if (l.hasSameDirection(line) === false)
+        if (l.isParallelTo(line) === false)
         {
             if (l.isCrossing(current))
             {
@@ -3045,7 +3058,7 @@ Maze.prototype.nextIntersection = function(point, direction)
     {
         var l = this._links[i].getLine();
         
-        if (l.hasSameDirection(line) === false)
+        if (l.isParallelTo(line) === false)
         {
             if (l.isCrossing(current))
             {
@@ -3097,29 +3110,30 @@ Maze.prototype.directionIsAvailable = function(point, direction)
     assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
     
-    var vl = this.VLineContainer(point);
-    var hl = this.HLineContainer(point);
-    
-    if (typeof vl !== "undefined")
+    if (isVertical(direction))
     {
-        if (isVertical(direction))
+        var line = this.VLineContainer(point);
+        
+        if (typeof line !== "undefined")
         {
-            if ((vl.getPoint1().equalsPoint(point) === false && vl.getPoint2().equalsPoint(point) === false)
-             || (vl.getPoint1().equalsPoint(point) === true && direction === Direction.DOWN)
-             || (vl.getPoint2().equalsPoint(point) === true && direction === Direction.UP))
+            if ((line.getPoint1().equalsPoint(point) === false && line.getPoint2().equalsPoint(point) === false)
+             || (line.getPoint1().equalsPoint(point) === true && direction === Direction.DOWN)
+             || (line.getPoint2().equalsPoint(point) === true && direction === Direction.UP))
             {
                 return true;
             }
         }
     }
     
-    if (typeof hl !== "undefined")
+    if (isHorizontal(direction))
     {
-        if (isHorizontal(direction))
+        var line = this.HLineContainer(point);
+        
+        if (typeof line !== "undefined")
         {
-            if ((hl.getPoint1().equalsPoint(point) === false && hl.getPoint2().equalsPoint(point) === false)
-             || (hl.getPoint1().equalsPoint(point) === true && direction === Direction.RIGHT)
-             || (hl.getPoint2().equalsPoint(point) === true && direction === Direction.LEFT))
+            if ((line.getPoint1().equalsPoint(point) === false && line.getPoint2().equalsPoint(point) === false)
+             || (line.getPoint1().equalsPoint(point) === true && direction === Direction.RIGHT)
+             || (line.getPoint2().equalsPoint(point) === true && direction === Direction.LEFT))
             {
                 return true;
             }
@@ -3427,6 +3441,7 @@ var Pacman = function(x, y, movablestate, direction)
     
     Movable.call(this, x, y, movablestate, direction);
     //Movable.call(this, x, y, MovableState.IMMOBILE, direction);
+    //Movable.call(this, x, y, MovableState.PAUSED, direction);
     
     this._state = PacmanState.NORMAL;
     
@@ -3528,80 +3543,19 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
     
     if (this._movablestate === MovableState.IMMOBILE)
     {
-        var currentline = null;
-        
-        if (isVertical(newdirection))
+        if (maze.directionIsAvailable(this._position, newdirection))
         {
-            currentline = maze.VLineContainer(this._position);
-        }
-        
-        if (isHorizontal(newdirection))
-        {
-            currentline = maze.HLineContainer(this._position);
-        }
-        
-        if (typeof currentline !== "undefined")
-        {
-            // if we are at the end of the line and we want to go beyond that end...
-            if ((isVertical(newdirection)
-              && ((newdirection === Direction.UP && currentline.getPoint1().equalsPoint(this._position))
-               || (newdirection === Direction.DOWN && currentline.getPoint2().equalsPoint(this._position))))
-             || (isHorizontal(newdirection)
-              && ((newdirection === Direction.LEFT && currentline.getPoint1().equalsPoint(this._position))
-               || (newdirection === Direction.RIGHT && currentline.getPoint2().equalsPoint(this._position)))))
-            {
-                //return;
-            }
-            else
-            {
-                this._direction = newdirection;
-                this._nextdirection = null;
-                this._nextturn = null;
-                
-                this._movablestate = MovableState.MOVING;
-            }
+            this._direction = newdirection;
+            this._nextdirection = null;
+            this._nextturn = null;
+            
+            this._movablestate = MovableState.MOVING;
         }
     }
     else if (this._movablestate === MovableState.PAUSED
           || this._movablestate === MovableState.MOVING)
     {
-        /*if (this._movablestate === MovableState.MOVING
-         && (newdirection === this._direction
-          || newdirection === this._nextdirection))
-        {
-            //return;
-        }
-        //else if (this._movablestate === MovableState.PAUSED
-        //      && (newdirection === this._direction
-        //      || newdirection === this._nextdirection))
-        //{
-        //    return;
-        //}*/
-        
-        if (maze.remainingLine(this._position, this._direction).isPoint())
-        {
-            if (maze.directionIsAvailable(this._position, newdirection))
-            {
-                this._direction = newdirection;
-                this._nextdirection = null;
-                this._nextturn = null;
-                
-                if (this._movablestate === MovableState.PAUSED)
-                {
-                    this._movablestate = MovableState.MOVING;
-                }
-            }
-        }
-        else if (newdirection === this._direction
-              || newdirection === this._nextdirection)
-        {
-            if (this._movablestate === MovableState.PAUSED)
-            {
-                this._movablestate = MovableState.MOVING;
-            }
-        }
-        else if ((isVertical(newdirection) && isVertical(this._direction))
-              || (isHorizontal(newdirection) && isHorizontal(this._direction)))
+        if (maze.directionIsAvailable(this._position, newdirection))
         {
             this._direction = newdirection;
             this._nextdirection = null;
@@ -3612,64 +3566,74 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
                 this._movablestate = MovableState.MOVING;
             }
         }
-        else
+        else if (!maze.remainingLine(this._position, this._direction).isPoint())
         {
-            /*
-            var point = null;
+            //TODO penser dans le checkConfig() a interdire de placer un pacman sur un portail avec une direction qui le fait traverser le portail (toute façon ca aurait pas de sens, car il serait immédiatement transporté au portail correspondant ; mais faut s'assurer que ce cas n'arrivera pas)
+            //      => sinon faudrait ajouter au if : || isPortal(this._position), car on pourrait aller dans la direction traversant le portail ou bien aller dans une direction perpendiculaire a celle actuelle, en traversant le portail
+            //      => et evidemment faudrait gerer ça aussi ci-dessous...
+
+            var turnpoint = maze.nextTurn(this._position, this._direction, newdirection, true, false, false);
+            var position = this._position;
+            var direction = this._direction;
+            var availableafterportal = false;
             
-            if (isIntersection(this._position) === true) // + AND we can move to newdirection
+            // search through the next portals if we will be able to go this new direction
+            while(typeof turnpoint === "undefined")
             {
-                point = this._position;
-            }
-            else
-            {
-                point = maze.nextTurn(this._position, this._direction, newdirection, true, false, false);
-            }
-            
-            while(typeof point === "undefined")
-            {
-                //TODO
-                // si on se dirige vers un teleporteur
-                    // alors    trouver celui correspondant
-                                trouver la currentline de apres le teleporteur
-                                si c'est une ligne horizontale et qu'on veut aller en vertical alors c'est bon, idem ds l'autre sens
-                                et alors point = maze.nextturn(positionteleporteurcorrespondant, directionpdeuis teleporteur, newdirection, ...)
-                                mais si le teleporteur nous met sur une ligne de direction perpendiculaure a celle actuelle, que faire ?
-                    // sinon break
+                var remaining = maze.remainingLine(position, direction);
+                var endpoint = null;
                 
-                var currentline = maze.currentLine(this._position, this._direction);
+                if (this._direction === Direction.UP)           {endpoint = remaining.getPoint1();}
+                else if (this._direction === Direction.RIGHT)   {endpoint = remaining.getPoint2();}
+                else if (this._direction === Direction.DOWN)    {endpoint = remaining.getPoint2();}
+                else if (this._direction === Direction.LEFT)    {endpoint = remaining.getPoint1();}
                 
-                // if we are going to a teleporter
-                if ((isVertical(currentline) && )
-                 || (isHorizontal(currentline) && )
-                 || is point ????)
+                if (maze.isPortal(endpoint.getX(), endpoint.getY()))
                 {
+                    associated = maze.associatedPortal(endpoint.getX(), endpoint.getY());
                     
+                    //XXX for now, portals can only be on one line (no possibility of a horizontal line and a vertical line leading to the same portal)
+                    //    and at the end of a line
+                    
+                    var line = maze.VLineContainer(associated.getPosition());
+                    if (typeof line === "undefined")    {line = maze.HLineContainer(associated.getPosition());}
+                    
+                    // portals can only be one line, and at an extremity, so this "if" means :
+                    // if we want to go in the only available direction of the after-portal line
+                    if (maze.directionIsAvailable(associated.getPosition(), newdirection))
+                    {
+                        availableafterportal = true;
+                        break;
+                    }
+                    else if (line.isParallelToDirection(newdirection))      // if we are trying to go beyond the portal ; ex: the portal is at the bottom and newdirection === DOWN
+                    {
+                        break;
+                    }
+                    else        // newdirection is perpendicular to our line
+                    {
+                        position = associated.getPosition();
+                        direction = maze.goingFromPortalDirection(associated.getPosition());
+                        
+                        turnpoint = maze.nextTurn(position, direction, newdirection, true, false, false);
+                    }
+                }
+                else
+                {
+                    break;
                 }
             }
             
-            if (typeof point === "undefined")
+            if (availableafterportal)
             {
                 this._nextdirection = null;
                 this._nextturn = null;
-            }
-            else
-            {
-                this._nextdirection = newdirection;
-                this._nextturn = point;
                 
                 if (this._movablestate === MovableState.PAUSED)
                 {
                     this._movablestate = MovableState.MOVING;
                 }
             }
-            */
-            
-            var point = null;
-            
-            point = maze.nextTurn(this._position, this._direction, newdirection, true, false, false);
-            
-            if (typeof point === "undefined")
+            else if (typeof turnpoint === "undefined")
             {
                 this._nextdirection = null;
                 this._nextturn = null;
@@ -3677,21 +3641,20 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
             else
             {
                 this._nextdirection = newdirection;
-                this._nextturn = point;
+                this._nextturn = turnpoint;
+                
+                if (this._movablestate === MovableState.PAUSED)
+                {
+                    this._movablestate = MovableState.MOVING;
+                }
             }
-            /*this._nextdirection = newdirection;
-            this._nextturn = (typeof point === "undefined") ? null : point ;*/
-            /* TODO
-                en fait le truc d'avant marchait car on gardait le this._nextdirection et dans le move() on faisait une recherche dès qu'on depassait un teleporteur...
-                => changer ça, maintenant faut verifier que si point est undefined, alors verifier si on arrivera pas a un teleporter, et chercher celui associé, et utiliser hlinecontainer/vlinecontainer pr sa ligne courante et ainsi trouver la prochaine intersection correspondante et l'enregistrer si une telle intersection existe
-            */
-            /* TODO
-                - etant donne que maintenant on a isIntersection() et remainingLine(), nextTurn() devrait ptetre plus renvoyer le turn si on est dessus et ceci quelle que soit la situation , et ptetre pareil pr nextIntersection() ?
-                - y'a probablement des fonctions de maze qui devraient avoir les 3 parametres withXXX : car là le pacman risque d'aller à des endroits où il a pas le droit non ?
-            */
         }
     }
 };
+
+/* TODO
+    - y'a probablement des fonctions de maze qui devraient avoir les 3 parametres withXXX : car là le pacman risque d'aller à des endroits où il a pas le droit non ?
+*/
 
 Pacman.prototype.animate = function(elapsed)
 {
@@ -3846,22 +3809,13 @@ Pacman.prototype.move = function(elapsed, maze, status)
     
     this.setPosition(newx, newy);
     
+    // TODO also not correct here, if the portal exit has a different direction, it will not be OK...
     /* if we enter a teleportation tunnel */
     if (maze.isPortal(this._position.getX(), this._position.getY()))
     {
         var p = maze.associatedPortal(this._position.getX(), this._position.getY());
         
         this.setPosition(p.getPosition().getX(), p.getPosition().getY());
-        
-        /* search if we can now turn after the teleportation */
-        
-        if (this._nextdirection !== null
-         && this._nextturn === null)
-        {
-            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, true, false, false);
-            
-            this.setNextTurn(nt);
-        }
         
         
         //TODO move again, as we reached the limit of the teleportation point
@@ -4315,7 +4269,7 @@ Ghost.prototype.movementAIToTarget = function(maze, target)
     {
         this.movementAIToTargetFromPoint(maze, target, this._position);
     }
-    
+    //TODO ptetre verifier l'utilisation des movementAIToTargetFromPoint... apparemment des fois on envoie la position courante et des fois celle de l'intersection suivante ? ca pose pas un probleme quand on affecte les (next)direction/turn dedans ,
     var int = maze.nextIntersection(this._position, this._direction);
     
     if (typeof int !== "undefined" && !int.equalsPoint(target))
@@ -4324,6 +4278,9 @@ Ghost.prototype.movementAIToTarget = function(maze, target)
     }
     /*
         else it's a dead end (maybe a teleporter), and the ghost has to continue
+    */
+    /* TODO
+            - etant donne que maintenant on a isIntersection() et remainingLine(), nextIntersection() devrait ptetre plu renvoyer le turn si on est dessus et ceci quelle que soit la situation = faire comme le nextturn de maintenant ?
     */
 };
 
@@ -4712,6 +4669,7 @@ var logicLoop = function()
     to animate, like passing the timestamp ? or an other solution ?=> the static
     method update())
     - implement main screen
+    - add new functionnality to portals, to be able to put a portal in the middle of a line, or at an intersection ; and use a "type" property to know if going to direction X before the portal will make us go to a direction X after the portal ; or use defined direction(s) for this portal
     - implement a Game class
     - implement ghosts : http://gameinternals.com/post/2072558330/understanding-pac-man-ghost-behavior
     - implement power pellets (a property of pacman)
