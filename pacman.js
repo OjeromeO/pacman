@@ -1035,9 +1035,13 @@ Line.prototype.size = function()
     {
         return (this._point2.getY() - this._point1.getY());
     }
-    else
+    else if (isHorizontal(this))
     {
         return (this._point2.getX() - this._point1.getX());
+    }
+    else    // line is a point
+    {
+        return 0;
     }
 };
 
@@ -3331,6 +3335,7 @@ var Movable = function(x, y, state, direction)
     this._position = new Point(x, y);
     this._direction = direction;
     
+    //TODO rename into nextturndirection and nextturnposition
     this._nextdirection = null;     // direction requested
     this._nextturn = null;          // intersection that allows movement in the requested direction
     
@@ -3385,48 +3390,83 @@ Movable.prototype.setDirection = function(direction)
     this._direction = direction;
 };
 
-Movable.prototype.getNextDirection = function()
+Movable.prototype.getNextTurnDirection = function()
 {
     return this._nextdirection;
 };
-Movable.prototype.setNextDirection = function(nextdirection)
+Movable.prototype.setNextTurnDirection = function(direction)
 {
-    assert((isDirection(nextdirection) || nextdirection === null), "nextdirection value is not valid");
+    assert((isDirection(direction) || direction === null), "nextdirection value is not valid");
 
-    this._nextdirection = nextdirection;
+    this._nextdirection = direction;
 };
 
-Movable.prototype.getNextTurn = function()
+Movable.prototype.getNextTurnPosition = function()
 {
     return this._nextturn;
 };
-Movable.prototype.setNextTurn = function(nextturn)
+Movable.prototype.setNextTurnPosition = function(position)
 {
-    assert((nextturn instanceof Point || nextturn === null), "nextturn value is not valid");
+    assert((position instanceof Point || position === null), "position value is not valid");
 
-    this._nextturn = nextturn;
+    this._nextturn = position;
 };
 
-/*
-startMoving(direction[, nextdirection, nextturn])
-pausemoving()
-stopMoving()
-*/
+Movable.prototype.isMoving = function()
+{
+    return (this._movablestate === MovableState.MOVING);
+};
+
+Movable.prototype.isPaused = function()
+{
+    return (this._movablestate === MovableState.PAUSED);
+};
+
+Movable.prototype.isImmobile = function()
+{
+    return (this._movablestate === MovableState.IMMOBILE);
+};
+
+Movable.prototype.setMoving = function(direction)
+{
+    this._movablestate = MovableState.MOVING;
+    this._direction = direction;
+};
+
+Movable.prototype.setPaused = function(direction)
+{
+    this._movablestate = MovableState.PAUSED;
+    this._direction = direction;
+};
+
+Movable.prototype.setImmobile = function()
+{
+    this._movablestate = MovableState.IMMOBILE;
+    this._direction = null;
+    this._nextturn = null;
+    this._nextdirection = null;
+};
+
+Movable.prototype.setNextTurn = function(position, direction)
+{
+    this._nextturn = position;
+    this._nextdirection = direction;
+};
+
+Movable.prototype.resetNextTurn = function()
+{
+    this._nextturn = null;
+    this._nextdirection = null;
+};
+
+Movable.prototype.hasNextTurn = function()
+{
+    return (this._nextturn !== null && this._nextdirection !== null);
+};
 
 /* XXX: should use booleans like pause and stop maybe ?
-Movable.prototype.pause = function()
-{
-    this._direction = null;
-};
-
-
-Movable.prototype.stop = function()
-{
-    this._direction = null;
-    this._nextdirection = null;
-    this._nextturn = null;
-};
 */
+
 /******************************************************************************/
 /******************************** Pacman class ********************************/
 /******************************************************************************/
@@ -3546,8 +3586,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
         if (maze.directionIsAvailable(this._position, newdirection))
         {
             this._direction = newdirection;
-            this._nextdirection = null;
-            this._nextturn = null;
+            this.resetNextTurn();
             
             this._movablestate = MovableState.MOVING;
         }
@@ -3558,8 +3597,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
         if (maze.directionIsAvailable(this._position, newdirection))
         {
             this._direction = newdirection;
-            this._nextdirection = null;
-            this._nextturn = null;
+            this.resetNextTurn();
             
             if (this._movablestate === MovableState.PAUSED)
             {
@@ -3575,7 +3613,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
             var turnpoint = maze.nextTurn(this._position, this._direction, newdirection, true, false, false);
             var position = this._position;
             var direction = this._direction;
-            var availableafterportal = false;
+            var directlyavailableafterportal = false;
             
             // search through the next portals if we will be able to go this new direction
             while(typeof turnpoint === "undefined")
@@ -3602,7 +3640,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
                     // if we want to go in the only available direction of the after-portal line
                     if (maze.directionIsAvailable(associated.getPosition(), newdirection))
                     {
-                        availableafterportal = true;
+                        directlyavailableafterportal = true;
                         break;
                     }
                     else if (line.isParallelToDirection(newdirection))      // if we are trying to go beyond the portal ; ex: the portal is at the bottom and newdirection === DOWN
@@ -3623,10 +3661,9 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
                 }
             }
             
-            if (availableafterportal)
+            if (directlyavailableafterportal)
             {
-                this._nextdirection = null;
-                this._nextturn = null;
+                this.resetNextTurn();
                 
                 if (this._movablestate === MovableState.PAUSED)
                 {
@@ -3635,8 +3672,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
             }
             else if (typeof turnpoint === "undefined")
             {
-                this._nextdirection = null;
-                this._nextturn = null;
+                this.resetNextTurn();
             }
             else
             {
@@ -3698,23 +3734,53 @@ Pacman.prototype.move = function(elapsed, maze, status)
         return;
     }
     
-    if (this._direction == null)
-    {
-        return;
-    }
+    /* TODO
+        
+        calculer remainingline
+        si remainingline.ispoint() // on a atteint la fin de notre ligne (c'est pas possible qu'on soit resté sur un portail et qu'on doive se teleporter, car le move() l'aurait deja fait a l'etape precedente)
+            return
+        calculer movement
+        si hasnextturn
+            si nextturn appartient a remainingline
+                calculer turndistance
+                si movement >= turndistance
+                    verifier les pacdots bouffés
+                    modifier position, direction ; resetnextturn ; diminuer movement
+                    maze.trouvelapositionouonvatomberenlignedroite() => comme on n'a plus de nextturn, on va seulement en ligne droite, on risque donc seulement de traverser 1 ou plusieurs portails
+                        // argh, faut plutot un do-while, a cause des pacdots bouffés a verifier
+                sinon
+                    verifier les pacdots bouffés
+                    modifier position
+            sinon
+                do
+                    si movement >= remainingline.size()
+                        modifier position pr etre a l'extremite de la ligne
+                        diminuer movement
+                        si movement > 0
+                            //TODO et en fait on modifiera la direction ou pas, ... faut qu'au prochain tour de boucle en fait on soit au debut de notre nouvelle ligne, près à tester si on a le nextturn dans celle-ci; etc .... ?
+                    sinon
+                        modifier position
+                        mettre movement à 0
+                while(movement > 0)
+                // TODO => le do-while devrait ptetre en fait englober le "si nextturn appartient a remainingline" ?
+        sinon
+            maze.trouvelapositionouonvatomberenlignedroite()
+                // argh, faut plutot un do-while, a cause des pacdots bouffés a verifier
+        
+        
+    */
     
     var movement = Math.round(PACMAN_SPEED * elapsed/1000);
     var limit = 0;
     var turndistance = 0;
     
-    if (this._nextdirection !== null && this._nextturn !== null)
+    if (this.hasNextTurn())
     {
         turndistance = this._nextturn.distanceToPoint(this._position);
     }
     
     /* if we will have to turn */
-    if (this._nextdirection !== null
-     && this._nextturn !== null
+    if (this.hasNextTurn()
      && turndistance <= movement)
     {
         /* check if pacman will eat some pacdots... */
@@ -3749,8 +3815,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
         
         this.setPosition(this._nextturn.getX(), this._nextturn.getY());
         this._direction = this._nextdirection;
-        this._nextdirection = null;
-        this._nextturn = null;
+        this.resetNextTurn();
         
         movement -= turndistance;
     }
@@ -4045,22 +4110,20 @@ Ghost.prototype.move = function(elapsed, maze)
     var limit = 0;
     var turndistance = 0;
     
-    if (this._nextdirection !== null && this._nextturn !== null)
+    if (this.hasNextTurn())
     {
         turndistance = this._nextturn.distanceToPoint(this._position);
     }
     
     /* if we will have to turn */
-    if (this._nextdirection !== null
-     && this._nextturn !== null
+    if (this.hasNextTurn()
      && turndistance <= movement)
     {
         /* move towards the intersection point */
         
         this.setPosition(this._nextturn.getX(), this._nextturn.getY());
         this._direction = this._nextdirection;
-        this._nextdirection = null;
-        this._nextturn = null;
+        this.resetNextTurn();
         
         movement -= turndistance;
         
@@ -4157,7 +4220,7 @@ Ghost.prototype.move = function(elapsed, maze)
             
             var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, withcorridors, withghosthouse, withlinks);
             
-            this.setNextTurn(nt);
+            this.setNextTurnPosition(nt);
         }
         
         
@@ -4239,13 +4302,11 @@ Ghost.prototype.movementAIToTargetFromPoint = function(maze, target, point)
     if (this._direction == null)
     {
         this._direction = bestdirection;
-        this._nextdirection = null;
-        this._nextturn = null;
+        this.resetNextTurn();
     }
     else if (this._direction === bestdirection)
     {
-        this._nextdirection = null;
-        this._nextturn = null;
+        this.resetNextTurn();
     }
     else
     {
@@ -4295,13 +4356,11 @@ Ghost.prototype.movementAIRandom = function(maze)
     if (this._direction == null)
     {
         this._direction = newdirection;
-        this._nextdirection = null;
-        this._nextturn = null;
+        this.resetNextTurn();
     }
     else if (this._direction === newdirection)
     {
-        this._nextdirection = null;
-        this._nextturn = null;
+        this.resetNextTurn();
     }
     else
     {
@@ -4401,8 +4460,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 }
                 
                 this._direction = newdirection;
-                this._nextdirection = null;
-                this._nextturn = null;
+                this.resetNextTurn();
             }
         }
         else
@@ -4486,8 +4544,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 }
                 
                 this._direction = newdirection;
-                this._nextdirection = null;
-                this._nextturn = null;
+                this.resetNextTurn();
             }
         }
         else
