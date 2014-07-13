@@ -3636,7 +3636,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
                     var line = maze.VLineContainer(associated.getPosition());
                     if (typeof line === "undefined")    {line = maze.HLineContainer(associated.getPosition());}
                     
-                    // portals can only be one line, and at an extremity, so this "if" means :
+                    // portals can only be on one line, and at an extremity, so this "if" means :
                     // if we want to go in the only available direction of the after-portal line
                     if (maze.directionIsAvailable(associated.getPosition(), newdirection))
                     {
@@ -3724,6 +3724,67 @@ Pacman.prototype.animate = function(elapsed)
     this._mouthendangle = baseangle - mouthhalfangle;
 };
 
+Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
+{
+    var line = new Line(p1, p2);
+    var eatenpacdots = [];
+    
+    for(var i=0; i<maze.getPacdots().length; i++)
+    {
+        if (line.containsPoint(maze.getPacdot(i).getPosition()))
+        {
+            status.increaseScore(PACDOT_POINT);
+            maze.increaseEatenPacdots(1);
+            eatenpacdots.push(i);
+        }
+    }
+    
+    for(var i=0; i<eatenpacdots.length; i++)
+    {
+        /*
+            we need to delete from the biggest index to the lowest, because
+            when deleting an element of an array, the following ones will be
+            re-indexed (indexes decremented) => the registered indexes of
+            the next pacdots to delete will become incorrect
+        */
+        var index = eatenpacdots[eatenpacdots.length-1 - i];
+        maze.deletePacdot(index);
+    }
+};
+
+Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status)
+{
+    if (movement >= remainingline.size())
+    {
+        
+        /*var remaining = maze.remainingLine(position, direction);
+                var endpoint = null;
+                
+                if (this._direction === Direction.UP)           {endpoint = remaining.getPoint1();}
+                else if (this._direction === Direction.RIGHT)   {endpoint = remaining.getPoint2();}
+                else if (this._direction === Direction.DOWN)    {endpoint = remaining.getPoint2();}
+                else if (this._direction === Direction.LEFT)    {endpoint = remaining.getPoint1();}
+                
+                if (maze.isPortal(endpoint.getX(), endpoint.getY()))*/
+        
+        
+        
+    }
+    else
+    {
+        //var destpoint = null;
+        var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+        
+        if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
+        else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
+        else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
+        else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
+        
+        // verifier pacdots bouffes
+        
+    }
+};
+
 Pacman.prototype.move = function(elapsed, maze, status)
 {
     assert((elapsed > 0), "elapsed value is not valid");
@@ -3734,43 +3795,55 @@ Pacman.prototype.move = function(elapsed, maze, status)
         return;
     }
     
-    /* TODO
-        
-        calculer remainingline
-        si remainingline.ispoint() // on a atteint la fin de notre ligne (c'est pas possible qu'on soit resté sur un portail et qu'on doive se teleporter, car le move() l'aurait deja fait a l'etape precedente)
-            return
-        calculer movement
-        si hasnextturn
-            si nextturn appartient a remainingline
-                calculer turndistance
-                si movement >= turndistance
-                    verifier les pacdots bouffés
-                    modifier position, direction ; resetnextturn ; diminuer movement
-                    maze.trouvelapositionouonvatomberenlignedroite() => comme on n'a plus de nextturn, on va seulement en ligne droite, on risque donc seulement de traverser 1 ou plusieurs portails
-                        // argh, faut plutot un do-while, a cause des pacdots bouffés a verifier
-                sinon
-                    verifier les pacdots bouffés
-                    modifier position
-            sinon
-                do
-                    si movement >= remainingline.size()
-                        modifier position pr etre a l'extremite de la ligne
-                        diminuer movement
-                        si movement > 0
-                            //TODO et en fait on modifiera la direction ou pas, ... faut qu'au prochain tour de boucle en fait on soit au debut de notre nouvelle ligne, près à tester si on a le nextturn dans celle-ci; etc .... ?
-                    sinon
-                        modifier position
-                        mettre movement à 0
-                while(movement > 0)
-                // TODO => le do-while devrait ptetre en fait englober le "si nextturn appartient a remainingline" ?
-        sinon
-            maze.trouvelapositionouonvatomberenlignedroite()
-                // argh, faut plutot un do-while, a cause des pacdots bouffés a verifier
-        
-        
-    */
+    var remaining = maze.remainingLine(this._position, this._direction);
+    
+    // if we are in a dead-end
+    // (we can't be on a portal and in need to be teleported, nor we can be at an intersection in need to turn,
+    //  as the move() would have teleported us or make us turn at the previous step)
+    if (remaining.isPoint())
+    {
+        return;
+    }
     
     var movement = Math.round(PACMAN_SPEED * elapsed/1000);
+    
+    /* TODO
+        si hasnextturn
+            do
+                si nextturn appartient a remainingline
+                    calculer turndistance
+                    si movement >= turndistance
+                        verifier les pacdots bouffés
+                        modifier position, direction ; resetnextturn ; diminuer movement
+                        // comme on n'a plus de nextturn, on va seulement en ligne droite, on risque donc seulement de traverser 1 ou plusieurs portails
+                        this.moveInStraightLine(movement, remaining, maze, status) // traverse les portails, verifie les pacdots bouffés, ...
+                        mettre movement à 0
+                    sinon
+                        verifier les pacdots bouffés
+                        modifier position
+                        mettre movement à 0
+                sinon
+                    si movement >= remainingline.size()
+                        modifier position pr etre a l'extremite de la ligne
+                        verifier les pacdots bouffés
+                        diminuer movement
+                        si on est sur un portail
+                            teleportation (avec eventuels modifs de direction, selon ce qui est decidé comme limitations sur les portails pour l'instant)
+                            si movement > 0
+                                mise a jour de remainingline
+                                (et c'est tout, on laisse le prochain tour prendre le relais)
+                        sinon
+                            mettre movement à 0
+                    sinon
+                        verifier les pacdots bouffés
+                        modifier position
+                        mettre movement à 0
+            while(movement > 0)
+        sinon
+            this.moveInStraightLine(movement, remaining, maze, status)      // traverse les portails, verifie les pacdots bouffés, ...
+    */
+    
+    
     var limit = 0;
     var turndistance = 0;
     
@@ -3783,33 +3856,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
     if (this.hasNextTurn()
      && turndistance <= movement)
     {
-        /* check if pacman will eat some pacdots... */
-        
-        var travelled1 = new Line(this._position, this._nextturn);
-        
-        var eatenpacdots = [];
-        
-        for(var i=0; i<maze.getPacdots().length; i++)
-        {
-            if (travelled1.containsPoint(maze.getPacdot(i).getPosition()))
-            {
-                status.increaseScore(PACDOT_POINT);
-                maze.increaseEatenPacdots(1);
-                eatenpacdots.push(i);
-            }
-        }
-        
-        for(var i=0; i<eatenpacdots.length; i++)
-        {
-            /*
-                we need to delete from the biggest index to the lowest, because
-                when deleting an element of an array, the following ones will be
-                re-indexed (indexes decremented) => the registered indexes of
-                the next pacdots to delete will become incorrect
-            */
-            var index = eatenpacdots[eatenpacdots.length-1 - i];
-            maze.deletePacdot(index);
-        }
+        this.eatPacdotsBetweenPoints(this._position, this._nextturn, maze, status);
         
         /* move towards the intersection point */
         
@@ -3850,27 +3897,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
         newy = this._position.getY();
     }
     
-    /* check if pacman will eat some pacdots... */
-    
-    var travelled2 = new Line(this._position, new Point(newx, newy));
-    
-    var eatenpacdots = [];
-    
-    for(var i=0; i<maze.getPacdots().length; i++)
-    {
-        if (travelled2.containsPoint(maze.getPacdot(i).getPosition()))
-        {
-            status.increaseScore(PACDOT_POINT);
-            maze.increaseEatenPacdots(1);
-            eatenpacdots.push(i);
-        }
-    }
-    
-    for(var i=0; i<eatenpacdots.length; i++)
-    {
-        var index = eatenpacdots[eatenpacdots.length-1 - i];
-        maze.deletePacdot(index);
-    }
+    this.eatPacdotsBetweenPoints(this._position, new Point(newx, newy), maze, status);
     
     this.setPosition(newx, newy);
     
