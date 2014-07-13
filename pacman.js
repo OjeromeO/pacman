@@ -3754,35 +3754,61 @@ Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
 
 Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status)
 {
-    if (movement >= remainingline.size())
+    do
     {
-        
-        /*var remaining = maze.remainingLine(position, direction);
-                var endpoint = null;
+        if (movement >= remaining.size())
+        {
+            var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+            
+            if (this._direction === Direction.UP)           {this.translate(0, -1 * remaining.size());}
+            else if (this._direction === Direction.RIGHT)   {this.translate(remaining.size(), 0);}
+            else if (this._direction === Direction.DOWN)    {this.translate(0, remaining.size());}
+            else if (this._direction === Direction.LEFT)    {this.translate(-1 * remaining.size(), 0);}
+            
+            this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+            
+            movement -= remaining.size();
+            
+            if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+            {
+                var associated = maze.associatedPortal(this.getPosition().getX(), this.getPosition().getY());
                 
-                if (this._direction === Direction.UP)           {endpoint = remaining.getPoint1();}
-                else if (this._direction === Direction.RIGHT)   {endpoint = remaining.getPoint2();}
-                else if (this._direction === Direction.DOWN)    {endpoint = remaining.getPoint2();}
-                else if (this._direction === Direction.LEFT)    {endpoint = remaining.getPoint1();}
+                this.setPosition(associated.getPosition().getX(), associated.getPosition().getY());
                 
-                if (maze.isPortal(endpoint.getX(), endpoint.getY()))*/
-        
-        
-        
+                // search and assign the new current direction after teleportation
+                
+                var directions = []
+                directions = maze.possibleDirections(this.getPosition());
+                
+                // there will be only one direction in the array
+                // (portals can only be on one line, and at an extremity)
+                this._direction = directions[0];
+                
+                if (movement > 0)
+                {
+                    remaining = maze.remainingLine(this._position, this._direction);
+                }
+            }
+            else
+            {
+                movement = 0;
+            }
+        }
+        else
+        {
+            var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+            
+            if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
+            else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
+            else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
+            else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
+            
+            this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+            
+            movement = 0;
+        }
     }
-    else
-    {
-        //var destpoint = null;
-        var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-        
-        if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
-        else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
-        else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
-        else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
-        
-        // verifier pacdots bouffes
-        
-    }
+    while(movement > 0);
 };
 
 Pacman.prototype.move = function(elapsed, maze, status)
