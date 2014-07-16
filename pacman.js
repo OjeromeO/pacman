@@ -3752,9 +3752,40 @@ Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
     }
 };
 
-Pacman.prototype.moveInsideCurrentLine = function(movement, remaining, maze, status)
+Pacman.prototype.moveInsideRemainingLine = function(movement, remaining, maze, status)
 {
+    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+            
+    if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
+    else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
+    else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
+    else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
     
+    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+};
+
+Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
+{
+    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+    
+    if (this._direction === Direction.UP)           {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
+    else if (this._direction === Direction.RIGHT)   {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
+    else if (this._direction === Direction.DOWN)    {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
+    else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
+    
+    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+};
+
+
+Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
+{
+    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+
+    this.setPosition(this._nextturn.getX(), this._nextturn.getY());
+    this._direction = this._nextdirection;
+    this.resetNextTurn();
+
+    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
 };
 
 Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status)
@@ -3763,14 +3794,7 @@ Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status
     {
         if (movement >= remaining.size())
         {
-            var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-            
-            if (this._direction === Direction.UP)           {this.translate(0, -1 * remaining.size());}
-            else if (this._direction === Direction.RIGHT)   {this.translate(remaining.size(), 0);}
-            else if (this._direction === Direction.DOWN)    {this.translate(0, remaining.size());}
-            else if (this._direction === Direction.LEFT)    {this.translate(-1 * remaining.size(), 0);}
-            
-            this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+            this.moveToEndOfRemainingLine(remaining, maze, status);
             
             movement -= remaining.size();
             
@@ -3798,14 +3822,7 @@ Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status
         }
         else
         {
-            var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-            
-            if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
-            else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
-            else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
-            else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
-            
-            this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+            this.moveInsideRemainingLine(movement, remaining, maze, status);
             
             movement = 0;
         }
@@ -3844,13 +3861,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
                 
                 if (movement >= turndistance)
                 {
-                    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-                    
-                    this.setPosition(this._nextturn.getX(), this._nextturn.getY());
-                    this._direction = this._nextdirection;
-                    this.resetNextTurn();
-                    
-                    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+                    this.moveToNextTurnInsideRemainingLine(maze, status);
                     
                     movement -= turndistance;
                     
@@ -3860,14 +3871,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
                 }
                 else
                 {
-                    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-                    
-                    if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
-                    else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
-                    else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
-                    else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
-                    
-                    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+                    this.moveInsideRemainingLine(movement, remaining, maze, status);
                     
                     movement = 0;
                 }
@@ -3876,14 +3880,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
             {
                 if (movement >= remaining.size())
                 {
-                    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-                    
-                    if (this._direction === Direction.UP)           {this.translate(0, -1 * remaining.size());}
-                    else if (this._direction === Direction.RIGHT)   {this.translate(remaining.size(), 0);}
-                    else if (this._direction === Direction.DOWN)    {this.translate(0, remaining.size());}
-                    else if (this._direction === Direction.LEFT)    {this.translate(-1 * remaining.size(), 0);}
-                    
-                    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+                    this.moveToEndOfRemainingLine(remaining, maze, status);
                     
                     movement -= remaining.size();
                     
@@ -3911,14 +3908,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
                 }
                 else
                 {
-                    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-                    
-                    if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
-                    else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
-                    else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
-                    else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
-                    
-                    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+                    this.moveInsideRemainingLine(movement, remaining, maze, status);
                     
                     movement = 0;
                 }
@@ -3929,89 +3919,6 @@ Pacman.prototype.move = function(elapsed, maze, status)
     {
         this.moveInStraightLine(movement, remaining, maze, status);
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    /*
-    var limit = 0;
-    var turndistance = 0;
-    
-    if (this.hasNextTurn())
-    {
-        turndistance = this._nextturn.distanceToPoint(this._position);
-    }
-    
-    // if we will have to turn
-    if (this.hasNextTurn()
-     && turndistance <= movement)
-    {
-        this.eatPacdotsBetweenPoints(this._position, this._nextturn, maze, status);
-        
-        // move towards the intersection point
-        
-        this.setPosition(this._nextturn.getX(), this._nextturn.getY());
-        this._direction = this._nextdirection;
-        this.resetNextTurn();
-        
-        movement -= turndistance;
-    }
-    
-    var newx = 0;
-    var newy = 0;
-    
-    var currentline = maze.currentLine(this._position, this._direction);
-    
-    if (this._direction === Direction.UP)
-    {
-        limit = currentline.getPoint1().getY();
-        newx = this._position.getX();
-        newy = (this._position.getY()-movement > limit) ? this._position.getY()-movement : limit ;
-    }
-    else if (this._direction === Direction.DOWN)
-    {
-        limit = currentline.getPoint2().getY();
-        newx = this._position.getX();
-        newy = (this._position.getY()+movement < limit) ? this._position.getY()+movement : limit ;
-    }
-    else if (this._direction === Direction.LEFT)
-    {
-        limit = currentline.getPoint1().getX();
-        newx = (this._position.getX()-movement > limit) ? this._position.getX()-movement : limit ;
-        newy = this._position.getY();
-    }
-    else
-    {
-        limit = currentline.getPoint2().getX();
-        newx = (this._position.getX()+movement < limit) ? this._position.getX()+movement : limit ;
-        newy = this._position.getY();
-    }
-    
-    this.eatPacdotsBetweenPoints(this._position, new Point(newx, newy), maze, status);
-    
-    this.setPosition(newx, newy);
-    
-    // TODO also not correct here, if the portal exit has a different direction, it will not be OK...
-    // if we enter a teleportation tunnel
-    if (maze.isPortal(this._position.getX(), this._position.getY()))
-    {
-        var p = maze.associatedPortal(this._position.getX(), this._position.getY());
-        
-        this.setPosition(p.getPosition().getX(), p.getPosition().getY());
-        
-        
-        //TODO move again, as we reached the limit of the teleportation point
-        
-        
-        //TODO if we will reach the next turn point, turn and then... mais alors
-        // et si on rechoppe un teleporteur c chiant... fait un do while() ?
-    }
-    */
 };
 
 
