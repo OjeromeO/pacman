@@ -3172,146 +3172,14 @@ Maze.prototype.directionIsAvailable = function(point, direction)
     return false;
 };
 
-//TODO renommer en availableDirections, et utiliser H/VLineContainer comme pour directionIsAvailable, et prendre exemple sur directionIsAvailable
-Maze.prototype.possibleDirections = function(point)
+Maze.prototype.availableDirections = function(point)
 {
-    var upIsPossible = false;
-    var rightIsPossible = false;
-    var downIsPossible = false;
-    var leftIsPossible = false;
-    
     var directions = [];
     
-    for(var i=0; i<this._corridors.length; i++)
-    {
-        var l = this._corridors[i].getLine();
-        
-        if (l.containsPoint(point))
-        {
-            if (isVertical(l))
-            {
-                if (l.getPoint1().equalsPoint(point) === true)
-                {
-                    downIsPossible = true;
-                }
-                else if (l.getPoint2().equalsPoint(point) === true)
-                {
-                    upIsPossible = true;
-                }
-                else
-                {
-                    upIsPossible = true;
-                    downIsPossible = true;
-                }
-            }
-            
-            if (isHorizontal(l))
-            {
-                if (l.getPoint1().equalsPoint(point) === true)
-                {
-                    rightIsPossible = true;
-                }
-                else if (l.getPoint2().equalsPoint(point) === true)
-                {
-                    leftIsPossible = true;
-                }
-                else
-                {
-                    rightIsPossible = true;
-                    leftIsPossible = true;
-                }
-            }
-        }
-    }
-    
-    for(var i=0; i<this._ghosthouse.length; i++)
-    {
-        var l = this._ghosthouse[i].getLine();
-        
-        if (l.containsPoint(point))
-        {
-            if (isVertical(l))
-            {
-                if (l.getPoint1().equalsPoint(point) === true)
-                {
-                    downIsPossible = true;
-                }
-                else if (l.getPoint2().equalsPoint(point) === true)
-                {
-                    upIsPossible = true;
-                }
-                else
-                {
-                    upIsPossible = true;
-                    downIsPossible = true;
-                }
-            }
-            
-            if (isHorizontal(l))
-            {
-                if (l.getPoint1().equalsPoint(point) === true)
-                {
-                    rightIsPossible = true;
-                }
-                else if (l.getPoint2().equalsPoint(point) === true)
-                {
-                    leftIsPossible = true;
-                }
-                else
-                {
-                    rightIsPossible = true;
-                    leftIsPossible = true;
-                }
-            }
-        }
-    }
-    
-    for(var i=0; i<this._links.length; i++)
-    {
-        var l = this._links[i].getLine();
-        
-        if (l.containsPoint(point))
-        {
-            if (isVertical(l))
-            {
-                if (l.getPoint1().equalsPoint(point) === true)
-                {
-                    downIsPossible = true;
-                }
-                else if (l.getPoint2().equalsPoint(point) === true)
-                {
-                    upIsPossible = true;
-                }
-                else
-                {
-                    upIsPossible = true;
-                    downIsPossible = true;
-                }
-            }
-            
-            if (isHorizontal(l))
-            {
-                if (l.getPoint1().equalsPoint(point) === true)
-                {
-                    rightIsPossible = true;
-                }
-                else if (l.getPoint2().equalsPoint(point) === true)
-                {
-                    leftIsPossible = true;
-                }
-                else
-                {
-                    rightIsPossible = true;
-                    leftIsPossible = true;
-                }
-            }
-        }
-    }
-    
-    if (upIsPossible === true)    {directions.push(Direction.UP);}
-    if (rightIsPossible === true) {directions.push(Direction.RIGHT);}
-    if (downIsPossible === true)  {directions.push(Direction.DOWN);}
-    if (leftIsPossible === true)  {directions.push(Direction.LEFT);}
+    if (this.directionIsAvailable(point, Direction.UP))    {directions.push(Direction.UP);}
+    if (this.directionIsAvailable(point, Direction.RIGHT)) {directions.push(Direction.RIGHT);}
+    if (this.directionIsAvailable(point, Direction.DOWN))  {directions.push(Direction.DOWN);}
+    if (this.directionIsAvailable(point, Direction.LEFT))  {directions.push(Direction.LEFT);}
     
     return directions;
 };
@@ -3813,7 +3681,6 @@ Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
 };
 
-
 Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
 {
     if (this._movablestate !== MovableState.MOVING)
@@ -3854,7 +3721,7 @@ Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status
                 // search and assign the new current direction after teleportation
                 
                 var directions = []
-                directions = maze.possibleDirections(this.getPosition());
+                directions = maze.availableDirections(this.getPosition());
                 
                 // there will be only one direction in the array
                 // (portals can only be on one line, and at an extremity)
@@ -3939,7 +3806,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
                         // search and assign the new current direction after teleportation
                         
                         var directions = []
-                        directions = maze.possibleDirections(this.getPosition());
+                        directions = maze.availableDirections(this.getPosition());
                         
                         // there will be only one direction in the array
                         // (portals can only be on one line, and at an extremity)
@@ -4273,7 +4140,7 @@ Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status
                 // search and assign the new current direction after teleportation
                 
                 var directions = []
-                directions = maze.possibleDirections(this.getPosition());
+                directions = maze.availableDirections(this.getPosition());
                 
                 // there will be only one direction in the array
                 // (portals can only be on one line, and at an extremity)
@@ -4455,7 +4322,7 @@ Ghost.prototype.move = function(elapsed, maze)
 
 Ghost.prototype.movementAIToTargetFromPoint = function(maze, target, point)
 {
-    var directions = maze.possibleDirections(point);
+    var directions = maze.availableDirections(point);
     
     var bestdirection = null;
     var bestdistance = Number.MAX_VALUE;
@@ -4595,7 +4462,7 @@ Ghost.prototype.movementAIRandom = function(maze)
 {
         //TODO sauf qu'en fait faut faire tout ca que a une intersection, on change pas la direction comme ça tt le temps... ; et si on a null, on fait comme dans movementAIToTarget => d'abord on se choisit une direction aleatoire, puis on continue et on decide pr la prochaine intersection
         
-    var directions = maze.possibleDirections(point);
+    var directions = maze.availableDirections(point);
     
     var newdirection = directions[Math.floor(Math.random()*(directions.length))];
     
@@ -4931,9 +4798,8 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     http://stackoverflow.com/questions/6586971/get-the-current-function-name-in-javascript
     
     
-    => currentline(), remainingLine(), nextIntersection() ont maintenant les 3 parametres
-        => le code de nextintersection() reste a mettre a jour pr les 3 parametres, mais en fait faudrait l'upadter tout court, en s'inspirant fortement de nextturn()
-            => l'erreur rencontrée vient du fait que Pinky est arrivé tout en haut du link, et est donc sur l'intersection, avec direction=UP ; or il appelle movementaitotarget(), qui cherche la prochaine intersection avec nextintersection() pour prendre la decision de la direction a suivre... or notre remainingline est un point/intersection ; faut que movementaitotarget() gère ce genre de cas, puisque nextintersection fait bien son boulot (meme si comme dit ci-dessus, faut ameliorer ça)
+    => le code de nextintersection() reste a mettre a jour pr les 3 parametres, mais en fait faudrait l'upadter tout court, en s'inspirant fortement de nextturn()
+        => l'erreur rencontrée vient du fait que Pinky est arrivé tout en haut du link, et est donc sur l'intersection, avec direction=UP ; or il appelle movementaitotarget(), qui cherche la prochaine intersection avec nextintersection() pour prendre la decision de la direction a suivre... or notre remainingline est un point/intersection ; faut que movementaitotarget() gère ce genre de cas, puisque nextintersection fait bien son boulot (meme si comme dit ci-dessus, faut ameliorer ça)
     
 */
 
