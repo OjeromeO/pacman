@@ -2159,7 +2159,7 @@ PlayingState.prototype.loadMap = function(litteral)
     
     this._maze = new Maze(ghosthouse, lines, links, pacdots, portals);
     this._pacman = pacman;
-    //this._ghosts = ghosts;
+    this._ghosts = ghosts;
 };
 
 PlayingState.prototype.restart = function()
@@ -4092,12 +4092,12 @@ Ghost.prototype.animate = function(elapsed)
 
 Ghost.prototype.justLeavedHome = function(maze)
 {
-    return (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, true, false, false));
+    return (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)));
 };
 
 Ghost.prototype.justCameHomeEaten = function(maze)
 {
-    return (this._state === GhostState.EATEN && maze.containsPoint(this._position, false, true, false));
+    return (this._state === GhostState.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)));
 };
 
 
@@ -4303,13 +4303,12 @@ Ghost.prototype.move = function(elapsed, maze, status)
 
 
 /* TODO
-    - faudrait ptetre plutot mettre les 3 parametres withXXX en propriétés du Ghost, et les updater quand il le faut
-    - en fait il faudrait une méthode de Ghost : updateState(maze), qui ferait les "if LEAVINGHOME..." et les modifs sur les 3 parametres withXXX
-    
     ===> en plus, faudrait ptetre avoir les methodes de movexxx() dans Movable, et Pacman (il le faut, a cause des 3 parametres) et Ghost redefinissent celles-ci si necessaire => du coup on modifie les movexxx() mais le move() principal reste le même ? et du coup faudrait remplacer les appels direct a des setposition() ou autre pour que ce soit fait par un moveToPoint() par exemple, et que ce soit redefinissable...
     
 
-        ===> EN FAIT, creer la methode allowedCorridors() dans les movable (et bien préciser en commentaire de la fonction qu'il faut a chaque fois la rappeler quand on a besoin de ses données, car ceux autorises peuvent changer lors d'un deplacement, faut pas mettre le truc dans une variable et s'en servir plusieurs fois quoi), qui envoie les infos des 3 parametres aux fonctions qui en ont besoin ; mais pas de propriétés correspondantes ; le updatestate() ne fera rien sur les parametres et trucs du genre, il s'occupera bien uniquement de l'etat comme ghoststate, puisque le allowedCorridors() checke lui-meme ce qui est autorisé ou pas
+        ===> EN FAIT, creer la methode allowedCorridors() dans les movable, qui envoie les infos des 3 parametres aux fonctions qui en ont besoin ; OK
+             mais pas de propriétés correspondantes ;   OK
+             le updatestate(maze) ne fera rien sur les parametres et trucs du genre, il s'occupera bien uniquement de l'etat comme ghoststate et de le modifier selon si on vient juste de quitter la maison, etc.... (if justleaving() etc...) , puisque le allowedCorridors() checke lui-meme ce qui est autorisé ou pas
         
         ===> AUSSI, faire le truc des movexxx() mutualisés dans movable, qui appelleraient des updatestate() et donc des allowedCorridors() redefinis dans Pacman et Ghost, ce qui permettrait de ne pas avoir a modifier le code de maniere generale : en fait, suffit de mettre des updatestate() a chaque fois qu'on bouge a priori
 
@@ -4393,13 +4392,13 @@ Ghost.prototype.move = function(elapsed, maze)
         movement -= turndistance;
         
         /* if we were inside the ghosthouse, and now we leaved it */
-        if (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, true, false, false))
+        if (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)))
         {
             this._state = GhostState.NORMAL;
         }
         
         /* if we were outside the ghosthouse and needed to go inside, and now we went inside */
-        if (this._state === GhostState.EATEN && maze.containsPoint(this._position, false, true, false))
+        if (this._state === GhostState.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)))
         {
             this._state = GhostState.ATHOME;
         }
@@ -4408,7 +4407,7 @@ Ghost.prototype.move = function(elapsed, maze)
     var newx = 0;
     var newy = 0;
     
-    var withcorridors = false;
+    /*var withcorridors = false;
     var withghosthouse = false;
     var withlinks = false;
 
@@ -4428,9 +4427,9 @@ Ghost.prototype.move = function(elapsed, maze)
         withcorridors = true;
         withghosthouse = true;
         withlinks = true;
-    }
+    }*/
 
-    var remaining = maze.remainingLine(this._position, this._direction, withcorridors, withghosthouse, withlinks);
+    var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
     
     if (this._direction === Direction.UP)
     {
@@ -4481,7 +4480,7 @@ Ghost.prototype.move = function(elapsed, maze)
         if (this._nextdirection !== null
          && this._nextturn === null)
         {
-            var withcorridors = false;
+            /*var withcorridors = false;
             var withghosthouse = false;
             var withlinks = false;
         
@@ -4501,9 +4500,9 @@ Ghost.prototype.move = function(elapsed, maze)
                 withcorridors = true;
                 withghosthouse = true;
                 withlinks = true;
-            }
+            }*/
             
-            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, withcorridors, withghosthouse, withlinks);
+            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, this.allowedCorridors());
             
             this.setNextTurnPosition(nt);
         }
@@ -4533,7 +4532,7 @@ Ghost.prototype.movementAIToTargetFromPoint = function(maze, target, point)
             if (directions[i] === Direction.DOWN)   {possibleposition = new Point(point.getX(), point.getY() + GRID_UNIT);}
             if (directions[i] === Direction.LEFT)   {possibleposition = new Point(point.getX() - GRID_UNIT, point.getY());}
             
-            var withcorridors = false;
+            /*var withcorridors = false;
             var withghosthouse = false;
             var withlinks = false;
         
@@ -4552,9 +4551,9 @@ Ghost.prototype.movementAIToTargetFromPoint = function(maze, target, point)
                 withcorridors = true;
                 withghosthouse = true;
                 withlinks = true;
-            }
+            }*/
             
-            if (maze.containsPoint(possibleposition, withcorridors, withghosthouse, withlinks))
+            if (maze.containsPoint(possibleposition, this.allowedCorridors()))
             {
                 var possibledistance = possibleposition.distanceToPoint(target);
                 
@@ -4604,7 +4603,7 @@ Ghost.prototype.movementAIToTarget = function(maze, target)
         return;
     }
     
-    var withcorridors = false;
+    /*var withcorridors = false;
     var withghosthouse = false;
     var withlinks = false;
 
@@ -4623,7 +4622,7 @@ Ghost.prototype.movementAIToTarget = function(maze, target)
         withcorridors = true;
         withghosthouse = true;
         withlinks = true;
-    }
+    }*/
     
     if (this._direction == null
      || maze.isIntersection(this._position))
@@ -4633,7 +4632,7 @@ Ghost.prototype.movementAIToTarget = function(maze, target)
     }
     
     //TODO ptetre verifier l'utilisation des movementAIToTargetFromPoint... des fois on envoie la position courante et des fois celle de l'intersection suivante ? ca pose pas un probleme quand on affecte les (next)direction/turn dedans ??? car la fonction peut pas savoir si faut modif nextdir/turn ou bien juste la direction actuelle (meme si le movementAIToTargetFromPoint triche en utilisant un if (this._direction == null || maze.isIntersection(this._position)))... faudrait separer en 2 fonctions, pour depuis le ghost et pour depuis un (next)point, meme si ces 2 fonctions ont une grande partie en commun... faire une 3eme fonction de "base" que les 2 précédetes utilisent ?
-    var int = maze.nextIntersection(this._position, this._direction, withcorridors, withghosthouse, withlinks);
+    var int = maze.nextIntersection(this._position, this._direction, this.allowedCorridors());
     
     if (typeof int !== "undefined" && !int.equalsPoint(target))
     {
@@ -4733,8 +4732,8 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 var p1 = links[i].getLine().getPoint1();
                 var p2 = links[i].getLine().getPoint2();
                 
-                if (!maze.containsPoint(p1, false, true, false))    {target = p1; break;}
-                if (!maze.containsPoint(p2, false, true, false))    {target = p2; break;}
+                if (!maze.containsPoint(p1, new AllowedCorridors(false, true, false)))    {target = p1; break;}
+                if (!maze.containsPoint(p2, new AllowedCorridors(false, true, false)))    {target = p2; break;}
             }
             
             this.movementAIToTarget(maze, target);
@@ -4773,7 +4772,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 }
                 else
                 {
-                    var withcorridors = false;
+                    /*var withcorridors = false;
                     var withghosthouse = false;
                     var withlinks = false;
 
@@ -4792,9 +4791,9 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                         withcorridors = true;
                         withghosthouse = true;
                         withlinks = true;
-                    }
+                    }*/
                     
-                    current = maze.currentLine(this._position, this._direction, withcorridors, withghosthouse, withlinks);
+                    current = maze.currentLine(this._position, this._direction, this.allowedCorridors());
                 }
                 
                 var newdirection = this._direction;
@@ -4837,8 +4836,8 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                     var p1 = links[i].getLine().getPoint1();
                     var p2 = links[i].getLine().getPoint2();
                     
-                    if (!maze.containsPoint(p1, false, true, false))    {target = p1; break;}
-                    if (!maze.containsPoint(p2, false, true, false))    {target = p2; break;}
+                    if (!maze.containsPoint(p1, new AllowedCorridors(false, true, false)))    {target = p1; break;}
+                    if (!maze.containsPoint(p2, new AllowedCorridors(false, true, false)))    {target = p2; break;}
                 }
                 
                 this.movementAIToTarget(maze, target);
@@ -4878,7 +4877,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 }
                 else
                 {
-                    var withcorridors = false;
+                    /*var withcorridors = false;
                     var withghosthouse = false;
                     var withlinks = false;
 
@@ -4897,9 +4896,9 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                         withcorridors = true;
                         withghosthouse = true;
                         withlinks = true;
-                    }
+                    }*/
                     
-                    current = maze.currentLine(this._position, this._direction, withcorridors, withghosthouse, withlinks);
+                    current = maze.currentLine(this._position, this._direction, this.allowedCorridors());
                 }
                 
                 var newdirection = this._direction;
@@ -4942,8 +4941,8 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                     var p1 = links[i].getLine().getPoint1();
                     var p2 = links[i].getLine().getPoint2();
                     
-                    if (!maze.containsPoint(p1, false, true, false))    {target = p1; break;}
-                    if (!maze.containsPoint(p2, false, true, false))    {target = p2; break;}
+                    if (!maze.containsPoint(p1, new AllowedCorridors(false, true, false)))    {target = p1; break;}
+                    if (!maze.containsPoint(p2, new AllowedCorridors(false, true, false)))    {target = p2; break;}
                 }
                 
                 this.movementAIToTarget(maze, target);
