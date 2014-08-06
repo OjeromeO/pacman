@@ -4407,28 +4407,6 @@ Ghost.prototype.move = function(elapsed, maze)
     var newx = 0;
     var newy = 0;
     
-    /*var withcorridors = false;
-    var withghosthouse = false;
-    var withlinks = false;
-
-    if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
-    {
-        withcorridors = true;
-    }
-    
-    if (this._state === GhostState.ATHOME)
-    {
-        withghosthouse = true;
-        withlinks = true;
-    }
-    
-    if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
-    {
-        withcorridors = true;
-        withghosthouse = true;
-        withlinks = true;
-    }*/
-
     var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
     
     if (this._direction === Direction.UP)
@@ -4480,28 +4458,6 @@ Ghost.prototype.move = function(elapsed, maze)
         if (this._nextdirection !== null
          && this._nextturn === null)
         {
-            /*var withcorridors = false;
-            var withghosthouse = false;
-            var withlinks = false;
-        
-            if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
-            {
-                withcorridors = true;
-            }
-            
-            if (this._state === GhostState.ATHOME)
-            {
-                withghosthouse = true;
-                withlinks = true;
-            }
-            
-            if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
-            {
-                withcorridors = true;
-                withghosthouse = true;
-                withlinks = true;
-            }*/
-            
             var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, this.allowedCorridors());
             
             this.setNextTurnPosition(nt);
@@ -4531,27 +4487,6 @@ Ghost.prototype.movementAIToTargetFromPoint = function(maze, target, point)
             if (directions[i] === Direction.RIGHT)  {possibleposition = new Point(point.getX() + GRID_UNIT, point.getY());}
             if (directions[i] === Direction.DOWN)   {possibleposition = new Point(point.getX(), point.getY() + GRID_UNIT);}
             if (directions[i] === Direction.LEFT)   {possibleposition = new Point(point.getX() - GRID_UNIT, point.getY());}
-            
-            /*var withcorridors = false;
-            var withghosthouse = false;
-            var withlinks = false;
-        
-            if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
-            {
-                withcorridors = true;
-            }
-            
-            if (this._state === GhostState.ATHOME)
-            {
-                withghosthouse = true;
-            }
-            
-            if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
-            {
-                withcorridors = true;
-                withghosthouse = true;
-                withlinks = true;
-            }*/
             
             if (maze.containsPoint(possibleposition, this.allowedCorridors()))
             {
@@ -4602,27 +4537,6 @@ Ghost.prototype.movementAIToTarget = function(maze, target)
     {
         return;
     }
-    
-    /*var withcorridors = false;
-    var withghosthouse = false;
-    var withlinks = false;
-
-    if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
-    {
-        withcorridors = true;
-    }
-    
-    if (this._state === GhostState.ATHOME)
-    {
-        withghosthouse = true;
-    }
-    
-    if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
-    {
-        withcorridors = true;
-        withghosthouse = true;
-        withlinks = true;
-    }*/
     
     if (this._direction == null
      || maze.isIntersection(this._position))
@@ -4772,27 +4686,6 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 }
                 else
                 {
-                    /*var withcorridors = false;
-                    var withghosthouse = false;
-                    var withlinks = false;
-
-                    if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
-                    {
-                        withcorridors = true;
-                    }
-                    
-                    if (this._state === GhostState.ATHOME)
-                    {
-                        withghosthouse = true;
-                    }
-                    
-                    if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
-                    {
-                        withcorridors = true;
-                        withghosthouse = true;
-                        withlinks = true;
-                    }*/
-                    
                     current = maze.currentLine(this._position, this._direction, this.allowedCorridors());
                 }
                 
@@ -4877,27 +4770,6 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 }
                 else
                 {
-                    /*var withcorridors = false;
-                    var withghosthouse = false;
-                    var withlinks = false;
-
-                    if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
-                    {
-                        withcorridors = true;
-                    }
-                    
-                    if (this._state === GhostState.ATHOME)
-                    {
-                        withghosthouse = true;
-                    }
-                    
-                    if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
-                    {
-                        withcorridors = true;
-                        withghosthouse = true;
-                        withlinks = true;
-                    }*/
-                    
                     current = maze.currentLine(this._position, this._direction, this.allowedCorridors());
                 }
                 
