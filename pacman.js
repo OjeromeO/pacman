@@ -1123,6 +1123,27 @@ Line.prototype.isCrossing = function(line)
     }
 };
 
+Line.prototype.intersectionPointWith = function(line)
+{
+    if (this.isParallelTo(line))
+    {
+        return;
+    }
+    
+    var x = null;
+    var y = null;
+    
+    if (isVertical(this))                   {x = this.XAxis();}
+    else if (isHorizontal(this))            {y = this.YAxis();}
+    else    /* the "line" is a point... */  {x = this.XAxis(); y = this.YAxis();}
+    
+    if (isVertical(line))                   {x = line.XAxis();}
+    else if (isHorizontal(line))            {y = line.YAxis();}
+    else    /* the "line" is a point... */  {x = line.XAxis(); y = line.YAxis();}
+    
+    return new Point(x, y);
+};
+
 Line.prototype.isParallelTo = function(line)
 {
     return ((isVertical(this) && isVertical(line)) || (isHorizontal(this) && isHorizontal(line)));
@@ -2138,7 +2159,7 @@ PlayingState.prototype.loadMap = function(litteral)
     
     this._maze = new Maze(ghosthouse, lines, links, pacdots, portals);
     this._pacman = pacman;
-    this._ghosts = ghosts;
+    //this._ghosts = ghosts;
 };
 
 PlayingState.prototype.restart = function()
@@ -2579,11 +2600,11 @@ Maze.prototype.deletePacdot = function(index)
     this._pacdots.splice(index, 1);
 };
 
-Maze.prototype.containsPoint = function(point, withcorridors, withghosthouse, withlinks)
+Maze.prototype.containsPoint = function(point, allowedcorridors)
 {
     assert((point instanceof Point), "point is not a Point");
     
-    if (withcorridors === true)
+    if (allowedcorridors.withCorridors() === true)
     {
         for(var i=0;i<this._corridors.length;i++)
         {
@@ -2594,7 +2615,7 @@ Maze.prototype.containsPoint = function(point, withcorridors, withghosthouse, wi
         }
     }
     
-    if (withghosthouse === true)
+    if (allowedcorridors.withGhosthouse() === true)
     {
         for(var i=0;i<this._ghosthouse.length;i++)
         {
@@ -2605,7 +2626,7 @@ Maze.prototype.containsPoint = function(point, withcorridors, withghosthouse, wi
         }
     }
     
-    if (withlinks === true)
+    if (allowedcorridors.withLinks() === true)
     {
         for(var i=0;i<this._links.length;i++)
         {
@@ -2743,14 +2764,14 @@ Maze.prototype.isIntersection = function(point)
     return (typeof vl !== "undefined" && typeof hl !== "undefined");
 };
 
-Maze.prototype.currentLine = function(point, direction, withcorridors, withghosthouse, withlinks)
+Maze.prototype.currentLine = function(point, direction, allowedcorridors)
 {
     assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
     
     var line = null;
     
-    if (withcorridors)
+    if (allowedcorridors.withCorridors())
     {
         for(var i=0; i<this._corridors.length; i++)
         {
@@ -2759,7 +2780,7 @@ Maze.prototype.currentLine = function(point, direction, withcorridors, withghost
             if (line.isParallelToDirection(direction)
              && line.containsPoint(point))
             {
-                if (withlinks)
+                if (allowedcorridors.withLinks())
                 {
                     /* check if this line overlap with a link line */
                     for(var i=0; i<this._links.length; i++)
@@ -2777,7 +2798,7 @@ Maze.prototype.currentLine = function(point, direction, withcorridors, withghost
         }
     }
     
-    if (withghosthouse)
+    if (allowedcorridors.withGhosthouse())
     {
         for(var i=0; i<this._ghosthouse.length; i++)
         {
@@ -2786,7 +2807,7 @@ Maze.prototype.currentLine = function(point, direction, withcorridors, withghost
             if (line.isParallelToDirection(direction)
              && line.containsPoint(point))
             {
-                if (withlinks)
+                if (allowedcorridors.withLinks())
                 {
                     /* check if this line overlap with a link line */
                     for(var i=0; i<this._links.length; i++)
@@ -2804,7 +2825,7 @@ Maze.prototype.currentLine = function(point, direction, withcorridors, withghost
         }
     }
     
-    if (withlinks)
+    if (allowedcorridors.withLinks())
     {
         for(var i=0; i<this._links.length; i++)
         {
@@ -2824,7 +2845,7 @@ Maze.prototype.currentLine = function(point, direction, withcorridors, withghost
         element on the maze
     */
     
-    if (withcorridors)
+    if (allowedcorridors.withCorridors())
     {
         for(var i=0; i<this._corridors.length; i++)
         {
@@ -2837,7 +2858,7 @@ Maze.prototype.currentLine = function(point, direction, withcorridors, withghost
         }
     }
     
-    if (withghosthouse)
+    if (allowedcorridors.withGhosthouse())
     {
         for(var i=0; i<this._ghosthouse.length; i++)
         {
@@ -2850,7 +2871,7 @@ Maze.prototype.currentLine = function(point, direction, withcorridors, withghost
         }
     }
     
-    if (withlinks)
+    if (allowedcorridors.withLinks())
     {
         for(var i=0; i<this._links.length; i++)
         {
@@ -2864,9 +2885,10 @@ Maze.prototype.currentLine = function(point, direction, withcorridors, withghost
     }
 };
 
-Maze.prototype.remainingLine = function(point, direction, withcorridors, withghosthouse, withlinks)
+//Maze.prototype.remainingLine = function(point, direction, withcorridors, withghosthouse, withlinks)
+Maze.prototype.remainingLine = function(point, direction, allowedcorridors)
 {
-    var current = this.currentLine(point, direction, withcorridors, withghosthouse, withlinks);
+    var current = this.currentLine(point, direction, allowedcorridors);
     
     var xlimit = null;
     var ylimit = null;
@@ -2918,12 +2940,11 @@ Maze.prototype.goingToPortalDirection = function(position)
  * that even if we are exactly on a usable intersection, this intersection is NOT returned.
  * The function doesn't search through portals.
  */
-Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridors, withghosthouse, withlinks)
+Maze.prototype.nextTurn = function(point, direction, nextdirection, allowedcorridors)
 {
     assert((point instanceof Point), "point is not a Point");
     assert((isDirection(direction)), "direction value is not valid");
     assert((isDirection(nextdirection)), "nextdirection value is not valid");
-    assert((typeof withghosthouse === "boolean"), "withghosthouse is not a boolean");
     
     if (areDirectionsParallel(direction, nextdirection))
     {
@@ -2931,7 +2952,7 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
     }
     
     var lines = [];
-    var remaining = this.remainingLine(point, direction, withcorridors, withghosthouse, withlinks);
+    var remaining = this.remainingLine(point, direction, allowedcorridors);
     
     if (remaining.isPoint())
     {
@@ -2940,7 +2961,7 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
     
     /* find all the lines on which we could turn */
     
-    if (withcorridors === true)
+    if (allowedcorridors.withCorridors() === true)
     {
         for(var i=0;i<this._corridors.length;i++)
         {
@@ -2948,23 +2969,18 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
             
             if (l.isCrossing(remaining))
             {
-                // if there is some place to turn
-                if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
-                 || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
-                 || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
-                 || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
+                var intersection = l.intersectionPointWith(remaining);
+                
+                if (this.directionIsAvailable(intersection, nextdirection)
+                 && !point.equalsPoint(intersection))
                 {
-                    // if our point is not an intersection created by this line and our remaining line
-                    if (!l.containsPoint(point))
-                    {
-                        lines.push(l);
-                    }
+                    lines.push(l);
                 }
             }
         }
     }
     
-    if (withghosthouse === true)
+    if (allowedcorridors.withGhosthouse() === true)
     {
         for(var i=0;i<this._ghosthouse.length;i++)
         {
@@ -2972,21 +2988,18 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
             
             if (l.isCrossing(remaining))
             {
-                if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
-                 || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
-                 || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
-                 || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
+                var intersection = l.intersectionPointWith(remaining);
+                
+                if (this.directionIsAvailable(intersection, nextdirection)
+                 && !point.equalsPoint(intersection))
                 {
-                    if (!l.containsPoint(point))
-                    {
-                        lines.push(l);
-                    }
+                    lines.push(l);
                 }
             }
         }
     }
     
-    if (withlinks === true)
+    if (allowedcorridors.withLinks() === true)
     {
         for(var i=0;i<this._links.length;i++)
         {
@@ -2994,15 +3007,12 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
             
             if (l.isCrossing(remaining))
             {
-                if ((nextdirection === Direction.LEFT && l.containsX(point.getX()-1))
-                 || (nextdirection === Direction.RIGHT && l.containsX(point.getX()+1))
-                 || (nextdirection === Direction.UP && l.containsY(point.getY()-1))
-                 || (nextdirection === Direction.DOWN && l.containsY(point.getY()+1)))
+                var intersection = l.intersectionPointWith(remaining);
+                
+                if (this.directionIsAvailable(intersection, nextdirection)
+                 && !point.equalsPoint(intersection))
                 {
-                    if (!l.containsPoint(point))
-                    {
-                        lines.push(l);
-                    }
+                    lines.push(l);
                 }
             }
         }
@@ -3040,12 +3050,14 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, withcorridor
     }
 };
 
-Maze.prototype.nextIntersection = function(point, direction, withcorridors, withghosthouse, withlinks)
+//TODO en fait actuellement, cette fonction renvoie quand meme l'intersection si on est dessus, mais uniquement dans le cas où notre remainingline est un point ; contrairement à nextTurn, qui return direct si notre remainingline est un point
+// seulement utilisée une fois dans Ghost.movementAIToTarget()
+Maze.prototype.nextIntersection = function(point, direction, allowedcorridors)
 {
-    var line = this.currentLine(point, direction, withcorridors, withghosthouse, withlinks);
+    var line = this.currentLine(point, direction, allowedcorridors);
     
     var lines = [];
-    var current = this.remainingLine(point, direction, withcorridors, withghosthouse, withlinks);
+    var current = this.remainingLine(point, direction, allowedcorridors);
     
     for(var i=0; i<this._corridors.length; i++)
     {
@@ -3143,14 +3155,12 @@ Maze.prototype.directionIsAvailable = function(point, direction)
     {
         var line = this.VLineContainer(point);
         
-        if (typeof line !== "undefined")
+        if (typeof line !== "undefined"
+         && ((line.getPoint1().equalsPoint(point) === false && line.getPoint2().equalsPoint(point) === false)
+          || (line.getPoint1().equalsPoint(point) === true && direction === Direction.DOWN)
+          || (line.getPoint2().equalsPoint(point) === true && direction === Direction.UP)))
         {
-            if ((line.getPoint1().equalsPoint(point) === false && line.getPoint2().equalsPoint(point) === false)
-             || (line.getPoint1().equalsPoint(point) === true && direction === Direction.DOWN)
-             || (line.getPoint2().equalsPoint(point) === true && direction === Direction.UP))
-            {
-                return true;
-            }
+            return true;
         }
     }
     
@@ -3158,14 +3168,12 @@ Maze.prototype.directionIsAvailable = function(point, direction)
     {
         var line = this.HLineContainer(point);
         
-        if (typeof line !== "undefined")
+        if (typeof line !== "undefined"
+         && ((line.getPoint1().equalsPoint(point) === false && line.getPoint2().equalsPoint(point) === false)
+          || (line.getPoint1().equalsPoint(point) === true && direction === Direction.RIGHT)
+          || (line.getPoint2().equalsPoint(point) === true && direction === Direction.LEFT)))
         {
-            if ((line.getPoint1().equalsPoint(point) === false && line.getPoint2().equalsPoint(point) === false)
-             || (line.getPoint1().equalsPoint(point) === true && direction === Direction.RIGHT)
-             || (line.getPoint2().equalsPoint(point) === true && direction === Direction.LEFT))
-            {
-                return true;
-            }
+            return true;
         }
     }
     
@@ -3201,6 +3209,34 @@ Maze.prototype.draw = function()
 Maze.prototype.drawPortals = function()
 {
     for(var i=0; i<this._portals.length; i++)       {this._portals[i].draw();}
+};
+
+
+
+/******************************************************************************/
+/*************************** AllowedCorridors class ***************************/
+/******************************************************************************/
+
+var AllowedCorridors = function(withcorridors, withghosthouse, withlinks)
+{
+    this._withcorridors = withcorridors;
+    this._withghosthouse = withghosthouse;
+    this._withlinks = withlinks;
+};
+
+AllowedCorridors.prototype.withCorridors = function()
+{
+    return this._withcorridors;
+};
+
+AllowedCorridors.prototype.withGhosthouse = function()
+{
+    return this._withghosthouse;
+};
+
+AllowedCorridors.prototype.withLinks = function()
+{
+    return this._withlinks;
 };
 
 
@@ -3400,8 +3436,17 @@ Pacman.prototype.reinit = function(x, y, movablestate, direction)
     this._state = PacmanState.NORMAL;
     
     this._animtime = 0;
-    this._mouthstartangle = 0;
-    this._mouthendangle = 0;
+    this._mouthstartangle = 6/10;
+    this._mouthendangle = -6/10;
+};
+
+Pacman.prototype.allowedCorridors = function()
+{
+    var withcorridors = true;
+    var withghosthouse = false;
+    var withlinks = false;
+    
+    return new AllowedCorridors(withcorridors, withghosthouse, withlinks);
 };
 
 Pacman.prototype.draw = function()
@@ -3500,13 +3545,13 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
                 this._movablestate = MovableState.MOVING;
             }
         }
-        else if (!maze.remainingLine(this._position, this._direction, true, false, false).isPoint())
+        else if (!maze.remainingLine(this._position, this._direction, this.allowedCorridors()).isPoint())
         {
             //TODO penser dans le checkConfig() a interdire de placer un pacman sur un portail avec une direction qui le fait traverser le portail (toute façon ca aurait pas de sens, car il serait immédiatement transporté au portail correspondant ; mais faut s'assurer que ce cas n'arrivera pas)
             //      => sinon faudrait ajouter au if : || isPortal(this._position), car on pourrait aller dans la direction traversant le portail ou bien aller dans une direction perpendiculaire a celle actuelle, en traversant le portail
             //      => et evidemment faudrait gerer ça aussi ci-dessous...
 
-            var turnpoint = maze.nextTurn(this._position, this._direction, newdirection, true, false, false);
+            var turnpoint = maze.nextTurn(this._position, this._direction, newdirection, this.allowedCorridors());
             var position = this._position;
             var direction = this._direction;
             var directlyavailableafterportal = false;
@@ -3514,7 +3559,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
             // search through the next portals if we will be able to go this new direction
             while(typeof turnpoint === "undefined")
             {
-                var remaining = maze.remainingLine(position, direction, true, false, false);
+                var remaining = maze.remainingLine(position, direction, this.allowedCorridors());
                 var endpoint = null;
                 
                 if (this._direction === Direction.UP)           {endpoint = remaining.getPoint1();}
@@ -3548,7 +3593,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
                         position = associated.getPosition();
                         direction = maze.goingFromPortalDirection(associated.getPosition());
                         
-                        turnpoint = maze.nextTurn(position, direction, newdirection, true, false, false);
+                        turnpoint = maze.nextTurn(position, direction, newdirection, this.allowedCorridors());
                     }
                 }
                 else
@@ -3727,7 +3772,7 @@ Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status
                 // (portals can only be on one line, and at an extremity)
                 this._direction = directions[0];
                 
-                remaining = maze.remainingLine(this._position, this._direction, true, false, false);
+                remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
             }
             else
             {
@@ -3752,7 +3797,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
         return;
     }
     
-    var remaining = maze.remainingLine(this._position, this._direction, true, false, false);
+    var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
     
     // if we are in a dead-end
     // (we can't be on a portal and in need to be teleported, nor we can be at an intersection in need to turn,
@@ -3778,7 +3823,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
                     
                     movement -= turndistance;
                     
-                    this.moveInStraightLine(movement, maze.remainingLine(this._position, this._direction, true, false, false), maze, status)
+                    this.moveInStraightLine(movement, maze.remainingLine(this._position, this._direction, this.allowedCorridors()), maze, status)
                     
                     movement = 0;
                 }
@@ -3812,7 +3857,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
                         // (portals can only be on one line, and at an extremity)
                         this._direction = directions[0];
                         
-                        remaining = maze.remainingLine(this._position, this._direction, true, false, false);
+                        remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
                     }
                     else
                     {
@@ -4045,10 +4090,6 @@ Ghost.prototype.animate = function(elapsed)
     this._normalwave = (this._animtime < 250 || (this._animtime > 500 && this._animtime < 750));
 };
 
-/* TODO
-    - en fait, copier le move() et les movetruc() de Pacman, mais en y integrant ici d'eventuelles modifs de l'etat du ghost !
-*/
-
 Ghost.prototype.justLeavedHome = function(maze)
 {
     return (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, true, false, false));
@@ -4061,7 +4102,9 @@ Ghost.prototype.justCameHomeEaten = function(maze)
 
 
 
-
+/* TODO
+    - en fait, copier le move() et les movetruc() de Pacman, mais en y integrant ici d'eventuelles modifs de l'etat du ghost !
+*/
 
 
 /*
@@ -4098,7 +4141,6 @@ Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
     
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
 };
-
 
 Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
 {
@@ -4164,13 +4206,161 @@ Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status
 */
 
 
+/*
+//TODO apres chaque deplacement/teleportation, appeler une fonction du style updateGhostStatus() ? quoique, en fait deja dans les 3 parametres faut bidouiller a cause des différents états dispo, au sein meme des fonctions moveInStraightLine(), ...
+//          => en fait, voir le todo plus en bas
+Ghost.prototype.move = function(elapsed, maze, status)
+{
+    assert((elapsed > 0), "elapsed value is not valid");
+    
+    if (this._movablestate !== MovableState.MOVING)
+    {
+        return;
+    }
+    
+    var remaining = maze.remainingLine(this._position, this._direction, true, false, false);
+    
+    // if we are in a dead-end
+    // (we can't be on a portal and in need to be teleported, nor we can be at an intersection in need to turn,
+    //  as the move() would have teleported us or make us turn at the previous step)
+    if (remaining.isPoint())
+    {
+        return;
+    }
+    
+    var movement = Math.round(GHOST_SPEED * elapsed/1000);
+    
+    if (this.hasNextTurn())
+    {
+        while(movement > 0)
+        {
+            if (remaining.containsPoint(this._nextturn))
+            {
+                var turndistance = this._position.distanceToPoint(this._nextturn);
+                
+                if (movement >= turndistance)
+                {
+                    this.moveToNextTurnInsideRemainingLine(maze, status);
+                    
+                    movement -= turndistance;
+                    
+                    this.moveInStraightLine(movement, maze.remainingLine(this._position, this._direction, true, false, false), maze, status)
+                    
+                    movement = 0;
+                }
+                else
+                {
+                    this.moveInsideRemainingLine(movement, remaining, maze, status);
+                    
+                    movement = 0;
+                }
+            }
+            else
+            {
+                if (movement >= remaining.size())
+                {
+                    this.moveToEndOfRemainingLine(remaining, maze, status);
+                    
+                    movement -= remaining.size();
+                    
+                    if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+                    {
+                        var associated = maze.associatedPortal(this.getPosition().getX(), this.getPosition().getY());
+                        
+                        this.setPosition(associated.getPosition().getX(), associated.getPosition().getY());
+                        
+                        // search and assign the new current direction after teleportation
+                        
+                        var directions = []
+                        directions = maze.availableDirections(this.getPosition());
+                        
+                        // there will be only one direction in the array
+                        // (portals can only be on one line, and at an extremity)
+                        this._direction = directions[0];
+                        
+                        remaining = maze.remainingLine(this._position, this._direction, true, false, false);
+                    }
+                    else
+                    {
+                        movement = 0;
+                    }
+                }
+                else
+                {
+                    this.moveInsideRemainingLine(movement, remaining, maze, status);
+                    
+                    movement = 0;
+                }
+            }
+        }
+    }
+    else
+    {
+        this.moveInStraightLine(movement, remaining, maze, status);
+    }
+};
+*/
 
 
+/* TODO
+    - faudrait ptetre plutot mettre les 3 parametres withXXX en propriétés du Ghost, et les updater quand il le faut
+    - en fait il faudrait une méthode de Ghost : updateState(maze), qui ferait les "if LEAVINGHOME..." et les modifs sur les 3 parametres withXXX
+    
+    ===> en plus, faudrait ptetre avoir les methodes de movexxx() dans Movable, et Pacman (il le faut, a cause des 3 parametres) et Ghost redefinissent celles-ci si necessaire => du coup on modifie les movexxx() mais le move() principal reste le même ? et du coup faudrait remplacer les appels direct a des setposition() ou autre pour que ce soit fait par un moveToPoint() par exemple, et que ce soit redefinissable...
+    
+
+        ===> EN FAIT, creer la methode allowedCorridors() dans les movable (et bien préciser en commentaire de la fonction qu'il faut a chaque fois la rappeler quand on a besoin de ses données, car ceux autorises peuvent changer lors d'un deplacement, faut pas mettre le truc dans une variable et s'en servir plusieurs fois quoi), qui envoie les infos des 3 parametres aux fonctions qui en ont besoin ; mais pas de propriétés correspondantes ; le updatestate() ne fera rien sur les parametres et trucs du genre, il s'occupera bien uniquement de l'etat comme ghoststate, puisque le allowedCorridors() checke lui-meme ce qui est autorisé ou pas
+        
+        ===> AUSSI, faire le truc des movexxx() mutualisés dans movable, qui appelleraient des updatestate() et donc des allowedCorridors() redefinis dans Pacman et Ghost, ce qui permettrait de ne pas avoir a modifier le code de maniere generale : en fait, suffit de mettre des updatestate() a chaque fois qu'on bouge a priori
+
+        ===> d'une part les allowedcorridors(), de l'autre les updatestate()
 
 
+dans certains tests, degager les === true et === false, c'est evident...
 
 
+updatestate :
+// if we were inside the ghosthouse, and now we leaved it 
+        if (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, true, false, false))
+        {
+            this._state = GhostState.NORMAL;
+        }
+        
+        // if we were outside the ghosthouse and needed to go inside, and now we went inside 
+        if (this._state === GhostState.EATEN && maze.containsPoint(this._position, false, true, false))
+        {
+            this._state = GhostState.ATHOME;
+        }
 
+mais comment ca va faire le updatestate pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatpacdots non ?
+*/
+
+Ghost.prototype.allowedCorridors = function()
+{
+    var withcorridors = false;
+    var withghosthouse = false;
+    var withlinks = false;
+
+    if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
+    {
+        withcorridors = true;
+    }
+    
+    if (this._state === GhostState.ATHOME)
+    {
+        withghosthouse = true;
+        withlinks = true;
+    }
+    
+    if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
+    {
+        withcorridors = true;
+        withghosthouse = true;
+        withlinks = true;
+    }
+    
+    return new AllowedCorridors(withcorridors, withghosthouse, withlinks);
+};
 
 Ghost.prototype.move = function(elapsed, maze)
 {
@@ -4240,29 +4430,29 @@ Ghost.prototype.move = function(elapsed, maze)
         withlinks = true;
     }
 
-    var currentline = maze.currentLine(this._position, this._direction, withcorridors, withghosthouse, withlinks);
+    var remaining = maze.remainingLine(this._position, this._direction, withcorridors, withghosthouse, withlinks);
     
     if (this._direction === Direction.UP)
     {
-        limit = currentline.getPoint1().getY();
+        limit = remaining.getPoint1().getY();
         newx = this._position.getX();
         newy = (this._position.getY()-movement > limit) ? this._position.getY()-movement : limit ;
     }
     else if (this._direction === Direction.DOWN)
     {
-        limit = currentline.getPoint2().getY();
+        limit = remaining.getPoint2().getY();
         newx = this._position.getX();
         newy = (this._position.getY()+movement < limit) ? this._position.getY()+movement : limit ;
     }
     else if (this._direction === Direction.LEFT)
     {
-        limit = currentline.getPoint1().getX();
+        limit = remaining.getPoint1().getX();
         newx = (this._position.getX()-movement > limit) ? this._position.getX()-movement : limit ;
         newy = this._position.getY();
     }
     else
     {
-        limit = currentline.getPoint2().getX();
+        limit = remaining.getPoint2().getX();
         newx = (this._position.getX()+movement < limit) ? this._position.getX()+movement : limit ;
         newy = this._position.getY();
     }
@@ -4791,16 +4981,14 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     - utiliser 1 seul parametre via des macros plutot que 3 parametres via des booléens ? genre MazeTruc.CORRIDORS, MazeTruc.CORRIDORS_LINKS, ... ou même via des flags avec les bits : CORRIDORS|LINKS, ...
     - dans le movementAI() separer le code pr chaque fantome vers différentes fonctions (MovementAIClyde(), MovementAIInky(), ...)
     
-    
-    
     - ameliorer et tester mon assert() avec :
     http://stackoverflow.com/questions/1013239/can-i-get-the-name-of-the-currently-running-function-in-javascript
     http://stackoverflow.com/questions/6586971/get-the-current-function-name-in-javascript
     
-    
     => le code de nextintersection() reste a mettre a jour pr les 3 parametres, mais en fait faudrait l'upadter tout court, en s'inspirant fortement de nextturn()
         => l'erreur rencontrée vient du fait que Pinky est arrivé tout en haut du link, et est donc sur l'intersection, avec direction=UP ; or il appelle movementaitotarget(), qui cherche la prochaine intersection avec nextintersection() pour prendre la decision de la direction a suivre... or notre remainingline est un point/intersection ; faut que movementaitotarget() gère ce genre de cas, puisque nextintersection fait bien son boulot (meme si comme dit ci-dessus, faut ameliorer ça)
-    
+        
+===> au final : d'une part s'occuper des move(), d'autre part s'occuper des movementAI()
 */
 
 
