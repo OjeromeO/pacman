@@ -39,15 +39,15 @@ Object.defineProperties(MovableState,
     "PAUSED":   {value: 3, writable: false, configurable: false, enumerable: true}
 });
 
-var PacmanState = {};
-Object.defineProperties(PacmanState,
+var PacmanMode = {};
+Object.defineProperties(PacmanMode,
 {
     "NORMAL":   {value: 1, writable: false, configurable: false, enumerable: true},
     "PP_EATEN": {value: 2, writable: false, configurable: false, enumerable: true}
 });
 
-var GhostState = {};
-Object.defineProperties(GhostState,
+var GhostMode = {};
+Object.defineProperties(GhostMode,
 {
     "ATHOME":      {value: 1, writable: false, configurable: false, enumerable: true},
     "LEAVINGHOME": {value: 2, writable: false, configurable: false, enumerable: true},
@@ -327,11 +327,11 @@ var isPortalID = function(id)
     }
 };
 
-var isPacmanState = function(state)
+var isPacmanMode = function(state)
 {
     if (typeof state === "number"
-     && (state === PacmanState.NORMAL
-      || state === PacmanState.PP_EATEN))
+     && (state === PacmanMode.NORMAL
+      || state === PacmanMode.PP_EATEN))
     {
         return true;
     }
@@ -341,11 +341,11 @@ var isPacmanState = function(state)
     }
 };
 
-var isGhostState = function(state)
+var isGhostMode = function(state)
 {
     if (typeof state === "number"
-     && (state === GhostState.NORMAL
-      || state === GhostState.EATABLE))
+     && (state === GhostMode.NORMAL
+      || state === GhostMode.EATABLE))
     {
         return true;
     }
@@ -508,7 +508,7 @@ var checkConfiguration = function()
         if (l.getPoint1().getY() < ymin) {ymin = l.getPoint1().getY();}
     }
     
-    assert((isPacmanInMaze === true), "MAP_1.pacman coordinates are not inside the maze");
+    assert((isPacmanInMaze), "MAP_1.pacman coordinates are not inside the maze");
     
     for(var i=0; i<MAP_1.mazelines.length; i++)
     {
@@ -1173,8 +1173,8 @@ Line.prototype.isExtremity = function(point)
 {
     assert((point instanceof Point), "point is not a Point");
     
-    if (this._point1.equalsPoint(point) === true
-     || this._point2.equalsPoint(point) === true)
+    if (this._point1.equalsPoint(point)
+     || this._point2.equalsPoint(point))
     {
         return true;
     }
@@ -2014,7 +2014,7 @@ PauseState.prototype.update = function()
 
 PauseState.prototype.draw = function()
 {
-    if (this._firstdraw === true)
+    if (this._firstdraw)
     {
         context.fillStyle = "rgba(0, 0, 0, 0.3)";
         
@@ -2604,7 +2604,7 @@ Maze.prototype.containsPoint = function(point, allowedcorridors)
 {
     assert((point instanceof Point), "point is not a Point");
     
-    if (allowedcorridors.withCorridors() === true)
+    if (allowedcorridors.withCorridors())
     {
         for(var i=0;i<this._corridors.length;i++)
         {
@@ -2615,7 +2615,7 @@ Maze.prototype.containsPoint = function(point, allowedcorridors)
         }
     }
     
-    if (allowedcorridors.withGhosthouse() === true)
+    if (allowedcorridors.withGhosthouse())
     {
         for(var i=0;i<this._ghosthouse.length;i++)
         {
@@ -2626,7 +2626,7 @@ Maze.prototype.containsPoint = function(point, allowedcorridors)
         }
     }
     
-    if (allowedcorridors.withLinks() === true)
+    if (allowedcorridors.withLinks())
     {
         for(var i=0;i<this._links.length;i++)
         {
@@ -2961,7 +2961,7 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, allowedcorri
     
     /* find all the lines on which we could turn */
     
-    if (allowedcorridors.withCorridors() === true)
+    if (allowedcorridors.withCorridors())
     {
         for(var i=0;i<this._corridors.length;i++)
         {
@@ -2980,7 +2980,7 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, allowedcorri
         }
     }
     
-    if (allowedcorridors.withGhosthouse() === true)
+    if (allowedcorridors.withGhosthouse())
     {
         for(var i=0;i<this._ghosthouse.length;i++)
         {
@@ -2999,7 +2999,7 @@ Maze.prototype.nextTurn = function(point, direction, nextdirection, allowedcorri
         }
     }
     
-    if (allowedcorridors.withLinks() === true)
+    if (allowedcorridors.withLinks())
     {
         for(var i=0;i<this._links.length;i++)
         {
@@ -3157,8 +3157,8 @@ Maze.prototype.directionIsAvailable = function(point, direction)
         
         if (typeof line !== "undefined"
          && ((line.getPoint1().equalsPoint(point) === false && line.getPoint2().equalsPoint(point) === false)
-          || (line.getPoint1().equalsPoint(point) === true && direction === Direction.DOWN)
-          || (line.getPoint2().equalsPoint(point) === true && direction === Direction.UP)))
+          || (line.getPoint1().equalsPoint(point) && direction === Direction.DOWN)
+          || (line.getPoint2().equalsPoint(point) && direction === Direction.UP)))
         {
             return true;
         }
@@ -3170,8 +3170,8 @@ Maze.prototype.directionIsAvailable = function(point, direction)
         
         if (typeof line !== "undefined"
          && ((line.getPoint1().equalsPoint(point) === false && line.getPoint2().equalsPoint(point) === false)
-          || (line.getPoint1().equalsPoint(point) === true && direction === Direction.RIGHT)
-          || (line.getPoint2().equalsPoint(point) === true && direction === Direction.LEFT)))
+          || (line.getPoint1().equalsPoint(point) && direction === Direction.RIGHT)
+          || (line.getPoint2().equalsPoint(point) && direction === Direction.LEFT)))
         {
             return true;
         }
@@ -3413,7 +3413,7 @@ var Pacman = function(x, y, movablestate, direction)
     //Movable.call(this, x, y, MovableState.IMMOBILE, direction);
     //Movable.call(this, x, y, MovableState.PAUSED, direction);
     
-    this._state = PacmanState.NORMAL;
+    this._state = PacmanMode.NORMAL;
     
     this._animtime = 0;
     this._mouthstartangle = 6/10;
@@ -3433,7 +3433,7 @@ Pacman.prototype.reinit = function(x, y, movablestate, direction)
     
     Movable.prototype.reinit.call(this, x, y, movablestate, direction);
     
-    this._state = PacmanState.NORMAL;
+    this._state = PacmanMode.NORMAL;
     
     this._animtime = 0;
     this._mouthstartangle = 6/10;
@@ -3469,7 +3469,7 @@ Pacman.prototype.getState = function()
 };
 Pacman.prototype.setState = function(state)
 {
-    assert((isPacmanState(state)), "state value is not valid");
+    assert((isPacmanMode(state)), "state value is not valid");
 
     this._state = state;
 };
@@ -3899,10 +3899,10 @@ var Ghost = function(id, x, y, movablestate, direction)
     this._animtime = 0;
     this._normalwave = true;
     
-    if (this._id === GhostType.BLINKY)      {this._state = GhostState.NORMAL;}
-    else if (this._id === GhostType.PINKY)  {this._state = GhostState.LEAVINGHOME;}
-    else if (this._id === GhostType.INKY)   {this._state = GhostState.ATHOME;}
-    else if (this._id === GhostType.CLYDE)  {this._state = GhostState.ATHOME;}
+    if (this._id === GhostType.BLINKY)      {this._state = GhostMode.NORMAL;}
+    else if (this._id === GhostType.PINKY)  {this._state = GhostMode.LEAVINGHOME;}
+    else if (this._id === GhostType.INKY)   {this._state = GhostMode.ATHOME;}
+    else if (this._id === GhostType.CLYDE)  {this._state = GhostMode.ATHOME;}
 };
 
 Ghost.prototype = Object.create(Movable.prototype);
@@ -3923,10 +3923,10 @@ Ghost.prototype.reinit = function(id, x, y, movablestate, direction)
     this._animtime = 0;
     this._normalwave = true;
     
-    if (this._id === GhostType.BLINKY)      {this._state = GhostState.NORMAL;}
-    else if (this._id === GhostType.PINKY)  {this._state = GhostState.LEAVINGHOME;}
-    else if (this._id === GhostType.INKY)   {this._state = GhostState.ATHOME;}
-    else if (this._id === GhostType.CLYDE)  {this._state = GhostState.ATHOME;}
+    if (this._id === GhostType.BLINKY)      {this._state = GhostMode.NORMAL;}
+    else if (this._id === GhostType.PINKY)  {this._state = GhostMode.LEAVINGHOME;}
+    else if (this._id === GhostType.INKY)   {this._state = GhostMode.ATHOME;}
+    else if (this._id === GhostType.CLYDE)  {this._state = GhostMode.ATHOME;}
 };
 
 Ghost.prototype.getID = function()
@@ -4092,12 +4092,12 @@ Ghost.prototype.animate = function(elapsed)
 
 Ghost.prototype.justLeavedHome = function(maze)
 {
-    return (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)));
+    return (this._state === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)));
 };
 
 Ghost.prototype.justCameHomeEaten = function(maze)
 {
-    return (this._state === GhostState.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)));
+    return (this._state === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)));
 };
 
 
@@ -4306,32 +4306,42 @@ Ghost.prototype.move = function(elapsed, maze, status)
     ===> en plus, faudrait ptetre avoir les methodes de movexxx() dans Movable, et Pacman (il le faut, a cause des 3 parametres) et Ghost redefinissent celles-ci si necessaire => du coup on modifie les movexxx() mais le move() principal reste le même ? et du coup faudrait remplacer les appels direct a des setposition() ou autre pour que ce soit fait par un moveToPoint() par exemple, et que ce soit redefinissable...
     
 
-        ===> EN FAIT, creer la methode allowedCorridors() dans les movable, qui envoie les infos des 3 parametres aux fonctions qui en ont besoin ; OK
-             mais pas de propriétés correspondantes ;   OK
-             le updatestate(maze) ne fera rien sur les parametres et trucs du genre, il s'occupera bien uniquement de l'etat comme ghoststate et de le modifier selon si on vient juste de quitter la maison, etc.... (if justleaving() etc...) , puisque le allowedCorridors() checke lui-meme ce qui est autorisé ou pas
+        ===> EN FAIT, le updatestate(maze) ne fera rien sur les parametres et trucs du genre, il s'occupera bien uniquement de l'etat comme GhostMode et de le modifier selon si on vient juste de quitter la maison, etc.... (if justleaving() etc...) , puisque le allowedCorridors() checke lui-meme ce qui est autorisé ou pas
         
         ===> AUSSI, faire le truc des movexxx() mutualisés dans movable, qui appelleraient des updatestate() et donc des allowedCorridors() redefinis dans Pacman et Ghost, ce qui permettrait de ne pas avoir a modifier le code de maniere generale : en fait, suffit de mettre des updatestate() a chaque fois qu'on bouge a priori
+        ===> quoique en fait, les updatestate() devraient ptetre pas etre a l'interieur des movexxx() ?
 
-        ===> d'une part les allowedcorridors(), de l'autre les updatestate()
+
+    => dans certains tests, degager les === true et === false ; mais pour certaines fonctions (notamment de Line, jcrois que y'a une ambiguite sur les ispoint ou isintersection ou autre...) verifier qu'on a bien seulement ces 2 possibilités
 
 
-dans certains tests, degager les === true et === false, c'est evident...
+======> renommage des state (leavinghome, frightened, ...) en mode OK !!!
+    => faire de même pour this._state a renommer en this._mode
+
+======> du coup c'est pas un updatestate() mais un updatemode() qu'il faut ! et là ça a deja un peu plus de sens ^^
+
+
+=====> les movexxx() devraient ptetre prendre un allowedcorridors en argument non ? ou pas, ils appellent les allowedcorridors() eux-mêmes plutot...
+
+=====> faire une fonction teleportToCorrespondingPortal() ?
+    => l'idée est d'avoir une fonction pour chaque truc a faire, mutualisable entre pacman et ghost, et qui utilise simplement d'autres fonctions redéfinies par l'un et l'autre...
 
 
 updatestate :
 // if we were inside the ghosthouse, and now we leaved it 
-        if (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, true, false, false))
+        if (this._state === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, true, false, false))
         {
-            this._state = GhostState.NORMAL;
+            this._state = GhostMode.NORMAL;
         }
         
         // if we were outside the ghosthouse and needed to go inside, and now we went inside 
-        if (this._state === GhostState.EATEN && maze.containsPoint(this._position, false, true, false))
+        if (this._state === GhostMode.EATEN && maze.containsPoint(this._position, false, true, false))
         {
-            this._state = GhostState.ATHOME;
+            this._state = GhostMode.ATHOME;
         }
 
-mais comment ca va faire le updatestate pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatpacdots non ?
+mais comment ca va faire le updatestate pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatpacdots non ? => du coup c'est eatpacdots() qui fera la modif du this._state a priori, le updatestate() semble inutile pr pacman puisque en fait le updatestate de ghost est juste par rapport a la position et le this._state (or le pacman n'a pas de changement d'etat de ce style, donc il lui faudrait juste une fonction vide pour updatestate())
+    => du coup faudrait mettre dans une variable si et combien on a mangé de pacdots ou de power pellets, comme ça le updatemode() peut savoir ce qu'il faut ?
 */
 
 Ghost.prototype.allowedCorridors = function()
@@ -4340,18 +4350,18 @@ Ghost.prototype.allowedCorridors = function()
     var withghosthouse = false;
     var withlinks = false;
 
-    if (this._state === GhostState.NORMAL || this._state === GhostState.FRIGHTENED)
+    if (this._state === GhostMode.NORMAL || this._state === GhostMode.FRIGHTENED)
     {
         withcorridors = true;
     }
     
-    if (this._state === GhostState.ATHOME)
+    if (this._state === GhostMode.ATHOME)
     {
         withghosthouse = true;
         withlinks = true;
     }
     
-    if (this._state === GhostState.EATEN || this._state === GhostState.LEAVINGHOME)
+    if (this._state === GhostMode.EATEN || this._state === GhostMode.LEAVINGHOME)
     {
         withcorridors = true;
         withghosthouse = true;
@@ -4392,15 +4402,15 @@ Ghost.prototype.move = function(elapsed, maze)
         movement -= turndistance;
         
         /* if we were inside the ghosthouse, and now we leaved it */
-        if (this._state === GhostState.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)))
+        if (this._state === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)))
         {
-            this._state = GhostState.NORMAL;
+            this._state = GhostMode.NORMAL;
         }
         
         /* if we were outside the ghosthouse and needed to go inside, and now we went inside */
-        if (this._state === GhostState.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)))
+        if (this._state === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)))
         {
-            this._state = GhostState.ATHOME;
+            this._state = GhostMode.ATHOME;
         }
     }
     
@@ -4438,12 +4448,12 @@ Ghost.prototype.move = function(elapsed, maze)
     
     if (this.justLeavedHome(maze))
     {
-        this._state = GhostState.NORMAL;
+        this._state = GhostMode.NORMAL;
     }
     
     if (this.justCameHomeEaten(maze))
     {
-        this._state = GhostState.ATHOME;
+        this._state = GhostMode.ATHOME;
     }
     
     /* if we enter a teleportation tunnel */
@@ -4628,12 +4638,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     
     if (this._id === GhostType.PINKY)
     {
-        if (this._state === GhostState.ATHOME)
+        if (this._state === GhostMode.ATHOME)
         {
-            this._state = GhostState.LEAVINGHOME;
+            this._state = GhostMode.LEAVINGHOME;
         }
         
-        if (this._state === GhostState.LEAVINGHOME)
+        if (this._state === GhostMode.LEAVINGHOME)
         {
             // go to the link extremity which is not inside the ghost house
             
@@ -4653,7 +4663,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
             this.movementAIToTarget(maze, target);
         }
         
-        if (this._state === GhostState.NORMAL)
+        if (this._state === GhostMode.NORMAL)
         {
             this.movementAIToTarget(maze, pacman.getPosition());
         }
@@ -4665,7 +4675,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     {
         if (maze.getEatenPacdots() < 30)
         {
-            if (this._state === GhostState.ATHOME)
+            if (this._state === GhostMode.ATHOME)
             {
                 var current = null;
                 
@@ -4711,12 +4721,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         }
         else
         {
-            if (this._state === GhostState.ATHOME)
+            if (this._state === GhostMode.ATHOME)
             {
-                this._state = GhostState.LEAVINGHOME;
+                this._state = GhostMode.LEAVINGHOME;
             }
             
-            if (this._state === GhostState.LEAVINGHOME)
+            if (this._state === GhostMode.LEAVINGHOME)
             {
                 // go to the link extremity which is not inside the ghost house
                 
@@ -4736,7 +4746,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 this.movementAIToTarget(maze, target);
             }
             
-            if (this._state === GhostState.NORMAL)
+            if (this._state === GhostMode.NORMAL)
             {
                 this.movementAIToTarget(maze, pacman.getPosition());
             }
@@ -4749,7 +4759,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     {
         if (maze.getEatenPacdots() < (maze.getTotalPacdots())/3)
         {
-            if (this._state === GhostState.ATHOME)
+            if (this._state === GhostMode.ATHOME)
             {
                 var current = null;
                 
@@ -4795,12 +4805,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         }
         else
         {
-            if (this._state === GhostState.ATHOME)
+            if (this._state === GhostMode.ATHOME)
             {
-                this._state = GhostState.LEAVINGHOME;
+                this._state = GhostMode.LEAVINGHOME;
             }
             
-            if (this._state === GhostState.LEAVINGHOME)
+            if (this._state === GhostMode.LEAVINGHOME)
             {
                 // go to the link extremity which is not inside the ghost house
                 
@@ -4820,7 +4830,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 this.movementAIToTarget(maze, target);
             }
             
-            if (this._state === GhostState.NORMAL)
+            if (this._state === GhostMode.NORMAL)
             {
                 this.movementAIToTarget(maze, pacman.getPosition());
             }
