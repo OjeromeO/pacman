@@ -91,8 +91,16 @@ var PAUSEMENU_HEIGHT = 2 * PAUSEMENU_VPADDING + Object.keys(PauseMenuItem).lengt
 
 var PACMAN_RADIUS = 12;
 var PACDOTS_RADIUS = 2;
+
 var PACMAN_SPEED = 300;
+var PACMAN_PP_SPEED = PACMAN_SPEED;
+
 var GHOST_SPEED = 100;
+var GHOST_ATHOME_SPEED = GHOST_SPEED;
+var GHOST_LEAVINGHOME_SPEED = GHOST_SPEED;
+var GHOST_FRIGHTENED_SPEED = 80;
+var GHOST_EATEN_SPEED = 140;
+
 var LINE_WIDTH = 2 * PACMAN_RADIUS + 8;
 var GRID_UNIT = 16;
 var PACDOT_POINT = 10;
@@ -408,6 +416,18 @@ var isHorizontal = function(arg)
     {
         return (arg === Direction.LEFT || arg === Direction.RIGHT) ? true : false ;
     }
+};
+
+var speedFromMode = function(mode)
+{
+    if (mode === PacmanMode.NORMAL)             {return PACMAN_SPEED;}
+    else if (mode === PacmanMode.PP_EATEN)      {return PACMAN_PP_SPEED;}
+    
+    else if (mode === GhostMode.ATHOME)         {return GHOST_ATHOME_SPEED;}
+    else if (mode === GhostMode.LEAVINGHOME)    {return GHOST_LEAVINGHOME_SPEED;}
+    else if (mode === GhostMode.NORMAL)         {return GHOST_SPEED;}
+    else if (mode === GhostMode.FRIGHTENED)     {return GHOST_FRIGHTENED_SPEED;}
+    else if (mode === GhostMode.EATEN)          {return GHOST_EATEN_SPEED;}
 };
 
 var concatenateLines = function(line1, line2)
@@ -3253,7 +3273,7 @@ AllowedCorridors.prototype.withLinks = function()
 /******************************** Movable class *******************************/
 /******************************************************************************/
 
-var Movable = function(x, y, state, direction)
+var Movable = function(x, y, state, direction, speed)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -3266,6 +3286,8 @@ var Movable = function(x, y, state, direction)
     this._position = new Point(x, y);
     this._direction = direction;
     
+    this._speed = speed;
+    
     //TODO rename into nextturndirection and nextturnposition
     this._nextdirection = null;     // direction requested
     this._nextturn = null;          // intersection that allows movement in the requested direction
@@ -3273,7 +3295,7 @@ var Movable = function(x, y, state, direction)
     this._movablestate = state;
 };
 
-Movable.prototype.reinit = function(x, y, state, direction)
+Movable.prototype.reinit = function(x, y, state, direction, speed)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -3283,6 +3305,8 @@ Movable.prototype.reinit = function(x, y, state, direction)
     
     this._position = new Point(x, y);
     this._direction = direction;
+    
+    this._speed = speed;
     
     this._nextdirection = null;
     this._nextturn = null;
@@ -3409,7 +3433,7 @@ var Pacman = function(x, y, movablestate, direction)
     assert((isDirection(direction)
          || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.call(this, x, y, movablestate, direction);
+    Movable.call(this, x, y, movablestate, direction, speedFromMode(PacmanMode.NORMAL));
     //Movable.call(this, x, y, MovableState.IMMOBILE, direction);
     //Movable.call(this, x, y, MovableState.PAUSED, direction);
     
@@ -3431,7 +3455,7 @@ Pacman.prototype.reinit = function(x, y, movablestate, direction)
     assert((isDirection(direction)
          || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.prototype.reinit.call(this, x, y, movablestate, direction);
+    Movable.prototype.reinit.call(this, x, y, movablestate, direction, speedFromMode(PacmanMode.NORMAL));
     
     this._mode = PacmanMode.NORMAL;
     
@@ -3726,6 +3750,36 @@ Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
 };
 
+/*
+Pacman.prototype.moveInsideRemainingLine = function(movement, remaining, maze, status)
+{
+    if (this._movablestate !== MovableState.MOVING)
+    {
+        return;
+    }
+    
+    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+    
+    if (movement >= remaining.size())
+    {
+        if (this._direction === Direction.UP)           {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
+        else if (this._direction === Direction.RIGHT)   {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
+        else if (this._direction === Direction.DOWN)    {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
+        else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
+    }
+    else
+    {
+        if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
+        else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
+        else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
+        else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
+    }
+    
+    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+    //TODO et pour movement, faut le diminuer !!!! renvoyer la distance parcourue ? ou bien direct mettre le remainingmovement en propriete, et le modifier la ?
+};
+*/
+
 Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
 {
     if (this._movablestate !== MovableState.MOVING)
@@ -3892,17 +3946,21 @@ var Ghost = function(id, x, y, movablestate, direction)
     assert((isDirection(direction)
          || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.call(this, x, y, movablestate, direction);
+    var mode = null;
+    
+    if (id === GhostType.BLINKY)        {mode = GhostMode.NORMAL;}
+    else if (id === GhostType.PINKY)    {mode = GhostMode.LEAVINGHOME;}
+    else if (id === GhostType.INKY)     {mode = GhostMode.ATHOME;}
+    else if (id === GhostType.CLYDE)    {mode = GhostMode.ATHOME;}
+    
+    Movable.call(this, x, y, movablestate, direction, speedFromMode(mode));
     
     this._id = id;
     
     this._animtime = 0;
     this._normalwave = true;
     
-    if (this._id === GhostType.BLINKY)      {this._mode = GhostMode.NORMAL;}
-    else if (this._id === GhostType.PINKY)  {this._mode = GhostMode.LEAVINGHOME;}
-    else if (this._id === GhostType.INKY)   {this._mode = GhostMode.ATHOME;}
-    else if (this._id === GhostType.CLYDE)  {this._mode = GhostMode.ATHOME;}
+    this._mode = mode;
 };
 
 Ghost.prototype = Object.create(Movable.prototype);
@@ -3916,17 +3974,21 @@ Ghost.prototype.reinit = function(id, x, y, movablestate, direction)
     assert((isDirection(direction)
          || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.prototype.reinit.call(this, x, y, movablestate, direction);
+    var mode = null;
+    
+    if (id === GhostType.BLINKY)        {mode = GhostMode.NORMAL;}
+    else if (id === GhostType.PINKY)    {mode = GhostMode.LEAVINGHOME;}
+    else if (id === GhostType.INKY)     {mode = GhostMode.ATHOME;}
+    else if (id === GhostType.CLYDE)    {mode = GhostMode.ATHOME;}
+    
+    Movable.prototype.reinit.call(this, x, y, movablestate, direction, speedFromMode(mode));
     
     this._id = id;
     
     this._animtime = 0;
     this._normalwave = true;
     
-    if (this._id === GhostType.BLINKY)      {this._mode = GhostMode.NORMAL;}
-    else if (this._id === GhostType.PINKY)  {this._mode = GhostMode.LEAVINGHOME;}
-    else if (this._id === GhostType.INKY)   {this._mode = GhostMode.ATHOME;}
-    else if (this._id === GhostType.CLYDE)  {this._mode = GhostMode.ATHOME;}
+    this._mode = mode;
 };
 
 Ghost.prototype.getID = function()
@@ -4315,6 +4377,21 @@ Ghost.prototype.move = function(elapsed, maze, status)
     => dans certains tests, degager les === true et === false ; mais pour certaines fonctions (notamment de Line, jcrois que y'a une ambiguite sur les ispoint ou isintersection ou autre...) verifier qu'on a bien seulement ces 2 possibilités
 
 
+===> plus tard faudra mettre en place le changement de vitesse pour certains modes (creer 2-3 macros supplementaire du coup) ; et du coup lors du move() si on se rend compte que a partir de tel point on change de vitesse, ou qu'on passe dans un mode avec une vitesse differente, ben faudra faire un "return move()" avec des arguments mis à jour pour que la trajectoire parte du point où la vitesse change
+        ===> A MOINS QUE on mette en propriété (genre dans un this._remainingtime) du pacman/ghost le elapsed qu'on nous fournit en argument du move() ; du coup vu qu'on connaitra la vitesse courante, ainsi que la distance jusqu'au point qui déclenche un changement de vitesse, on déduit le temps que ça prend pour aller jusqu'à ce point, et on peut le soustraire du this._remainingtime
+            => du coup pour pacman : meme depuis eatpacdotsbetweenpoints()
+            => et pour ghost : 
+            => en fait pour les 2, (depuis eatpacdotsbetweenpoints() pour l'un, depuis movexxx() pour l'autre) comment faire ensuite pour se mettre au bon endroit en fonction de la nouvelle vitesse ??? faudrait recalculer quasiment tt le temps le mouvement restant et tt...
+            ====> AU FINAL : mettre en propriete un this._remainingtime et un this._remainingmovement ; creer dans movable un modeWillChange(remaining, ...) retournant un booléen, constitué des if du updatestate prevu (en fait c'est la même chose que le updatestate(), sauf que au lieu de faire if ... this._mode=truc, on fait if ... return true/false => pacman: if remaining.containsPowerPellet() return true ; ghost: if remaining.containsLinksCorridorsLimit/containsLinksGhosthouseLimit/containsCorridorsGhosthouseLimit() return true, ou juste les if justleaved() ... return true ou les if this._mode...&& maze.containsPoint()... return true ???)
+                => pacman : dans les movexxx(), faudra utiliser des if remaining.containsPowerPellet() 
+                => ghost : dans les movexxx(), faudra utiliser des if remaining.containsLinksCorridorsLimit/containsLinksGhosthouseLimit/containsCorridorsGhosthouseLimit()
+            ===============> OU ALORS EN FAIT, faut juste que chacun modifie les movexxx(), mais le move() principal reste le même pour les 2 ! ce qui serait ptetre plus logique en fait, vu que chacun a ses propres trucs et evenements a prendre en compte dans les movexxx(), mais que le move principal n'a pas a changer ! et donc chacun dans ses movexxx() pourra faire ses petites verif si le mode va changer et dans ce cas il s'occupera du temps/distance restante comme il faut (et d'ailleurs, vu que les movexxx() sont des fonctions simples, genre se deplacer sur un ligne, en fait on pourra ptetre au final quand meme mutualiser les detections de chagement de mode et les update de mode ?)
+
+=========================================================================================
+d'abord mettre en propriete le remainingmovement pour Pacman, et adapter le code ; puis s'occuper du moveInsideRemainingLine() créé dans les commentaires de Pacman
+    => QUOIQUE, ptetre plutot metre en propriete remainingtime, et recalculer le mouvement restant a chaque fois !
+        => du coup pour ça, faut d'abord une propriete speed, qu'on pourra donc modifier selon le mode ^^ ===> OK fait, maintenant adapter Pacman et Ghost pour utiliser la propriete speed  !
+=========================================================================================
 
 ======> du coup c'est pas un updatestate() mais un updatemode() qu'il faut ! et là ça a deja un peu plus de sens ^^
 
@@ -4338,8 +4415,11 @@ updatestate :
             this._mode = GhostMode.ATHOME;
         }
 
-mais comment ca va faire le updatestate pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatpacdots non ? => du coup c'est eatpacdots() qui fera la modif du this._mode a priori, le updatestate() semble inutile pr pacman puisque en fait le updatestate de ghost est juste par rapport a la position et le this._mode (or le pacman n'a pas de changement d'etat de ce style, donc il lui faudrait juste une fonction vide pour updatestate())
-    => du coup faudrait mettre dans une variable si et combien on a mangé de pacdots ou de power pellets, comme ça le updatemode() peut savoir ce qu'il faut ?
+===> mais comment ca va faire le updatestate pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatpacdots non ? => du coup c'est eatpacdots() qui fera la modif du this._mode a priori, le updatestate() semble inutile pr pacman puisque en fait le updatestate de ghost est juste par rapport a la position et le this._mode (or le pacman n'a pas de changement d'etat de ce style, donc il lui faudrait juste une fonction vide pour updatestate())
+    ===> EN FAIT, dans le eatpacdotsbetweenpoints() de Pacman, on fait this._justatepowerpellet=true si on en a mangé une, et juste apres (toujours dans eatpacdotsbetweenpoints()) on fait updatemode() (qui lui-meme remet this._justatepowerpellet a false s'il etait a true, apres bien sur avoir pris en compte cette info et avoir mis le pacman en mode bouffeur de fantome...quoique cette info doit aussi parvenir aux fantomes vu qu'ils doivent se mettre en mode frightened !!! comment faire ?)
+    
+    
+            => renommer le eatpacdotsbetweenpoints() en eatbetweenpoints() ?
 */
 
 Ghost.prototype.allowedCorridors = function()
