@@ -3413,7 +3413,7 @@ var Pacman = function(x, y, movablestate, direction)
     //Movable.call(this, x, y, MovableState.IMMOBILE, direction);
     //Movable.call(this, x, y, MovableState.PAUSED, direction);
     
-    this._state = PacmanMode.NORMAL;
+    this._mode = PacmanMode.NORMAL;
     
     this._animtime = 0;
     this._mouthstartangle = 6/10;
@@ -3433,7 +3433,7 @@ Pacman.prototype.reinit = function(x, y, movablestate, direction)
     
     Movable.prototype.reinit.call(this, x, y, movablestate, direction);
     
-    this._state = PacmanMode.NORMAL;
+    this._mode = PacmanMode.NORMAL;
     
     this._animtime = 0;
     this._mouthstartangle = 6/10;
@@ -3465,13 +3465,13 @@ Pacman.prototype.draw = function()
 
 Pacman.prototype.getState = function()
 {
-    return this._state;
+    return this._mode;
 };
 Pacman.prototype.setState = function(state)
 {
     assert((isPacmanMode(state)), "state value is not valid");
 
-    this._state = state;
+    this._mode = state;
 };
 
 Pacman.prototype.getMouthstartangle = function()
@@ -3899,10 +3899,10 @@ var Ghost = function(id, x, y, movablestate, direction)
     this._animtime = 0;
     this._normalwave = true;
     
-    if (this._id === GhostType.BLINKY)      {this._state = GhostMode.NORMAL;}
-    else if (this._id === GhostType.PINKY)  {this._state = GhostMode.LEAVINGHOME;}
-    else if (this._id === GhostType.INKY)   {this._state = GhostMode.ATHOME;}
-    else if (this._id === GhostType.CLYDE)  {this._state = GhostMode.ATHOME;}
+    if (this._id === GhostType.BLINKY)      {this._mode = GhostMode.NORMAL;}
+    else if (this._id === GhostType.PINKY)  {this._mode = GhostMode.LEAVINGHOME;}
+    else if (this._id === GhostType.INKY)   {this._mode = GhostMode.ATHOME;}
+    else if (this._id === GhostType.CLYDE)  {this._mode = GhostMode.ATHOME;}
 };
 
 Ghost.prototype = Object.create(Movable.prototype);
@@ -3923,10 +3923,10 @@ Ghost.prototype.reinit = function(id, x, y, movablestate, direction)
     this._animtime = 0;
     this._normalwave = true;
     
-    if (this._id === GhostType.BLINKY)      {this._state = GhostMode.NORMAL;}
-    else if (this._id === GhostType.PINKY)  {this._state = GhostMode.LEAVINGHOME;}
-    else if (this._id === GhostType.INKY)   {this._state = GhostMode.ATHOME;}
-    else if (this._id === GhostType.CLYDE)  {this._state = GhostMode.ATHOME;}
+    if (this._id === GhostType.BLINKY)      {this._mode = GhostMode.NORMAL;}
+    else if (this._id === GhostType.PINKY)  {this._mode = GhostMode.LEAVINGHOME;}
+    else if (this._id === GhostType.INKY)   {this._mode = GhostMode.ATHOME;}
+    else if (this._id === GhostType.CLYDE)  {this._mode = GhostMode.ATHOME;}
 };
 
 Ghost.prototype.getID = function()
@@ -4092,12 +4092,12 @@ Ghost.prototype.animate = function(elapsed)
 
 Ghost.prototype.justLeavedHome = function(maze)
 {
-    return (this._state === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)));
+    return (this._mode === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)));
 };
 
 Ghost.prototype.justCameHomeEaten = function(maze)
 {
-    return (this._state === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)));
+    return (this._mode === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)));
 };
 
 
@@ -4315,8 +4315,6 @@ Ghost.prototype.move = function(elapsed, maze, status)
     => dans certains tests, degager les === true et === false ; mais pour certaines fonctions (notamment de Line, jcrois que y'a une ambiguite sur les ispoint ou isintersection ou autre...) verifier qu'on a bien seulement ces 2 possibilités
 
 
-======> renommage des state (leavinghome, frightened, ...) en mode OK !!!
-    => faire de même pour this._state a renommer en this._mode
 
 ======> du coup c'est pas un updatestate() mais un updatemode() qu'il faut ! et là ça a deja un peu plus de sens ^^
 
@@ -4329,18 +4327,18 @@ Ghost.prototype.move = function(elapsed, maze, status)
 
 updatestate :
 // if we were inside the ghosthouse, and now we leaved it 
-        if (this._state === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, true, false, false))
+        if (this._mode === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, true, false, false))
         {
-            this._state = GhostMode.NORMAL;
+            this._mode = GhostMode.NORMAL;
         }
         
         // if we were outside the ghosthouse and needed to go inside, and now we went inside 
-        if (this._state === GhostMode.EATEN && maze.containsPoint(this._position, false, true, false))
+        if (this._mode === GhostMode.EATEN && maze.containsPoint(this._position, false, true, false))
         {
-            this._state = GhostMode.ATHOME;
+            this._mode = GhostMode.ATHOME;
         }
 
-mais comment ca va faire le updatestate pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatpacdots non ? => du coup c'est eatpacdots() qui fera la modif du this._state a priori, le updatestate() semble inutile pr pacman puisque en fait le updatestate de ghost est juste par rapport a la position et le this._state (or le pacman n'a pas de changement d'etat de ce style, donc il lui faudrait juste une fonction vide pour updatestate())
+mais comment ca va faire le updatestate pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatpacdots non ? => du coup c'est eatpacdots() qui fera la modif du this._mode a priori, le updatestate() semble inutile pr pacman puisque en fait le updatestate de ghost est juste par rapport a la position et le this._mode (or le pacman n'a pas de changement d'etat de ce style, donc il lui faudrait juste une fonction vide pour updatestate())
     => du coup faudrait mettre dans une variable si et combien on a mangé de pacdots ou de power pellets, comme ça le updatemode() peut savoir ce qu'il faut ?
 */
 
@@ -4350,18 +4348,18 @@ Ghost.prototype.allowedCorridors = function()
     var withghosthouse = false;
     var withlinks = false;
 
-    if (this._state === GhostMode.NORMAL || this._state === GhostMode.FRIGHTENED)
+    if (this._mode === GhostMode.NORMAL || this._mode === GhostMode.FRIGHTENED)
     {
         withcorridors = true;
     }
     
-    if (this._state === GhostMode.ATHOME)
+    if (this._mode === GhostMode.ATHOME)
     {
         withghosthouse = true;
         withlinks = true;
     }
     
-    if (this._state === GhostMode.EATEN || this._state === GhostMode.LEAVINGHOME)
+    if (this._mode === GhostMode.EATEN || this._mode === GhostMode.LEAVINGHOME)
     {
         withcorridors = true;
         withghosthouse = true;
@@ -4402,15 +4400,15 @@ Ghost.prototype.move = function(elapsed, maze)
         movement -= turndistance;
         
         /* if we were inside the ghosthouse, and now we leaved it */
-        if (this._state === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)))
+        if (this._mode === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)))
         {
-            this._state = GhostMode.NORMAL;
+            this._mode = GhostMode.NORMAL;
         }
         
         /* if we were outside the ghosthouse and needed to go inside, and now we went inside */
-        if (this._state === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)))
+        if (this._mode === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)))
         {
-            this._state = GhostMode.ATHOME;
+            this._mode = GhostMode.ATHOME;
         }
     }
     
@@ -4448,12 +4446,12 @@ Ghost.prototype.move = function(elapsed, maze)
     
     if (this.justLeavedHome(maze))
     {
-        this._state = GhostMode.NORMAL;
+        this._mode = GhostMode.NORMAL;
     }
     
     if (this.justCameHomeEaten(maze))
     {
-        this._state = GhostMode.ATHOME;
+        this._mode = GhostMode.ATHOME;
     }
     
     /* if we enter a teleportation tunnel */
@@ -4638,12 +4636,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     
     if (this._id === GhostType.PINKY)
     {
-        if (this._state === GhostMode.ATHOME)
+        if (this._mode === GhostMode.ATHOME)
         {
-            this._state = GhostMode.LEAVINGHOME;
+            this._mode = GhostMode.LEAVINGHOME;
         }
         
-        if (this._state === GhostMode.LEAVINGHOME)
+        if (this._mode === GhostMode.LEAVINGHOME)
         {
             // go to the link extremity which is not inside the ghost house
             
@@ -4663,7 +4661,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
             this.movementAIToTarget(maze, target);
         }
         
-        if (this._state === GhostMode.NORMAL)
+        if (this._mode === GhostMode.NORMAL)
         {
             this.movementAIToTarget(maze, pacman.getPosition());
         }
@@ -4675,7 +4673,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     {
         if (maze.getEatenPacdots() < 30)
         {
-            if (this._state === GhostMode.ATHOME)
+            if (this._mode === GhostMode.ATHOME)
             {
                 var current = null;
                 
@@ -4721,12 +4719,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         }
         else
         {
-            if (this._state === GhostMode.ATHOME)
+            if (this._mode === GhostMode.ATHOME)
             {
-                this._state = GhostMode.LEAVINGHOME;
+                this._mode = GhostMode.LEAVINGHOME;
             }
             
-            if (this._state === GhostMode.LEAVINGHOME)
+            if (this._mode === GhostMode.LEAVINGHOME)
             {
                 // go to the link extremity which is not inside the ghost house
                 
@@ -4746,7 +4744,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 this.movementAIToTarget(maze, target);
             }
             
-            if (this._state === GhostMode.NORMAL)
+            if (this._mode === GhostMode.NORMAL)
             {
                 this.movementAIToTarget(maze, pacman.getPosition());
             }
@@ -4759,7 +4757,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     {
         if (maze.getEatenPacdots() < (maze.getTotalPacdots())/3)
         {
-            if (this._state === GhostMode.ATHOME)
+            if (this._mode === GhostMode.ATHOME)
             {
                 var current = null;
                 
@@ -4805,12 +4803,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         }
         else
         {
-            if (this._state === GhostMode.ATHOME)
+            if (this._mode === GhostMode.ATHOME)
             {
-                this._state = GhostMode.LEAVINGHOME;
+                this._mode = GhostMode.LEAVINGHOME;
             }
             
-            if (this._state === GhostMode.LEAVINGHOME)
+            if (this._mode === GhostMode.LEAVINGHOME)
             {
                 // go to the link extremity which is not inside the ghost house
                 
@@ -4830,7 +4828,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 this.movementAIToTarget(maze, target);
             }
             
-            if (this._state === GhostMode.NORMAL)
+            if (this._mode === GhostMode.NORMAL)
             {
                 this.movementAIToTarget(maze, pacman.getPosition());
             }
