@@ -3732,7 +3732,7 @@ Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <== 0)
+     || this._remainingmovement <= 0)
     {
         return;
     }
@@ -3752,7 +3752,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <== 0)
+     || this._remainingmovement <= 0)
     {
         return;
     }
@@ -3802,7 +3802,7 @@ Pacman.prototype.moveInsideRemainingLine = function(movement, remaining, maze, s
 Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <== 0)
+     || this._remainingmovement <= 0)
     {
         return;
     }
@@ -3821,7 +3821,7 @@ Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
 Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <== 0)
+     || this._remainingmovement <= 0)
     {
         return;
     }
