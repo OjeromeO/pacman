@@ -3731,7 +3731,8 @@ Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
 
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
-    if (this._movablestate !== MovableState.MOVING)
+    if (this._movablestate !== MovableState.MOVING
+     || this._remainingmovement <== 0)
     {
         return;
     }
@@ -3750,7 +3751,8 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 
 Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
 {
-    if (this._movablestate !== MovableState.MOVING)
+    if (this._movablestate !== MovableState.MOVING
+     || this._remainingmovement <== 0)
     {
         return;
     }
@@ -3799,7 +3801,8 @@ Pacman.prototype.moveInsideRemainingLine = function(movement, remaining, maze, s
 
 Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
 {
-    if (this._movablestate !== MovableState.MOVING)
+    if (this._movablestate !== MovableState.MOVING
+     || this._remainingmovement <== 0)
     {
         return;
     }
@@ -3817,7 +3820,8 @@ Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
 
 Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
 {
-    if (this._movablestate !== MovableState.MOVING)
+    if (this._movablestate !== MovableState.MOVING
+     || this._remainingmovement <== 0)
     {
         return;
     }
@@ -4405,6 +4409,7 @@ Ghost.prototype.move = function(elapsed, maze, status)
 d'abord mettre en propriete le remainingmovement pour Pacman, et adapter le code ; puis s'occuper du moveInsideRemainingLine() créé dans les commentaires de Pacman
     => QUOIQUE, ptetre plutot metre en propriete remainingtime, et recalculer le mouvement restant a chaque fois !
     (pour pacman: proprietes _speed, _remainingtime, _remainingmovement mises en place)
+        => faut penser a aussi modifier le this._remainingtime en meme temps qu'on modifie le this._remainingmovement
 =========================================================================================
 
 ======> du coup c'est pas un updatestate() mais un updatemode() qu'il faut ! et là ça a deja un peu plus de sens ^^
