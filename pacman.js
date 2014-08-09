@@ -418,6 +418,7 @@ var isHorizontal = function(arg)
     }
 };
 
+/*
 var speedFromMode = function(mode)
 {
     if (mode === PacmanMode.NORMAL)             {return PACMAN_SPEED;}
@@ -429,6 +430,7 @@ var speedFromMode = function(mode)
     else if (mode === GhostMode.FRIGHTENED)     {return GHOST_FRIGHTENED_SPEED;}
     else if (mode === GhostMode.EATEN)          {return GHOST_EATEN_SPEED;}
 };
+*/
 
 var concatenateLines = function(line1, line2)
 {
@@ -3433,11 +3435,13 @@ var Pacman = function(x, y, movablestate, direction)
     assert((isDirection(direction)
          || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.call(this, x, y, movablestate, direction, speedFromMode(PacmanMode.NORMAL));
+    var mode = PacmanMode.NORMAL;
+    
+    Movable.call(this, x, y, movablestate, direction, this.speedFromMode(mode));
     //Movable.call(this, x, y, MovableState.IMMOBILE, direction);
     //Movable.call(this, x, y, MovableState.PAUSED, direction);
     
-    this._mode = PacmanMode.NORMAL;
+    this._mode = mode;
     
     this._animtime = 0;
     this._mouthstartangle = 6/10;
@@ -3447,6 +3451,12 @@ var Pacman = function(x, y, movablestate, direction)
 Pacman.prototype = Object.create(Movable.prototype);
 Pacman.prototype.constructor = Pacman;
 
+Pacman.prototype.speedFromMode = function(mode)
+{
+    if (mode === PacmanMode.NORMAL)             {return PACMAN_SPEED;}
+    else if (mode === PacmanMode.PP_EATEN)      {return PACMAN_PP_SPEED;}
+};
+
 Pacman.prototype.reinit = function(x, y, movablestate, direction)
 {
     assert((typeof x === "number"), "x is not a number");
@@ -3455,7 +3465,7 @@ Pacman.prototype.reinit = function(x, y, movablestate, direction)
     assert((isDirection(direction)
          || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.prototype.reinit.call(this, x, y, movablestate, direction, speedFromMode(PacmanMode.NORMAL));
+    Movable.prototype.reinit.call(this, x, y, movablestate, direction, this.speedFromMode(PacmanMode.NORMAL));
     
     this._mode = PacmanMode.NORMAL;
     
@@ -3861,7 +3871,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
         return;
     }
     
-    var movement = Math.round(PACMAN_SPEED * elapsed/1000);
+    var movement = Math.round(this._speed * elapsed/1000);
     
     if (this.hasNextTurn())
     {
@@ -3953,7 +3963,7 @@ var Ghost = function(id, x, y, movablestate, direction)
     else if (id === GhostType.INKY)     {mode = GhostMode.ATHOME;}
     else if (id === GhostType.CLYDE)    {mode = GhostMode.ATHOME;}
     
-    Movable.call(this, x, y, movablestate, direction, speedFromMode(mode));
+    Movable.call(this, x, y, movablestate, direction, this.speedFromMode(mode));
     
     this._id = id;
     
@@ -3965,6 +3975,15 @@ var Ghost = function(id, x, y, movablestate, direction)
 
 Ghost.prototype = Object.create(Movable.prototype);
 Ghost.prototype.constructor = Ghost;
+
+Ghost.prototype.speedFromMode = function(mode)
+{
+    if (mode === GhostMode.ATHOME)              {return GHOST_ATHOME_SPEED;}
+    else if (mode === GhostMode.LEAVINGHOME)    {return GHOST_LEAVINGHOME_SPEED;}
+    else if (mode === GhostMode.NORMAL)         {return GHOST_SPEED;}
+    else if (mode === GhostMode.FRIGHTENED)     {return GHOST_FRIGHTENED_SPEED;}
+    else if (mode === GhostMode.EATEN)          {return GHOST_EATEN_SPEED;}
+};
 
 Ghost.prototype.reinit = function(id, x, y, movablestate, direction)
 {
@@ -3981,7 +4000,7 @@ Ghost.prototype.reinit = function(id, x, y, movablestate, direction)
     else if (id === GhostType.INKY)     {mode = GhostMode.ATHOME;}
     else if (id === GhostType.CLYDE)    {mode = GhostMode.ATHOME;}
     
-    Movable.prototype.reinit.call(this, x, y, movablestate, direction, speedFromMode(mode));
+    Movable.prototype.reinit.call(this, x, y, movablestate, direction, this.speedFromMode(mode));
     
     this._id = id;
     
@@ -4290,7 +4309,7 @@ Ghost.prototype.move = function(elapsed, maze, status)
         return;
     }
     
-    var movement = Math.round(GHOST_SPEED * elapsed/1000);
+    var movement = Math.round(this._speed * elapsed/1000);
     
     if (this.hasNextTurn())
     {
@@ -4458,7 +4477,7 @@ Ghost.prototype.move = function(elapsed, maze)
         return;
     }
     
-    var movement = Math.round(GHOST_SPEED * elapsed/1000);
+    var movement = Math.round(this._speed * elapsed/1000);
     var limit = 0;
     var turndistance = 0;
     
