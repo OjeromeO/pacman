@@ -3295,6 +3295,9 @@ var Movable = function(x, y, state, direction, speed)
     this._nextturn = null;          // intersection that allows movement in the requested direction
     
     this._movablestate = state;
+    
+    this._remainingtime = 0;
+    this._remainingmovement = 0;
 };
 
 Movable.prototype.reinit = function(x, y, state, direction, speed)
@@ -3726,7 +3729,7 @@ Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
     }
 };
 
-Pacman.prototype.moveInsideRemainingLine = function(movement, remaining, maze, status)
+Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING)
     {
@@ -3735,12 +3738,14 @@ Pacman.prototype.moveInsideRemainingLine = function(movement, remaining, maze, s
     
     var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
             
-    if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
-    else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
-    else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
-    else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
+    if (this._direction === Direction.UP)           {this.translate(0, -1 * this._remainingmovement);}
+    else if (this._direction === Direction.RIGHT)   {this.translate(this._remainingmovement, 0);}
+    else if (this._direction === Direction.DOWN)    {this.translate(0, this._remainingmovement);}
+    else if (this._direction === Direction.LEFT)    {this.translate(-1 * this._remainingmovement, 0);}
     
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+    
+    this._remainingmovement = 0;
 };
 
 Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
@@ -3758,6 +3763,8 @@ Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
     else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
     
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+    
+    this._remainingmovement -= remaining.size();
 };
 
 /*
@@ -3804,22 +3811,22 @@ Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
     this.resetNextTurn();
 
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+    
+    this._remainingmovement -= oldposition.distanceToPoint(this._position);
 };
 
-Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status)
+Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING)
     {
         return;
     }
     
-    while(movement > 0)
+    while(this._remainingmovement > 0)
     {
-        if (movement >= remaining.size())
+        if (this._remainingmovement >= remaining.size())
         {
             this.moveToEndOfRemainingLine(remaining, maze, status);
-            
-            movement -= remaining.size();
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
             {
@@ -3840,14 +3847,12 @@ Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status
             }
             else
             {
-                movement = 0;
+                this._remainingmovement = 0;
             }
         }
         else
         {
-            this.moveInsideRemainingLine(movement, remaining, maze, status);
-            
-            movement = 0;
+            this.moveInsideRemainingLine(remaining, maze, status);
         }
     }
 };
@@ -3871,40 +3876,32 @@ Pacman.prototype.move = function(elapsed, maze, status)
         return;
     }
     
-    var movement = Math.round(this._speed * elapsed/1000);
-    
+    this._remainingtime = elapsed;
+    this._remainingmovement = Math.round(this._speed * this._remainingtime/1000);
+
     if (this.hasNextTurn())
     {
-        while(movement > 0)
+        while(this._remainingmovement > 0)
         {
             if (remaining.containsPoint(this._nextturn))
             {
                 var turndistance = this._position.distanceToPoint(this._nextturn);
                 
-                if (movement >= turndistance)
+                if (this._remainingmovement >= turndistance)
                 {
                     this.moveToNextTurnInsideRemainingLine(maze, status);
-                    
-                    movement -= turndistance;
-                    
-                    this.moveInStraightLine(movement, maze.remainingLine(this._position, this._direction, this.allowedCorridors()), maze, status)
-                    
-                    movement = 0;
+                    this.moveInStraightLine(maze.remainingLine(this._position, this._direction, this.allowedCorridors()), maze, status)
                 }
                 else
                 {
-                    this.moveInsideRemainingLine(movement, remaining, maze, status);
-                    
-                    movement = 0;
+                    this.moveInsideRemainingLine(remaining, maze, status);
                 }
             }
             else
             {
-                if (movement >= remaining.size())
+                if (this._remainingmovement >= remaining.size())
                 {
                     this.moveToEndOfRemainingLine(remaining, maze, status);
-                    
-                    movement -= remaining.size();
                     
                     if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
                     {
@@ -3925,21 +3922,19 @@ Pacman.prototype.move = function(elapsed, maze, status)
                     }
                     else
                     {
-                        movement = 0;
+                        this._remainingmovement = 0;
                     }
                 }
                 else
                 {
-                    this.moveInsideRemainingLine(movement, remaining, maze, status);
-                    
-                    movement = 0;
+                    this.moveInsideRemainingLine(remaining, maze, status);
                 }
             }
         }
     }
     else
     {
-        this.moveInStraightLine(movement, remaining, maze, status);
+        this.moveInStraightLine(remaining, maze, status);
     }
 };
 
@@ -4404,12 +4399,12 @@ Ghost.prototype.move = function(elapsed, maze, status)
             ====> AU FINAL : mettre en propriete un this._remainingtime et un this._remainingmovement ; creer dans movable un modeWillChange(remaining, ...) retournant un booléen, constitué des if du updatestate prevu (en fait c'est la même chose que le updatestate(), sauf que au lieu de faire if ... this._mode=truc, on fait if ... return true/false => pacman: if remaining.containsPowerPellet() return true ; ghost: if remaining.containsLinksCorridorsLimit/containsLinksGhosthouseLimit/containsCorridorsGhosthouseLimit() return true, ou juste les if justleaved() ... return true ou les if this._mode...&& maze.containsPoint()... return true ???)
                 => pacman : dans les movexxx(), faudra utiliser des if remaining.containsPowerPellet() 
                 => ghost : dans les movexxx(), faudra utiliser des if remaining.containsLinksCorridorsLimit/containsLinksGhosthouseLimit/containsCorridorsGhosthouseLimit()
-            ===============> OU ALORS EN FAIT, faut juste que chacun modifie les movexxx(), mais le move() principal reste le même pour les 2 ! ce qui serait ptetre plus logique en fait, vu que chacun a ses propres trucs et evenements a prendre en compte dans les movexxx(), mais que le move principal n'a pas a changer ! et donc chacun dans ses movexxx() pourra faire ses petites verif si le mode va changer et dans ce cas il s'occupera du temps/distance restante comme il faut (et d'ailleurs, vu que les movexxx() sont des fonctions simples, genre se deplacer sur un ligne, en fait on pourra ptetre au final quand meme mutualiser les detections de chagement de mode et les update de mode ?)
+            ===============> OU ALORS EN FAIT, faut juste que chacun modifie les movexxx(), mais le move() principal reste le même pour les 2 ! ce qui serait ptetre plus logique en fait, vu que chacun a ses propres trucs et evenements a prendre en compte dans les movexxx(), mais que le move principal n'a pas à changer ! et donc chacun dans ses movexxx() pourra faire ses petites verif si le mode va changer et dans ce cas il s'occupera du temps/distance restante comme il faut (et d'ailleurs, vu que les movexxx() sont des fonctions simples, genre se deplacer sur un ligne, en fait on pourra ptetre au final quand meme mutualiser les detections de chagement de mode et les update de mode ?)
 
 =========================================================================================
 d'abord mettre en propriete le remainingmovement pour Pacman, et adapter le code ; puis s'occuper du moveInsideRemainingLine() créé dans les commentaires de Pacman
     => QUOIQUE, ptetre plutot metre en propriete remainingtime, et recalculer le mouvement restant a chaque fois !
-        => du coup pour ça, faut d'abord une propriete speed, qu'on pourra donc modifier selon le mode ^^ ===> OK fait, maintenant adapter Pacman et Ghost pour utiliser la propriete speed  !
+    (pour pacman: proprietes _speed, _remainingtime, _remainingmovement mises en place)
 =========================================================================================
 
 ======> du coup c'est pas un updatestate() mais un updatemode() qu'il faut ! et là ça a deja un peu plus de sens ^^
