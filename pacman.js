@@ -3834,18 +3834,7 @@ Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
             {
-                var associated = maze.associatedPortal(this.getPosition().getX(), this.getPosition().getY());
-                
-                this.setPosition(associated.getPosition().getX(), associated.getPosition().getY());
-                
-                // search and assign the new current direction after teleportation
-                
-                var directions = []
-                directions = maze.availableDirections(this.getPosition());
-                
-                // there will be only one direction in the array
-                // (portals can only be on one line, and at an extremity)
-                this._direction = directions[0];
+                this.teleportToAssociatedPortal(maze, status);
                 
                 remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
             }
@@ -3859,6 +3848,22 @@ Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
             this.moveInsideRemainingLine(remaining, maze, status);
         }
     }
+};
+
+Pacman.prototype.teleportToAssociatedPortal = function(maze, status)
+{
+    var associated = maze.associatedPortal(this.getPosition().getX(), this.getPosition().getY());
+    
+    this.setPosition(associated.getPosition().getX(), associated.getPosition().getY());
+    
+    // search and assign the new current direction after teleportation
+    
+    var directions = []
+    directions = maze.availableDirections(this.getPosition());
+    
+    // there will be only one direction in the array
+    // (portals can only be on one line, and at an extremity)
+    this._direction = directions[0];
 };
 
 Pacman.prototype.move = function(elapsed, maze, status)
@@ -3909,18 +3914,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
                     
                     if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
                     {
-                        var associated = maze.associatedPortal(this.getPosition().getX(), this.getPosition().getY());
-                        
-                        this.setPosition(associated.getPosition().getX(), associated.getPosition().getY());
-                        
-                        // search and assign the new current direction after teleportation
-                        
-                        var directions = []
-                        directions = maze.availableDirections(this.getPosition());
-                        
-                        // there will be only one direction in the array
-                        // (portals can only be on one line, and at an extremity)
-                        this._direction = directions[0];
+                        this.teleportToAssociatedPortal(maze, status);
                         
                         remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
                     }
