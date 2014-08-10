@@ -3759,6 +3759,34 @@ Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
     }
 };
 
+/* TODO
+    - changer moveToEndInsideRemainingLine() en un moveToMaxInsideRemainingLine() qui irait au max dans la ligne, mais sans faire de teleport ?
+    - faire de moveInsideRemainingLine() une sorte de sous-move "global", qui serait le seul a verifier si y'a hasturn() ou haseatenpellets() ou hasportal() etc... et qui utilise donc les autres fonctions (mais en fait, ça marcherait ptetre simplement avec le movetopoint(), les autres fonctions sont pas reellement utiles, on peut faire ce qu'elles font directement dans ce sous-move global...) ; en fait ce movetruc() deplacerait au maximum le pacman dans sa remainingline jusqu'a une eventuelle prochaine remainingline (teleportation ou nextturn)
+    
+    moveInsideRemainingLine
+    {
+        if (this._movablestate !== MovableState.MOVING
+         || this._remainingmovement <= 0)
+        {
+            return;
+        }
+        
+        while(this._remainingmovement > 0)
+        {
+            // if hasturn && containspoint(turn)
+            // if portal
+            // ...
+            
+            // willchangemode...
+        }
+    }
+    => faudra faire les willchangemode() (ou nextchangemode() plutot ? avec une nouvelles classe modechange indiquant le point et le nouveau mode ?) aussi, et penser que move() doit rester le meme alors que les movexxx() sont sensés etre redefinis par pacman et ghost (voir si chacun devra ou non reecrire ce moveInsideRemainingLine(), c'est ptetre un peu chiant, surtout que la majorité sera identique ; ptetre pas a redefinir vu que y'aura les willtruc() dedans normalement)
+    => comment faire pour que ghost soit au courant que pacman a mangé un power pellet ??????
+    
+    => les 2 tirets ci-dessus bouleverseraient des choses dans moveinstraightline() et dans le move() principal
+    
+    - du coup ce serait ptetre plus logique de changer les moveToXXX() en GoToXXX(), pour accentuer l'idée qu'ils ne font que placer aveuglement le pacman sans verifier si des trucs sur la route
+*/
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
@@ -3779,7 +3807,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     this.moveEndRemaining();
 };
 
-Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
+Pacman.prototype.moveToEndInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
      || this._remainingmovement <= 0)
@@ -3787,19 +3815,13 @@ Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
         return;
     }
     
-    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-    
-    if (this._direction === Direction.UP)           {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
-    else if (this._direction === Direction.RIGHT)   {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
-    else if (this._direction === Direction.DOWN)    {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
-    else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
-    
-    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
-    
-    this.moveUpdateRemainingFromMovement(-1 * remaining.size());
+    if (this._direction === Direction.UP)           {this.moveToPointInsideRemainingLine(remaining.getPoint1(), maze, status);}
+    else if (this._direction === Direction.RIGHT)   {this.moveToPointInsideRemainingLine(remaining.getPoint2(), maze, status);}
+    else if (this._direction === Direction.DOWN)    {this.moveToPointInsideRemainingLine(remaining.getPoint2(), maze, status);}
+    else if (this._direction === Direction.LEFT)    {this.moveToPointInsideRemainingLine(remaining.getPoint1(), maze, status);}
 };
 
-/* TODO a modifier au vu des dernieres modifs avec les proprietes remaining et les tests if en debut de fonction
+/*
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
@@ -3810,12 +3832,14 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     
     var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
     
-    if (movement >= remaining.size())
+    if (this._remainingmovement > remaining.size())
     {
         if (this._direction === Direction.UP)           {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
         else if (this._direction === Direction.RIGHT)   {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
         else if (this._direction === Direction.DOWN)    {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
         else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
+        
+        this.moveUpdateRemainingFromMovement(-1 * remaining.size());
     }
     else
     {
@@ -3823,10 +3847,11 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
         else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
         else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
         else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
+        
+        this.moveEndRemaining();
     }
     
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
-    //TODO et pour movement, faut le diminuer !!!! renvoyer la distance parcourue ? ou bien direct mettre le remainingmovement en propriete, et le modifier la ?
 };
 */
 
@@ -3838,11 +3863,23 @@ Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
         return;
     }
     
-    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-
-    this.setPosition(this._nextturn.getX(), this._nextturn.getY());
+    this.moveToPointInsideRemainingLine(this._nextturn, maze, status);
+    
     this._direction = this._nextdirection;
     this.resetNextTurn();
+};
+
+Pacman.prototype.moveToPointInsideRemainingLine = function(point, maze, status)
+{
+    if (this._movablestate !== MovableState.MOVING
+     || this._remainingmovement <= 0)
+    {
+        return;
+    }
+    
+    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+
+    this.setPosition(point.getX(), point.getY());
 
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
     
@@ -3861,7 +3898,7 @@ Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
     {
         if (this._remainingmovement >= remaining.size())
         {
-            this.moveToEndOfRemainingLine(remaining, maze, status);
+            this.moveToEndInsideRemainingLine(remaining, maze, status);
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
             {
@@ -3940,7 +3977,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
             {
                 if (this._remainingmovement >= remaining.size())
                 {
-                    this.moveToEndOfRemainingLine(remaining, maze, status);
+                    this.moveToEndInsideRemainingLine(remaining, maze, status);
                     
                     if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
                     {
