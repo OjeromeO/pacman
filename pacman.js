@@ -3300,6 +3300,36 @@ var Movable = function(x, y, state, direction, speed)
     this._remainingmovement = 0;
 };
 
+Movable.prototype.moveBeginRemainingFromTime = function(remainingtime)
+{
+    this._remainingtime = remainingtime;
+    this._remainingmovement = Math.round(this._speed * remainingtime/1000);
+};
+
+Movable.prototype.moveBeginRemainingFromMovement = function(remainingmovement)
+{
+    this._remainingtime = Math.round(1000 * remainingmovement/this._speed);
+    this._remainingmovement = remainingmovement;
+};
+
+Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
+{
+    this._remainingtime += deltatime;
+    this._remainingmovement += Math.round(this._speed * deltatime/1000);
+};
+
+Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
+{
+    this._remainingtime += Math.round(1000 * deltamovement/this._speed);
+    this._remainingmovement += deltamovement;
+};
+
+Movable.prototype.moveEndRemaining = function()
+{
+    this._remainingtime = 0;
+    this._remainingmovement = 0;
+};
+
 Movable.prototype.reinit = function(x, y, state, direction, speed)
 {
     assert((typeof x === "number"), "x is not a number");
@@ -3746,7 +3776,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
     
-    this._remainingmovement = 0;
+    this.moveEndRemaining();
 };
 
 Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
@@ -3766,13 +3796,14 @@ Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
     
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
     
-    this._remainingmovement -= remaining.size();
+    this.moveUpdateRemainingFromMovement(-1 * remaining.size());
 };
 
-/*
-Pacman.prototype.moveInsideRemainingLine = function(movement, remaining, maze, status)
+/* TODO a modifier au vu des dernieres modifs avec les proprietes remaining et les tests if en debut de fonction
+Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
-    if (this._movablestate !== MovableState.MOVING)
+    if (this._movablestate !== MovableState.MOVING
+     || this._remainingmovement <= 0)
     {
         return;
     }
@@ -3815,7 +3846,7 @@ Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
 
     this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
     
-    this._remainingmovement -= oldposition.distanceToPoint(this._position);
+    this.moveUpdateRemainingFromMovement(-1 * oldposition.distanceToPoint(this._position));
 };
 
 Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
@@ -3840,7 +3871,7 @@ Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
             }
             else
             {
-                this._remainingmovement = 0;
+                this.moveEndRemaining();
             }
         }
         else
@@ -3885,8 +3916,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
         return;
     }
     
-    this._remainingtime = elapsed;
-    this._remainingmovement = Math.round(this._speed * this._remainingtime/1000);
+    this.moveBeginRemainingFromTime(elapsed);
 
     if (this.hasNextTurn())
     {
@@ -3920,7 +3950,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
                     }
                     else
                     {
-                        this._remainingmovement = 0;
+                        this.moveEndRemaining();
                     }
                 }
                 else
@@ -4403,7 +4433,8 @@ Ghost.prototype.move = function(elapsed, maze, status)
 d'abord mettre en propriete le remainingmovement pour Pacman, et adapter le code ; puis s'occuper du moveInsideRemainingLine() créé dans les commentaires de Pacman
     => QUOIQUE, ptetre plutot metre en propriete remainingtime, et recalculer le mouvement restant a chaque fois !
     (pour pacman: proprietes _speed, _remainingtime, _remainingmovement mises en place)
-        => faut penser a aussi modifier le this._remainingtime en meme temps qu'on modifie le this._remainingmovement
+        => faut penser a aussi modifier le this._remainingtime en meme temps qu'on modifie le this._remainingmovement !!!
+            => pour ça, dans les move/movexxx/teleport, utiliser des moveBeginRemaining(), moveEndRemaining(), moveUpdateRemaining(deltatime, deltamovement) => OK fait !
 =========================================================================================
 
 ======> du coup c'est pas un updatestate() mais un updatemode() qu'il faut ! et là ça a deja un peu plus de sens ^^
