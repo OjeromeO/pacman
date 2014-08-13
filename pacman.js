@@ -3763,148 +3763,54 @@ Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
     - changer moveToEndInsideRemainingLine() en un moveToMaxInsideRemainingLine() qui irait au max dans la ligne, mais sans faire de teleport ?
     - faire de moveInsideRemainingLine() une sorte de sous-move "global", qui serait le seul a verifier si y'a hasturn() ou haseatenpellets() ou hasportal() etc... et qui utilise donc les autres fonctions (mais en fait, ça marcherait ptetre simplement avec le movetopoint(), les autres fonctions sont pas reellement utiles, on peut faire ce qu'elles font directement dans ce sous-move global...) ; en fait ce movetruc() deplacerait au maximum le pacman dans sa remainingline jusqu'a une eventuelle prochaine remainingline (teleportation ou nextturn)
     
-    moveInsideRemainingLine
-    {
-        if (this._movablestate !== MovableState.MOVING
-         || this._remainingmovement <= 0)
-        {
-            return;
-        }
-        
-        while(this._remainingmovement > 0)
-        {
-            // if hasturn && containspoint(turn)
-            // if portal
-            // ...
-            
-            // willchangemode...
-        }
-    }
-    => faudra faire les willchangemode() (ou nextchangemode() plutot ? avec une nouvelles classe modechange indiquant le point et le nouveau mode ?) aussi, et penser que move() doit rester le meme alors que les movexxx() sont sensés etre redefinis par pacman et ghost (voir si chacun devra ou non reecrire ce moveInsideRemainingLine(), c'est ptetre un peu chiant, surtout que la majorité sera identique ; ptetre pas a redefinir vu que y'aura les willtruc() dedans normalement)
+    => faudra faire les willchangemode() (ou nextchangemode() plutot ? avec une nouvelle classe modechange indiquant le point et le nouveau mode ?) aussi, et penser que move() doit rester le meme alors que les movexxx() sont sensés etre redefinis par pacman et ghost (voir si chacun devra ou non reecrire ce moveInsideRemainingLine(), c'est ptetre un peu chiant, surtout que la majorité sera identique ; ptetre pas a redefinir vu que y'aura les willtruc() dedans normalement)
     => comment faire pour que ghost soit au courant que pacman a mangé un power pellet ??????
-    
-    => les 2 tirets ci-dessus bouleverseraient des choses dans moveinstraightline() et dans le move() principal
+        => mettre dans status ? puisqu'en fait c'est une info quand meme plus ou moins globale a tout le jeu (ca a pas vraiment sa place dans status, mais bon, status est deja envoyé a moveinsideremainingline())
     
     - du coup ce serait ptetre plus logique de changer les moveToXXX() en GoToXXX(), pour accentuer l'idée qu'ils ne font que placer aveuglement le pacman sans verifier si des trucs sur la route
+    
+    
+    
+    ====> ptetre d'abord faire le moveinside..() sans les willtruc(), puis apres avec ces willtruc()
 */
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <= 0)
-    {
-        return;
-    }
-    
-    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-            
-    if (this._direction === Direction.UP)           {this.translate(0, -1 * this._remainingmovement);}
-    else if (this._direction === Direction.RIGHT)   {this.translate(this._remainingmovement, 0);}
-    else if (this._direction === Direction.DOWN)    {this.translate(0, this._remainingmovement);}
-    else if (this._direction === Direction.LEFT)    {this.translate(-1 * this._remainingmovement, 0);}
-    
-    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
-    
-    this.moveEndRemaining();
-};
-
-Pacman.prototype.moveToEndInsideRemainingLine = function(remaining, maze, status)
-{
-    if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <= 0)
-    {
-        return;
-    }
-    
-    if (this._direction === Direction.UP)           {this.moveToPointInsideRemainingLine(remaining.getPoint1(), maze, status);}
-    else if (this._direction === Direction.RIGHT)   {this.moveToPointInsideRemainingLine(remaining.getPoint2(), maze, status);}
-    else if (this._direction === Direction.DOWN)    {this.moveToPointInsideRemainingLine(remaining.getPoint2(), maze, status);}
-    else if (this._direction === Direction.LEFT)    {this.moveToPointInsideRemainingLine(remaining.getPoint1(), maze, status);}
-};
-
-/*
-Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
-{
-    if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <= 0)
+     || this._remainingmovement <= 0
+     || remaining.isPoint())
     {
         return;
     }
     
     var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
     
-    if (this._remainingmovement > remaining.size())
+    // if we will reach a next turn during our movement
+    if (this.hasNextTurn()
+     && remaining.containsPoint(this._nextturn)
+     && this._remainingmovement >= this._position.distanceToPoint(this._nextturn))
     {
-        if (this._direction === Direction.UP)           {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
-        else if (this._direction === Direction.RIGHT)   {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
-        else if (this._direction === Direction.DOWN)    {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
-        else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
+        this.setPosition(this._nextturn.getX(), this._nextturn.getY());
+        this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+        this.moveUpdateRemainingFromMovement(-1 * oldposition.distanceToPoint(this._position));
         
-        this.moveUpdateRemainingFromMovement(-1 * remaining.size());
+        this._direction = this._nextdirection;
+        this.resetNextTurn();
     }
     else
     {
-        if (this._direction === Direction.UP)           {this.translate(0, -1 * movement);}
-        else if (this._direction === Direction.RIGHT)   {this.translate(movement, 0);}
-        else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
-        else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
-        
-        this.moveEndRemaining();
-    }
-    
-    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
-};
-*/
-
-Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
-{
-    if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <= 0)
-    {
-        return;
-    }
-    
-    this.moveToPointInsideRemainingLine(this._nextturn, maze, status);
-    
-    this._direction = this._nextdirection;
-    this.resetNextTurn();
-};
-
-Pacman.prototype.moveToPointInsideRemainingLine = function(point, maze, status)
-{
-    if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <= 0)
-    {
-        return;
-    }
-    
-    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-
-    this.setPosition(point.getX(), point.getY());
-
-    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
-    
-    this.moveUpdateRemainingFromMovement(-1 * oldposition.distanceToPoint(this._position));
-};
-
-Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
-{
-    if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <= 0)
-    {
-        return;
-    }
-    
-    while(this._remainingmovement > 0)
-    {
-        if (this._remainingmovement >= remaining.size())
+        if (this._remainingmovement > remaining.size())
         {
-            this.moveToEndInsideRemainingLine(remaining, maze, status);
+            if (this._direction === Direction.UP)           {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
+            else if (this._direction === Direction.RIGHT)   {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
+            else if (this._direction === Direction.DOWN)    {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
+            else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
+            
+            this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+            this.moveUpdateRemainingFromMovement(-1 * remaining.size());
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
             {
                 this.teleportToAssociatedPortal(maze, status);
-                
-                remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
             }
             else
             {
@@ -3913,10 +3819,16 @@ Pacman.prototype.moveInStraightLine = function(remaining, maze, status)
         }
         else
         {
-            this.moveInsideRemainingLine(remaining, maze, status);
+            if (this._direction === Direction.UP)           {this.translate(0, -1 * this._remainingmovement);}
+            else if (this._direction === Direction.RIGHT)   {this.translate(this._remainingmovement, 0);}
+            else if (this._direction === Direction.DOWN)    {this.translate(0, this._remainingmovement);}
+            else if (this._direction === Direction.LEFT)    {this.translate(-1 * this._remainingmovement, 0);}
+            
+            this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+            this.moveEndRemaining();
         }
     }
-};
+}
 
 Pacman.prototype.teleportToAssociatedPortal = function(maze, status)
 {
@@ -3945,63 +3857,34 @@ Pacman.prototype.move = function(elapsed, maze, status)
     
     var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
     
-    // if we are in a dead-end
-    // (we can't be on a portal and in need to be teleported, nor we can be at an intersection in need to turn,
-    //  as the move() would have teleported us or make us turn at the previous step)
-    if (remaining.isPoint())
+    while (remaining.isPoint())
     {
-        return;
+        // it could happen if, when leaving a portal at the previous move(), we immediately pushed the key for the opposite direction : at the next
+        // turn, we would still be on the portal, in need of the opposite teleport, but with a remainingling.ispoint() == true at the beginning
+        if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+        {
+            this.teleportToAssociatedPortal(maze, status);
+            remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
+        }
+        else
+        {
+            return;
+        }
     }
     
     this.moveBeginRemainingFromTime(elapsed);
-
-    if (this.hasNextTurn())
+    
+    // if we can move and we are not in a dead-end
+    // (we can't be on a portal and in need to be teleported, nor we can be at an intersection in need to turn,
+    //  as the move() would have teleported us or make us turn at the previous step)
+    while (this._remainingmovement > 0
+        && !remaining.isPoint())
     {
-        while(this._remainingmovement > 0)
-        {
-            if (remaining.containsPoint(this._nextturn))
-            {
-                var turndistance = this._position.distanceToPoint(this._nextturn);
-                
-                if (this._remainingmovement >= turndistance)
-                {
-                    this.moveToNextTurnInsideRemainingLine(maze, status);
-                    this.moveInStraightLine(maze.remainingLine(this._position, this._direction, this.allowedCorridors()), maze, status)
-                }
-                else
-                {
-                    this.moveInsideRemainingLine(remaining, maze, status);
-                }
-            }
-            else
-            {
-                if (this._remainingmovement >= remaining.size())
-                {
-                    this.moveToEndInsideRemainingLine(remaining, maze, status);
-                    
-                    if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
-                    {
-                        this.teleportToAssociatedPortal(maze, status);
-                        
-                        remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
-                    }
-                    else
-                    {
-                        this.moveEndRemaining();
-                    }
-                }
-                else
-                {
-                    this.moveInsideRemainingLine(remaining, maze, status);
-                }
-            }
-        }
-    }
-    else
-    {
-        this.moveInStraightLine(remaining, maze, status);
+        this.moveInsideRemainingLine(remaining, maze, status);
+        remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
     }
 };
+
 
 
 /******************************************************************************/
