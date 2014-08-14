@@ -91,6 +91,7 @@ var PAUSEMENU_HEIGHT = 2 * PAUSEMENU_VPADDING + Object.keys(PauseMenuItem).lengt
 
 var PACMAN_RADIUS = 12;
 var PACDOTS_RADIUS = 2;
+var PELLETS_RADIUS = 5;
 
 var PACMAN_SPEED = 300;
 var PACMAN_PP_SPEED = PACMAN_SPEED;
@@ -104,6 +105,7 @@ var GHOST_EATEN_SPEED = 140;
 var LINE_WIDTH = 2 * PACMAN_RADIUS + 8;
 var GRID_UNIT = 16;
 var PACDOT_POINT = 10;
+var PELLET_POINT = 50;
 
 var GHOST_WIDTH = 2 * PACMAN_RADIUS;
 var GHOST_LOWERHEIGHT = PACMAN_RADIUS;
@@ -221,6 +223,11 @@ var MAP_1 =
                     {x1: 11, y1: 25, x2: 11, y2: 28},
                     {x1: 14, y1: 25, x2: 14, y2: 28},
                     {x1: 25, y1: 25, x2: 25, y2: 28}
+                ],
+    
+    pellets:    [
+                    {x: 0,  y:  0},
+                    {x: 0,  y:  6}
                 ],
     
     portals:    [
@@ -1430,6 +1437,63 @@ Pacdot.prototype.draw = function()
 };
 
 /******************************************************************************/
+/********************************* Pellet class *******************************/
+/******************************************************************************/
+
+var Pellet = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position = new Point(x, y);
+    
+    this._graphicscircle = null;
+    
+    this._generateGraphics();
+};
+
+Pellet.prototype._generateGraphics = function()
+{
+    var circle = new DrawableCircle(this._position.getX(),
+                                    this._position.getY(),
+                                    PELLETS_RADIUS,
+                                    true);
+    
+    this._graphicscircle = circle;
+};
+
+Pellet.prototype.getPosition = function()
+{
+    return this._position;
+};
+
+Pellet.prototype.setPosition = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.set(x, y);
+    this._graphicscircle.setPosition(this._position.getX(),
+                                     this._position.getY());
+};
+
+Pellet.prototype.translate = function(x, y)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._position.translate(x, y);
+    this._graphicscircle.translate(x, y);
+};
+
+Pellet.prototype.draw = function()
+{
+    context.fillStyle = "white";
+    
+    this._graphicscircle.draw();
+};
+
+/******************************************************************************/
 /******************************** Corridor class ******************************/
 /******************************************************************************/
 
@@ -1516,6 +1580,7 @@ var Map = function(litteral)
     this._ghosthouselines = [];
     this._linklines = [];
     this._pacdotsposition = [];
+    this._pelletsposition = [];
     this._portalsposition = [];
     this._portalsid = [];
     this._pacmanPosition = null;
@@ -1627,6 +1692,15 @@ var Map = function(litteral)
     }
     
     /*
+        load pellets
+    */
+    
+    for(var i=0; i<litteral.pellets.length; i++)
+    {
+        this._pelletsposition.push(new Point(litteral.pellets[i].x * GRID_UNIT, litteral.pellets[i].y * GRID_UNIT));
+    }
+    
+    /*
         load portals
     */
     
@@ -1716,6 +1790,18 @@ Map.prototype.getPacdots = function()
     }
     
     return pacdots;
+};
+
+Map.prototype.getPellets = function()
+{
+    var pellets = [];
+    
+    for(var i=0;i<this._pelletsposition.length;i++)
+    {
+        pellets.push(new Pellet(this._pelletsposition[i].getX(), this._pelletsposition[i].getY()));
+    }
+    
+    return pellets;
 };
 
 Map.prototype.getPortals = function()
@@ -2116,6 +2202,7 @@ PlayingState.prototype.loadMap = function(litteral)
     var ghosthouse = this._map.getGhosthouse();
     var links = this._map.getLinks();
     var pacdots = this._map.getPacdots();
+    var pellets = this._map.getPellets();
     var portals = this._map.getPortals();
     var ghosts = this._map.getGhosts();
     var pacman = this._map.getPacman();
@@ -2151,6 +2238,11 @@ PlayingState.prototype.loadMap = function(litteral)
         pacdots[i].translate(xmappadding, ymappadding);
     }
     
+    for(var i=0; i<pellets.length; i++)
+    {
+        pellets[i].translate(xmappadding, ymappadding);
+    }
+    
     for(var i=0; i<portals.length; i++)
     {
         portals[i].translate(xmappadding, ymappadding);
@@ -2179,7 +2271,7 @@ PlayingState.prototype.loadMap = function(litteral)
     
     //TODO ici, creer direct le this._maze et this._pacman, puis faire un maze.translate() et un pacman.translate() (creer ces fonctions en pensant a translater les graphics aussi)
     
-    this._maze = new Maze(ghosthouse, lines, links, pacdots, portals);
+    this._maze = new Maze(ghosthouse, lines, links, pacdots, pellets, portals);
     this._pacman = pacman;
     this._ghosts = ghosts;
 };
@@ -2191,13 +2283,19 @@ PlayingState.prototype.restart = function()
     
     // reinit maze
     var pacdots = this._map.getPacdots();
+    var pellets = this._map.getPellets();
     
-    for(i=0; i<pacdots.length; i++)
+    for(var i=0; i<pacdots.length; i++)
     {
         pacdots[i].translate(xmappadding, ymappadding);
     }
     
-    this._maze.reinit(pacdots);
+    for(var i=0; i<pellets.length; i++)
+    {
+        pellets[i].translate(xmappadding, ymappadding);
+    }
+    
+    this._maze.reinit(pacdots, pellets);
     
     // reinit status
     this._status.reinit();
@@ -2440,7 +2538,7 @@ Status.prototype.draw = function()
 /********************************* Maze class *********************************/
 /******************************************************************************/
 
-var Maze = function(ghosthouse, corridors, links, pacdots, portals)
+var Maze = function(ghosthouse, corridors, links, pacdots, pellets, portals)
 {
     //TODO  check if lines don't overlap with one another => if overlap, create
     //      a new one containing the two lines overlapping (they need to be of
@@ -2451,11 +2549,14 @@ var Maze = function(ghosthouse, corridors, links, pacdots, portals)
     this._corridors = corridors;    // lines on which the pacman center can move
     this._links = links;
     this._pacdots = pacdots;
-    this._powerpellets = [];
+    this._pellets = pellets;
     this._portals = portals;
     
     this._totalpacdots = this._pacdots.length;
     this._eatenpacdots = 0;
+    
+    this._totalpellets = this._pellets.length;
+    this._eatenpellets = 0;
     
     this._graphicsborder = null;
     this._graphicsbackground = null;
@@ -2480,14 +2581,19 @@ Maze.prototype._generateGraphics = function()
                                                      this._height + LINE_WIDTH);
 };
 
-Maze.prototype.reinit = function(pacdots)
+Maze.prototype.reinit = function(pacdots, pellets)
 {
     this._pacdots.length = 0;
     this._pacdots = pacdots;
-    this._powerpellets.length = 0;
+    
+    this._pellets.length = 0;
+    this._pellets = pellets;
     
     this._totalpacdots = this._pacdots.length;
     this._eatenpacdots = 0;
+    
+    this._totalpellets = this._pellets.length;
+    this._eatenpellets = 0;
 };
 
 Maze.prototype.increaseEatenPacdots = function(incr)
@@ -2505,6 +2611,23 @@ Maze.prototype.getEatenPacdots = function()
 Maze.prototype.getTotalPacdots = function()
 {
     return this._totalpacdots;
+};
+
+Maze.prototype.increaseEatenPellets = function(incr)
+{
+    assert((typeof incr === "number"), "incr is not a number");
+    
+    this._eatenpellets += incr;
+};
+
+Maze.prototype.getEatenPellets = function()
+{
+    return this._eatenpellets;
+};
+
+Maze.prototype.getTotalPellets = function()
+{
+    return this._totalpellets;
 };
 
 Maze.prototype.getWidth = function()
@@ -2559,6 +2682,11 @@ Maze.prototype.getLinks = function()
 Maze.prototype.getPacdots = function()
 {
     return this._pacdots;
+};
+
+Maze.prototype.getPellets = function()
+{
+    return this._pellets;
 };
 
 Maze.prototype.getPortals = function()
@@ -2620,6 +2748,20 @@ Maze.prototype.deletePacdot = function(index)
     assert((index >= 0 && index < this._pacdots.length), "index value is not valid");
     
     this._pacdots.splice(index, 1);
+};
+
+Maze.prototype.getPellet = function(index)
+{
+    assert((index >= 0 && index < this._pellets.length), "index value is not valid");
+    
+    return this._pellets[index];
+};
+
+Maze.prototype.deletePellet = function(index)
+{
+    assert((index >= 0 && index < this._pellets.length), "index value is not valid");
+    
+    this._pellets.splice(index, 1);
 };
 
 Maze.prototype.containsPoint = function(point, allowedcorridors)
@@ -3226,6 +3368,7 @@ Maze.prototype.draw = function()
     for(var i=0; i<this._ghosthouse.length; i++)    {this._ghosthouse[i].draw();}
     for(var i=0; i<this._links.length; i++)         {this._links[i].draw();}
     for(var i=0; i<this._pacdots.length; i++)       {this._pacdots[i].draw();}
+    for(var i=0; i<this._pellets.length; i++)       {this._pellets[i].draw();}
 };
 
 Maze.prototype.drawPortals = function()
@@ -3731,10 +3874,11 @@ Pacman.prototype.animate = function(elapsed)
     this._mouthendangle = baseangle - mouthhalfangle;
 };
 
-Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
+Pacman.prototype.eatBetweenPoints = function(p1, p2, maze, status)
 {
     var line = new Line(p1, p2);
     var eatenpacdots = [];
+    var eatenpellets = [];
     
     for(var i=0; i<maze.getPacdots().length; i++)
     {
@@ -3743,6 +3887,16 @@ Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
             status.increaseScore(PACDOT_POINT);
             maze.increaseEatenPacdots(1);
             eatenpacdots.push(i);
+        }
+    }
+    
+    for(var i=0; i<maze.getPellets().length; i++)
+    {
+        if (line.containsPoint(maze.getPellet(i).getPosition()))
+        {
+            status.increaseScore(PELLET_POINT);
+            maze.increaseEatenPellets(1);
+            eatenpellets.push(i);
         }
     }
     
@@ -3757,21 +3911,23 @@ Pacman.prototype.eatPacdotsBetweenPoints = function(p1, p2, maze, status)
         var index = eatenpacdots[eatenpacdots.length-1 - i];
         maze.deletePacdot(index);
     }
+    
+    for(var i=0; i<eatenpellets.length; i++)
+    {
+        var index = eatenpellets[eatenpellets.length-1 - i];
+        maze.deletePellet(index);
+    }
 };
 
 /* TODO
-    - changer moveToEndInsideRemainingLine() en un moveToMaxInsideRemainingLine() qui irait au max dans la ligne, mais sans faire de teleport ?
-    - faire de moveInsideRemainingLine() une sorte de sous-move "global", qui serait le seul a verifier si y'a hasturn() ou haseatenpellets() ou hasportal() etc... et qui utilise donc les autres fonctions (mais en fait, ça marcherait ptetre simplement avec le movetopoint(), les autres fonctions sont pas reellement utiles, on peut faire ce qu'elles font directement dans ce sous-move global...) ; en fait ce movetruc() deplacerait au maximum le pacman dans sa remainingline jusqu'a une eventuelle prochaine remainingline (teleportation ou nextturn)
-    
+
     => faudra faire les willchangemode() (ou nextchangemode() plutot ? avec une nouvelle classe modechange indiquant le point et le nouveau mode ?) aussi, et penser que move() doit rester le meme alors que les movexxx() sont sensés etre redefinis par pacman et ghost (voir si chacun devra ou non reecrire ce moveInsideRemainingLine(), c'est ptetre un peu chiant, surtout que la majorité sera identique ; ptetre pas a redefinir vu que y'aura les willtruc() dedans normalement)
     => comment faire pour que ghost soit au courant que pacman a mangé un power pellet ??????
         => mettre dans status ? puisqu'en fait c'est une info quand meme plus ou moins globale a tout le jeu (ca a pas vraiment sa place dans status, mais bon, status est deja envoyé a moveinsideremainingline())
     
-    - du coup ce serait ptetre plus logique de changer les moveToXXX() en GoToXXX(), pour accentuer l'idée qu'ils ne font que placer aveuglement le pacman sans verifier si des trucs sur la route
+    - des willchange() devront aussi etre appeles dans teleport..() et ptetre aussi dans move() du coup
     
-    
-    
-    ====> ptetre d'abord faire le moveinside..() sans les willtruc(), puis apres avec ces willtruc()
+    ====> mettre en place les willtruc() dans moveInsideRemainingLine()
 */
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
@@ -3790,7 +3946,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
      && this._remainingmovement >= this._position.distanceToPoint(this._nextturn))
     {
         this.setPosition(this._nextturn.getX(), this._nextturn.getY());
-        this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+        this.eatBetweenPoints(oldposition, this._position, maze, status);
         this.moveUpdateRemainingFromMovement(-1 * oldposition.distanceToPoint(this._position));
         
         this._direction = this._nextdirection;
@@ -3805,7 +3961,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             else if (this._direction === Direction.DOWN)    {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
             else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
             
-            this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+            this.eatBetweenPoints(oldposition, this._position, maze, status);
             this.moveUpdateRemainingFromMovement(-1 * remaining.size());
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
@@ -3824,7 +3980,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             else if (this._direction === Direction.DOWN)    {this.translate(0, this._remainingmovement);}
             else if (this._direction === Direction.LEFT)    {this.translate(-1 * this._remainingmovement, 0);}
             
-            this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+            this.eatBetweenPoints(oldposition, this._position, maze, status);
             this.moveEndRemaining();
         }
     }
@@ -4146,7 +4302,7 @@ Pacman.prototype.moveInsideRemainingLine = function(movement, remaining, maze, s
     else if (this._direction === Direction.DOWN)    {this.translate(0, movement);}
     else if (this._direction === Direction.LEFT)    {this.translate(-1 * movement, 0);}
     
-    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+    this.eatBetweenPoints(oldposition, this._position, maze, status);
 };
 
 Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
@@ -4163,7 +4319,7 @@ Pacman.prototype.moveToEndOfRemainingLine = function(remaining, maze, status)
     else if (this._direction === Direction.DOWN)    {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
     else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
     
-    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+    this.eatBetweenPoints(oldposition, this._position, maze, status);
 };
 
 Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
@@ -4179,7 +4335,7 @@ Pacman.prototype.moveToNextTurnInsideRemainingLine = function(maze, status)
     this._direction = this._nextdirection;
     this.resetNextTurn();
 
-    this.eatPacdotsBetweenPoints(oldposition, this._position, maze, status);
+    this.eatBetweenPoints(oldposition, this._position, maze, status);
 };
 
 Pacman.prototype.moveInStraightLine = function(movement, remaining, maze, status)
@@ -4341,9 +4497,9 @@ Ghost.prototype.move = function(elapsed, maze, status)
 
 ===> plus tard faudra mettre en place le changement de vitesse pour certains modes (creer 2-3 macros supplementaire du coup) ; et du coup lors du move() si on se rend compte que a partir de tel point on change de vitesse, ou qu'on passe dans un mode avec une vitesse differente, ben faudra faire un "return move()" avec des arguments mis à jour pour que la trajectoire parte du point où la vitesse change
         ===> A MOINS QUE on mette en propriété (genre dans un this._remainingtime) du pacman/ghost le elapsed qu'on nous fournit en argument du move() ; du coup vu qu'on connaitra la vitesse courante, ainsi que la distance jusqu'au point qui déclenche un changement de vitesse, on déduit le temps que ça prend pour aller jusqu'à ce point, et on peut le soustraire du this._remainingtime
-            => du coup pour pacman : meme depuis eatpacdotsbetweenpoints()
+            => du coup pour pacman : meme depuis eatBetweenPoints()
             => et pour ghost : 
-            => en fait pour les 2, (depuis eatpacdotsbetweenpoints() pour l'un, depuis movexxx() pour l'autre) comment faire ensuite pour se mettre au bon endroit en fonction de la nouvelle vitesse ??? faudrait recalculer quasiment tt le temps le mouvement restant et tt...
+            => en fait pour les 2, (depuis eatBetweenPoints() pour l'un, depuis movexxx() pour l'autre) comment faire ensuite pour se mettre au bon endroit en fonction de la nouvelle vitesse ??? faudrait recalculer quasiment tt le temps le mouvement restant et tt...
             ====> AU FINAL : mettre en propriete un this._remainingtime et un this._remainingmovement ; creer dans movable un modeWillChange(remaining, ...) retournant un booléen, constitué des if du updatestate prevu (en fait c'est la même chose que le updatestate(), sauf que au lieu de faire if ... this._mode=truc, on fait if ... return true/false => pacman: if remaining.containsPowerPellet() return true ; ghost: if remaining.containsLinksCorridorsLimit/containsLinksGhosthouseLimit/containsCorridorsGhosthouseLimit() return true, ou juste les if justleaved() ... return true ou les if this._mode...&& maze.containsPoint()... return true ???)
                 => pacman : dans les movexxx(), faudra utiliser des if remaining.containsPowerPellet() 
                 => ghost : dans les movexxx(), faudra utiliser des if remaining.containsLinksCorridorsLimit/containsLinksGhosthouseLimit/containsCorridorsGhosthouseLimit()
@@ -4379,11 +4535,10 @@ updatestate :
             this._mode = GhostMode.ATHOME;
         }
 
-===> mais comment ca va faire le updatestate pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatpacdots non ? => du coup c'est eatpacdots() qui fera la modif du this._mode a priori, le updatestate() semble inutile pr pacman puisque en fait le updatestate de ghost est juste par rapport a la position et le this._mode (or le pacman n'a pas de changement d'etat de ce style, donc il lui faudrait juste une fonction vide pour updatestate())
-    ===> EN FAIT, dans le eatpacdotsbetweenpoints() de Pacman, on fait this._justatepowerpellet=true si on en a mangé une, et juste apres (toujours dans eatpacdotsbetweenpoints()) on fait updatemode() (qui lui-meme remet this._justatepowerpellet a false s'il etait a true, apres bien sur avoir pris en compte cette info et avoir mis le pacman en mode bouffeur de fantome...quoique cette info doit aussi parvenir aux fantomes vu qu'ils doivent se mettre en mode frightened !!! comment faire ?)
+===> mais comment ca va faire le updatestate pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatBetweenPoints non ? => du coup c'est eatBetweenPoints() qui fera la modif du this._mode a priori, le updatestate() semble inutile pr pacman puisque en fait le updatestate de ghost est juste par rapport a la position et le this._mode (or le pacman n'a pas de changement d'etat de ce style, donc il lui faudrait juste une fonction vide pour updatestate())
+    ===> EN FAIT, dans le eatBetweenPoints() de Pacman, on fait this._justatepowerpellet=true si on en a mangé une, et juste apres (toujours dans eatBetweenPoints()) on fait updatemode() (qui lui-meme remet this._justatepowerpellet a false s'il etait a true, apres bien sur avoir pris en compte cette info et avoir mis le pacman en mode bouffeur de fantome...quoique cette info doit aussi parvenir aux fantomes vu qu'ils doivent se mettre en mode frightened !!! comment faire ?)
     
     
-            => renommer le eatpacdotsbetweenpoints() en eatbetweenpoints() ?
 */
 
 Ghost.prototype.allowedCorridors = function()
