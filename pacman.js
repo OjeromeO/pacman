@@ -309,6 +309,14 @@ var isDirection = function(direction)
     }
 };
 
+var oppositeDirection = function(direction)
+{
+    if (direction === Direction.UP)             {return Direction.DOWN;}
+    else if (direction === Direction.DOWN)      {return Direction.UP;}
+    else if (direction === Direction.RIGHT)     {return Direction.LEFT;}
+    else if (direction === Direction.LEFT)      {return Direction.RIGHT;}
+};
+
 var areDirectionsParallel = function(direction1, direction2)
 {
     return ((isVertical(direction1) && isVertical(direction2))
@@ -1215,12 +1223,28 @@ Line.prototype.isExtremity = function(point)
 
 Line.prototype.extremity = function(direction)
 {
-    assert(isDirection(direction), "argument is not a Direction");
+    assert(isDirection(direction), "direction is not a Direction");
     
     if (direction === Direction.UP)           {return new Point(this._point1.getX(), this._point1.getY());}
     else if (direction === Direction.RIGHT)   {return new Point(this._point2.getX(), this._point2.getY());}
     else if (direction === Direction.DOWN)    {return new Point(this._point2.getX(), this._point2.getY());}
     else if (direction === Direction.LEFT)    {return new Point(this._point1.getX(), this._point1.getY());}
+};
+
+Line.prototype.pointAtDistance = function(distance, direction)
+{
+    assert(isDirection(direction), "direction is not a Direction");
+    assert((typeof distance === "number"), "distance is not a number");
+    assert((distance >= 0), "distance is negative");
+    
+    var p = this.extremity(oppositeDirection(direction));
+    
+    if (direction === Direction.UP)           {p.translate(0, -1 * distance);}
+    else if (direction === Direction.RIGHT)   {p.translate(distance, 0);}
+    else if (direction === Direction.DOWN)    {p.translate(0, distance);}
+    else if (direction === Direction.LEFT)    {p.translate(-1 * distance, 0);}
+    
+    return p;
 };
 
 Line.prototype.containsX = function(x)
@@ -4004,15 +4028,6 @@ bloc2
 bloc3
 
 
-===> en profiter pour simplifier les 2 quadruples if dans le bloc 2 et 3
-
-pointAtDistance(line, distance, direction)
-    if (this._direction === Direction.UP)           {this.translate(0, -1 * this._remainingmovement);}
-    else if (this._direction === Direction.RIGHT)   {this.translate(this._remainingmovement, 0);}
-    else if (this._direction === Direction.DOWN)    {this.translate(0, this._remainingmovement);}
-    else if (this._direction === Direction.LEFT)    {this.translate(-1 * this._remainingmovement, 0);}
-
-
 
 ===> du coup, est-ce que ca vaut mieux de rester comme ça dans chaque bloc, ou bien vaut mieux faire un genre de while global, petit bout par petit bout, où on va dans un bloc ou un autre selon notre remaining entre notre position et le nextmodechange ?
     => mouais sauf que apres on peut pas trop savoir quand faire les moveEndRemaining() de certains endroits...
@@ -4079,11 +4094,9 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     }
     else
     {
-        if (this._direction === Direction.UP)           {this.translate(0, -1 * this._remainingmovement);}
-        else if (this._direction === Direction.RIGHT)   {this.translate(this._remainingmovement, 0);}
-        else if (this._direction === Direction.DOWN)    {this.translate(0, this._remainingmovement);}
-        else if (this._direction === Direction.LEFT)    {this.translate(-1 * this._remainingmovement, 0);}
+        var destination = remaining.pointAtDistance(this._remainingmovement, this._direction);
         
+        this.setPosition(destination.getX(), destination.getY());
         this.eatBetweenPoints(oldposition, this._position, maze, status);
         this.moveEndRemaining();
     }
