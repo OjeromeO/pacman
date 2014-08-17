@@ -3984,7 +3984,7 @@ Pacman.prototype.eatBetweenPoints = function(p1, p2, maze, status)
     => comment faire pour que ghost soit au courant que pacman a mangé un power pellet ??????
         => mettre dans status ? puisqu'en fait c'est une info quand meme plus ou moins globale a tout le jeu (ca a pas vraiment sa place dans status, mais bon, status est deja envoyé a moveinsideremainingline())
     
-    ====> mettre en place les willtruc() dans moveInsideRemainingLine() et teleport() (pas besoin dans move()) :
+    ====> mettre en place les willtruc() dans moveInsideRemainingLine() et teleport() (pas besoin dans move())
     
     
     
@@ -4005,7 +4005,7 @@ Pacman.prototype.eatBetweenPoints = function(p1, p2, maze, status)
 
 
 
-
+-------------------------------------------------
 
 var modeupdate = nextModeUpdateInsideRemainingLine(remaining, maze) (de la position courante exclue à l'extrémité inclue ; donc return si ispoint)
 
@@ -4027,11 +4027,14 @@ bloc2
 
 bloc3
 
+-------------------------------------------------
 
+var modeupdate = nextModeUpdateInsideRemainingLine(remaining, maze) (de la position courante exclue à l'extrémité inclue ; donc return si ispoint)
+
+-------------------------------------------------
 
 ===> du coup, est-ce que ca vaut mieux de rester comme ça dans chaque bloc, ou bien vaut mieux faire un genre de while global, petit bout par petit bout, où on va dans un bloc ou un autre selon notre remaining entre notre position et le nextmodechange ?
     => mouais sauf que apres on peut pas trop savoir quand faire les moveEndRemaining() de certains endroits...
-
 
 
 
@@ -4068,9 +4071,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
      && remaining.containsPoint(this._nextturn)
      && this._remainingmovement >= this._position.distanceToPoint(this._nextturn))
     {
-        this.setPosition(this._nextturn.getX(), this._nextturn.getY());
-        this.eatBetweenPoints(oldposition, this._position, maze, status);
-        this.moveUpdateRemainingFromMovement(-1 * oldposition.distanceToPoint(this._position));
+        this.goToPointInsideRemainingLine(remaining, this._nextturn, maze, status);
         
         this._direction = this._nextdirection;
         this.resetNextTurn();
@@ -4079,9 +4080,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     {
         var extremity = remaining.extremity(this._direction);
         
-        this.setPosition(extremity.getX(), extremity.getY());
-        this.eatBetweenPoints(oldposition, this._position, maze, status);
-        this.moveUpdateRemainingFromMovement(-1 * remaining.size());
+        this.goToPointInsideRemainingLine(remaining, extremity, maze, status);
         
         if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
         {
@@ -4096,11 +4095,25 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     {
         var destination = remaining.pointAtDistance(this._remainingmovement, this._direction);
         
-        this.setPosition(destination.getX(), destination.getY());
-        this.eatBetweenPoints(oldposition, this._position, maze, status);
-        this.moveEndRemaining();
+        this.goToPointInsideRemainingLine(remaining, destination, maze, status);
     }
-}
+};
+
+Pacman.prototype.goToPointInsideRemainingLine = function(remaining, point, maze, status)
+{
+    if (this._movablestate !== MovableState.MOVING
+     || this._remainingmovement <= 0
+     || remaining.isPoint())
+    {
+        return;
+    }
+    
+    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+    
+    this.setPosition(point.getX(), point.getY());
+    this.eatBetweenPoints(oldposition, this._position, maze, status);
+    this.moveUpdateRemainingFromMovement(-1 * oldposition.distanceToPoint(this._position));
+};
 
 Pacman.prototype.teleportToAssociatedPortal = function(maze, status)
 {
