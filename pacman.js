@@ -1213,6 +1213,16 @@ Line.prototype.isExtremity = function(point)
     }
 };
 
+Line.prototype.extremity = function(direction)
+{
+    assert(isDirection(direction), "argument is not a Direction");
+    
+    if (direction === Direction.UP)           {return new Point(this._point1.getX(), this._point1.getY());}
+    else if (direction === Direction.RIGHT)   {return new Point(this._point2.getX(), this._point2.getY());}
+    else if (direction === Direction.DOWN)    {return new Point(this._point2.getX(), this._point2.getY());}
+    else if (direction === Direction.LEFT)    {return new Point(this._point1.getX(), this._point1.getY());}
+};
+
 Line.prototype.containsX = function(x)
 {
     assert((typeof x === "number"), "x is not a number");
@@ -3610,17 +3620,17 @@ var ModeUpdate = function(x, y, mode)
     
     this._point = new Point(x, y);
     this._mode = mode;
-}
+};
 
-ModeUpdate.prototype.getPoint() = function()
+ModeUpdate.prototype.getPoint = function()
 {
     return this._point;
-}
+};
 
-ModeUpdate.prototype.getMode() = function()
+ModeUpdate.prototype.getMode = function()
 {
     return this._mode;
-}
+};
 
 
 
@@ -3970,24 +3980,40 @@ Pacman.prototype.eatBetweenPoints = function(p1, p2, maze, status)
 
 
 
-var changepoint = nextmode...()
+
+
+
+var modeupdate = nextModeUpdateInsideRemainingLine(remaining, maze) (de la position courante exclue à l'extrémité inclue ; donc return si ispoint)
 
 bloc1
-
-    - while (changepoint != null)
-        bouger jusqu'au point
+    //TODO argh faut aussi prendre en compte qu'on avance pas aveuglément, là on va max jusqu'au nextturn !!!
+    
+    - while (modeupdate != null)
+        bouger jusqu'au point modeupdate.getPoint() (setposition, eat, moveupdateremaining) : goToPointInsideRemainingLine(...) (idem que le move() mais sans verification d'update et sans teleportation ; en debut de son code, faire return si remaining.ispoint())
+        this.setState(modeupdate.getMode());
         oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
-        updateMode()
-        changepoint = nextmode...()
-
+        remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
+        modeupdate = nextModeUpdateInsideRemainingLine(remaining, maze);
+    
+    //TODO - sauf que ça va pas du tout on peut pas aveuglement executer le code actuel du bloc, si jamais on a décéléré à fond, on atteindra pas le nextturn !!!
+    //     - idem notamment pour le bloc 3 si jamais on accelere à fond et qu'on arrive à l'extrémité !!!
     - code actuel du bloc
 
 bloc2
 
 bloc3
 
-===> hmmm ptetre un peu chiant, va y avoir du code redondant, un movetopointinsideremainingline() (sans teleportation) sera ptetre necessaire... (en debut de son code, faire return si remaining.ispoint())
-    => en profiter pour simplifier les 2 quadruples if dans le bloc 2 et 3
+
+===> en profiter pour simplifier les 2 quadruples if dans le bloc 2 et 3
+
+pointAtDistance(line, distance, direction)
+    if (this._direction === Direction.UP)           {this.translate(0, -1 * this._remainingmovement);}
+    else if (this._direction === Direction.RIGHT)   {this.translate(this._remainingmovement, 0);}
+    else if (this._direction === Direction.DOWN)    {this.translate(0, this._remainingmovement);}
+    else if (this._direction === Direction.LEFT)    {this.translate(-1 * this._remainingmovement, 0);}
+
+
+
 ===> du coup, est-ce que ca vaut mieux de rester comme ça dans chaque bloc, ou bien vaut mieux faire un genre de while global, petit bout par petit bout, où on va dans un bloc ou un autre selon notre remaining entre notre position et le nextmodechange ?
     => mouais sauf que apres on peut pas trop savoir quand faire les moveEndRemaining() de certains endroits...
 
@@ -4036,11 +4062,9 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     }
     else if (this._remainingmovement > remaining.size())
     {
-        if (this._direction === Direction.UP)           {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
-        else if (this._direction === Direction.RIGHT)   {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
-        else if (this._direction === Direction.DOWN)    {this.setPosition(remaining.getPoint2().getX(), remaining.getPoint2().getY());}
-        else if (this._direction === Direction.LEFT)    {this.setPosition(remaining.getPoint1().getX(), remaining.getPoint1().getY());}
+        var extremity = remaining.extremity(this._direction);
         
+        this.setPosition(extremity.getX(), extremity.getY());
         this.eatBetweenPoints(oldposition, this._position, maze, status);
         this.moveUpdateRemainingFromMovement(-1 * remaining.size());
         
