@@ -3984,7 +3984,7 @@ Pacman.prototype.eatBetweenPoints = function(p1, p2, maze, status)
     => comment faire pour que ghost soit au courant que pacman a mangé un power pellet ??????
         => mettre dans status ? puisqu'en fait c'est une info quand meme plus ou moins globale a tout le jeu (ca a pas vraiment sa place dans status, mais bon, status est deja envoyé a moveinsideremainingline())
     
-    ====> mettre en place les willtruc() dans moveInsideRemainingLine() et teleport() (pas besoin dans move())
+    ====> mettre en place les willtruc() dans moveInsideRemainingLine() et teleport() (pas besoin dans move()) => du coup si c'est fait dans teleport, on peut enlever certains des willtruc()
     
     
     
@@ -4007,13 +4007,13 @@ Pacman.prototype.eatBetweenPoints = function(p1, p2, maze, status)
 
 -------------------------------------------------
 
-var modeupdate = nextModeUpdateInsideRemainingLine(remaining, maze) (de la position courante exclue à l'extrémité inclue ; donc return si ispoint)
+var modeupdate = nextModeUpdateInsideRemainingLine(remaining, maze)
 
 bloc1
     //TODO argh faut aussi prendre en compte qu'on avance pas aveuglément, là on va max jusqu'au nextturn !!!
     
     - while (modeupdate != null)
-        bouger jusqu'au point modeupdate.getPoint() (setposition, eat, moveupdateremaining) : goToPointInsideRemainingLine(...) (idem que le move() mais sans verification d'update et sans teleportation ; en debut de son code, faire return si remaining.ispoint())
+        goToPointInsideRemainingLine
         this.setState(modeupdate.getMode());
         oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
         remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
@@ -4028,8 +4028,154 @@ bloc2
 bloc3
 
 -------------------------------------------------
+pour ghost :
+    if (this.justLeavedHome(maze))
+    {
+        this._mode = GhostMode.NORMAL;
+    }
 
-var modeupdate = nextModeUpdateInsideRemainingLine(remaining, maze) (de la position courante exclue à l'extrémité inclue ; donc return si ispoint)
+    // if we were outside the ghosthouse and needed to go inside, and now we went inside 
+    if (this.justCameHomeEaten(maze))
+    {
+        this._mode = GhostMode.ATHOME;
+    }
+    
+
+
+Ghost.prototype.justLeavedHome = function(maze)
+{
+    return (this._mode === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)));
+};
+
+Ghost.prototype.justCameHomeEaten = function(maze)
+{
+    return (this._mode === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)));
+};
+
+
+===> en fait faut creer un this._moderemainingtime, pour les modes qui ont une durée limitée
+
+=> et c'est bien dans le nextmodeupdate() qu'il faut calculer où on passera dans un prochain mode (SCATTER puis CHASE, ...), grace a notre this._remainingtime/movement
+
+-------------------------------------------------
+
+//(return si modeupdatepoint.equalsPoint(this.getposition()))
+///
+// de la position courante exclue à l'extrémité inclue
+ //
+Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
+{
+    if (remaining.isPoint())
+    {
+        return null;
+    }
+    
+    var updatepoint = null;
+    
+    // going into mode PacmanMode.PP_EATEN //
+    
+    if (this._mode === PacmanMode.NORMAL)
+    {
+        // find the nearest power pellet //
+        
+        var pellets = [];
+        
+        for(var i=0; i<maze.getPellets().length; i++)
+        {
+            var pellet = maze.getPellet(i).getPosition();
+            
+            if (remaining.containsPoint(pellet)
+             && !pellet.equalsPoint(this._position))
+            {
+                pellets.push(pellet);
+            }
+        }
+        
+        if (pellets.length > 0)
+        {
+            var nearest = pellets[0];
+            var nearestdistance = this.distanceToPoint(nearest);
+            
+            for(var i=1; i<pellets.length; i++)
+            {
+                if (this.distanceToPoint(pellets[i]) < nearestdistance)
+                {
+                    nearest = pellets[i];
+                    nearestdistance = this.distanceToPoint(nearest);
+                }
+            }
+            
+            updatepoint = new ModeUpdate(nearest.getX(), nearest.getY(), PacmanMode.PP_EATEN);
+        }
+    }
+    
+    // going into mode PacmanMode.NORMAL //
+    
+    if (this._mode === PacmanMode.PP_EATEN)
+    {
+        
+        // utiliser un this._moderemainingtime
+        
+        
+        if (updatepoint == null
+         || (updatepoint != null && this.distanceToPoint(updatepoint) > distancenouveaupoint))
+        {
+            
+            
+            ...updatepoint = new ModeUpdate(nearest.getX(), nearest.getY(), PacmanMode.PP_EATEN);
+        }
+    }
+    
+    return updatepoint;
+};
+
+--------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------
+// autre idée : 
+
+if (this._movablestate !== MovableState.MOVING
+ || this._remainingmovement <= 0
+ || remaining.isPoint())
+{
+    return;
+}
+
+var modeupdate = nextModeUpdateInsideRemainingLine(remaining, maze) (de la position courante exclue à l'extrémité inclue ; donc return si remaining.isPoint() ; et donc return si modeupdatepoint.equalsPoint(this.getposition()))
+
+var wasteleported = false
+var hasturned = false
+
+while (!remaining.isPoint() && this._remainingmovement > 0 && !wasteleported && !hasturned)
+{
+    if (modeupdate != null)
+    {
+        ...
+        trucs de code du dessus
+        ...
+        si teleportation, assigner aussi wasteleported ; idem pour hasturned
+        ...
+        
+        remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
+        modeupdate = nextModeUpdateInsideRemainingLine(remaining, maze);
+    }
+    else
+    {
+        code normal if 1 2 3
+        // mais ajouter test apres le teleport pour voir si y'a pas un modechange juste sur le point où il a été téléporté
+    }
+}
 
 -------------------------------------------------
 
@@ -4055,6 +4201,16 @@ updatemode :
 ===> mais comment ca va faire le updatemode pr le pacman : il sera utilise probablement pr les power pellets, mais comment savoir, car elles sont mangees/updates par une fonction eatBetweenPoints(), du coup c'est eatBetweenPoints() qui fera la modif du this._mode a priori, et son updatemode() serait une fonction vide
     ===> EN FAIT, dans le eatBetweenPoints() de Pacman, on fait this._justatepowerpellet=true si on en a mangé une, et juste apres (toujours dans eatBetweenPoints()) on fait updatemode() (qui lui-meme remet this._justatepowerpellet a false s'il etait a true, apres bien sur avoir pris en compte cette info et avoir mis le pacman en mode bouffeur de fantome...quoique cette info doit aussi parvenir aux fantomes vu qu'ils doivent se mettre en mode frightened !!! comment faire ?)
 */
+Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
+{
+    //TODO
+    return null;
+};
+
+
+
+
+
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
@@ -4063,8 +4219,109 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     {
         return;
     }
-    
-    var oldposition = new Point(this.getPosition().getX(), this.getPosition().getY());
+
+    var modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
+    var currentline = null;
+
+    // while we will reach a mode update point
+    while (modeupdate != null && this._remainingmovement >= this._position.distanceToPoint(modeupdate.getPoint()))
+    {
+        currentline = new Line(new Point(this._position.getX(), this._position.getY()), new Point(modeupdate.getPoint().getX(), modeupdate.getPoint().getX()));
+        
+        // if we will reach a next turn point
+        if (this.hasNextTurn()
+         && currentline.containsPoint(this._nextturn))
+        {
+            this.goToPointInsideRemainingLine(currentline, this._nextturn, maze, status);
+            
+            if (this._nextturn.equalsPoint(modeupdate.getPoint()))
+            {
+                this.setState(modeupdate.getMode());
+            }
+            
+            this._direction = this._nextdirection;
+            this.resetNextTurn();
+            
+            return;
+        }
+        else
+        {
+            this.goToPointInsideRemainingLine(currentline, modeupdate.getPoint(), maze, status);
+            this.setState(modeupdate.getMode());
+            
+            if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+            {
+                this.teleportToAssociatedPortal(maze, status);
+                
+                //TODO ajouter test apres le teleport pour voir si y'a pas un modechange juste sur le point où il a été téléporté (ismodupdate...())
+                
+                return;
+            }
+            
+            if (remaining.isExtremity(this.getPosition()))
+            {
+                this.moveEndRemaining();
+                
+                return;
+            }
+            
+            if (this._remainingmovement <= 0)
+            {
+                return;
+            }
+            
+            remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
+            modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
+        }
+    }
+
+    // if we will reach a next turn during our movement
+    if (this.hasNextTurn()
+     && remaining.containsPoint(this._nextturn)
+     && this._remainingmovement >= this._position.distanceToPoint(this._nextturn))
+    {
+        this.goToPointInsideRemainingLine(remaining, this._nextturn, maze, status);
+        
+        this._direction = this._nextdirection;
+        this.resetNextTurn();
+    }
+    else if (this._remainingmovement > remaining.size())
+    {
+        var extremity = remaining.extremity(this._direction);
+        
+        this.goToPointInsideRemainingLine(remaining, extremity, maze, status);
+        
+        if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+        {
+            this.teleportToAssociatedPortal(maze, status);
+            
+            //TODO ajouter test apres le teleport pour voir si y'a pas un modechange juste sur le point où il a été téléporté (ismodupdate...())
+        }
+        else
+        {
+            this.moveEndRemaining();
+        }
+    }
+    else
+    {
+        var destination = remaining.pointAtDistance(this._remainingmovement, this._direction);
+        
+        this.goToPointInsideRemainingLine(remaining, destination, maze, status);
+    }
+};
+
+
+
+
+
+Pacman.prototype.moveInsideRemainingLine_old = function(remaining, maze, status)
+{
+    if (this._movablestate !== MovableState.MOVING
+     || this._remainingmovement <= 0
+     || remaining.isPoint())
+    {
+        return;
+    }
     
     // if we will reach a next turn during our movement
     if (this.hasNextTurn()
@@ -4098,6 +4355,10 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
         this.goToPointInsideRemainingLine(remaining, destination, maze, status);
     }
 };
+
+
+
+
 
 Pacman.prototype.goToPointInsideRemainingLine = function(remaining, point, maze, status)
 {
