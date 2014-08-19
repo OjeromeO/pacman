@@ -46,6 +46,13 @@ Object.defineProperties(PacmanMode,
     "PP_EATEN": {value: 2, writable: false, configurable: false, enumerable: true}
 });
 
+var PacmanModeDuration = {};
+Object.defineProperties(PacmanModeDuration,
+{
+    "NORMAL":   {value: -1, writable: false, configurable: false, enumerable: true},
+    "PP_EATEN": {value: 3000, writable: false, configurable: false, enumerable: true}
+});
+
 var GhostMode = {};
 Object.defineProperties(GhostMode,
 {
@@ -3452,7 +3459,7 @@ AllowedCorridors.prototype.withLinks = function()
 /******************************** Movable class *******************************/
 /******************************************************************************/
 
-var Movable = function(x, y, state, direction, speed)
+var Movable = function(x, y, state, mode, moderemainingtime, direction, speed)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -3472,6 +3479,9 @@ var Movable = function(x, y, state, direction, speed)
     this._nextturn = null;          // intersection that allows movement in the requested direction
     
     this._movablestate = state;
+    
+    this._mode = mode;
+    this._moderemainingtime = moderemainingtime;
     
     this._remainingtime = 0;
     this._remainingmovement = 0;
@@ -3493,21 +3503,35 @@ Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
 {
     this._remainingtime += deltatime;
     this._remainingmovement += Math.round(this._speed * deltatime/1000);
+    
+    if (this._moderemainingtime != -1)
+    {
+        //XXX this._moderemainingtime should not be = 0, since mode updates and duration limits are handled in nextmodeupdate...()
+        this._moderemainingtime = (deltatime > this._moderemainingtime) ? 0 : this._moderemainingtime - deltatime ;
+    }
 };
 
 Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
 {
     this._remainingtime += Math.round(1000 * deltamovement/this._speed);
     this._remainingmovement += deltamovement;
+    
+    if (this._moderemainingtime != -1)
+    {
+        var deltatime = Math.round(1000 * deltamovement/this._speed)
+        this._moderemainingtime = (deltatime > this._moderemainingtime) ? 0 : this._moderemainingtime - deltatime ;
+    }
 };
 
 Movable.prototype.moveEndRemaining = function()
 {
+    this._moderemainingtime = (this._remainingtime > this._moderemainingtime) ? 0 : this._moderemainingtime - this._remainingtime ;
+    
     this._remainingtime = 0;
     this._remainingmovement = 0;
 };
 
-Movable.prototype.reinit = function(x, y, state, direction, speed)
+Movable.prototype.reinit = function(x, y, state, mode, moderemainingtime, direction, speed)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -3524,6 +3548,12 @@ Movable.prototype.reinit = function(x, y, state, direction, speed)
     this._nextturn = null;
     
     this._movablestate = state;
+    
+    this._mode = mode;
+    this._moderemainingtime = moderemainingtime;
+    
+    this._remainingtime = 0;
+    this._remainingmovement = 0;
 };
 
 Movable.prototype.getPosition = function()
@@ -3631,19 +3661,26 @@ Movable.prototype.hasNextTurn = function()
     return (this._nextturn !== null && this._nextdirection !== null);
 };
 
+Movable.prototype.updateMode = function(mode, moderemainingtime)
+{
+    this._mode = mode;
+    this._moderemainingtime = moderemainingtime;
+};
+
 
 
 /******************************************************************************/
 /****************************** ModeUpdate class ******************************/
 /******************************************************************************/
 
-var ModeUpdate = function(x, y, mode)
+var ModeUpdate = function(x, y, mode, modeduration)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     
     this._point = new Point(x, y);
     this._mode = mode;
+    this._modeduration = modeduration;
 };
 
 ModeUpdate.prototype.getPoint = function()
@@ -3654,6 +3691,11 @@ ModeUpdate.prototype.getPoint = function()
 ModeUpdate.prototype.getMode = function()
 {
     return this._mode;
+};
+
+ModeUpdate.prototype.getModeDuration = function()
+{
+    return this._modeduration;
 };
 
 
@@ -3672,11 +3714,10 @@ var Pacman = function(x, y, movablestate, direction)
     
     var mode = PacmanMode.NORMAL;
     
-    Movable.call(this, x, y, movablestate, direction, this.speedFromMode(mode));
+    //XXX mettre plutôt à null le moderemainingtime ?
+    Movable.call(this, x, y, movablestate, mode, -1, direction, this.speedFromMode(mode));
     //Movable.call(this, x, y, MovableState.IMMOBILE, direction);
     //Movable.call(this, x, y, MovableState.PAUSED, direction);
-    
-    this._mode = mode;
     
     this._animtime = 0;
     this._mouthstartangle = 6/10;
@@ -3700,9 +3741,9 @@ Pacman.prototype.reinit = function(x, y, movablestate, direction)
     assert((isDirection(direction)
          || (!isDirection(direction) && movablestate === MovableState.IMMOBILE)), "direction value is not valid");
     
-    Movable.prototype.reinit.call(this, x, y, movablestate, direction, this.speedFromMode(PacmanMode.NORMAL));
+    var mode = PacmanMode.NORMAL;
     
-    this._mode = PacmanMode.NORMAL;
+    Movable.prototype.reinit.call(this, x, y, movablestate, mode, -1, direction, this.speedFromMode(mode));
     
     this._animtime = 0;
     this._mouthstartangle = 6/10;
@@ -4105,7 +4146,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                 }
             }
             
-            updatepoint = new ModeUpdate(nearest.getX(), nearest.getY(), PacmanMode.PP_EATEN);
+            updatepoint = new ModeUpdate(nearest.getX(), nearest.getY(), PacmanMode.PP_EATEN, PacmanModeDuration.PP_EATEN);
         }
     }
     
@@ -4122,21 +4163,12 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
         {
             
             
-            ...updatepoint = new ModeUpdate(nearest.getX(), nearest.getY(), PacmanMode.PP_EATEN);
+            ...updatepoint = new ModeUpdate(nearest.getX(), nearest.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
         }
     }
     
     return updatepoint;
 };
-
---------------------------------------
-
-
-
-
-
-
-
 
 
 
@@ -4236,7 +4268,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             
             if (this._nextturn.equalsPoint(modeupdate.getPoint()))
             {
-                this.setState(modeupdate.getMode());
+                this.updateMode(modeupdate.getMode(), modeupdate.getModeDuration());
             }
             
             this._direction = this._nextdirection;
@@ -4247,7 +4279,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
         else
         {
             this.goToPointInsideRemainingLine(currentline, modeupdate.getPoint(), maze, status);
-            this.setState(modeupdate.getMode());
+            this.updateMode(modeupdate.getMode(), modeupdate.getModeDuration());
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
             {
@@ -4455,7 +4487,7 @@ var Ghost = function(id, x, y, movablestate, direction)
     else if (id === GhostType.INKY)     {mode = GhostMode.ATHOME;}
     else if (id === GhostType.CLYDE)    {mode = GhostMode.ATHOME;}
     
-    Movable.call(this, x, y, movablestate, direction, this.speedFromMode(mode));
+    Movable.call(this, x, y, movablestate, mode, -1, direction, this.speedFromMode(mode));
     
     this._id = id;
     
@@ -4492,7 +4524,7 @@ Ghost.prototype.reinit = function(id, x, y, movablestate, direction)
     else if (id === GhostType.INKY)     {mode = GhostMode.ATHOME;}
     else if (id === GhostType.CLYDE)    {mode = GhostMode.ATHOME;}
     
-    Movable.prototype.reinit.call(this, x, y, movablestate, direction, this.speedFromMode(mode));
+    Movable.prototype.reinit.call(this, x, y, movablestate, mode, -1, direction, this.speedFromMode(mode));
     
     this._id = id;
     
