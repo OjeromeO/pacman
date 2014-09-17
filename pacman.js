@@ -572,7 +572,7 @@ var checkConfiguration = function()
 /*     -> translate(x, y), setPosition(x, y)                                  */
 /*                                                                            */
 /* -> corresponding "Drawable" classes, that extend the base classes          */
-/*     -> DrawablePoint, ...                                                  */
+/*     -> DrawableCircle, ...                                                 */
 /*     -> draw()                                                              */
 /******************************************************************************/
 
@@ -666,26 +666,6 @@ Point.prototype.distanceToPoint = function(point)
     assert((point instanceof Point), "point is not a Point");
     
     return Math.sqrt(Math.pow(point.getX()-this._x, 2) + Math.pow(point.getY()-this._y, 2));
-};
-
-
-/**************************** DrawablePoint class *****************************/
-
-
-var DrawablePoint = function(x, y)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    
-    Point.call(this, x, y);
-};
-
-DrawablePoint.prototype = Object.create(Point.prototype);
-DrawablePoint.prototype.constructor = DrawablePoint;
-
-DrawablePoint.prototype.draw = function()
-{
-    context.fillRect(this._x, this._y, 1, 1);
 };
 
 /******************************************************************************/
@@ -1196,32 +1176,6 @@ Line.prototype.containsYStrictly = function(y)
     {
         return false;
     }
-};
-
-
-/***************************** DrawableLine class *****************************/
-
-
-var DrawableLine = function(point1, point2)
-{
-    assert((point1 instanceof Point), "point1 is not a Point");
-    assert((point2 instanceof Point), "point2 is not a Point");
-    assert((point1.getX() === point2.getX() || point1.getY() === point2.getY()),
-           "points will not create a horizontal nor a vertical line");
-    
-    Line.call(this, point1, point2);
-};
-
-DrawableLine.prototype = Object.create(Line.prototype);
-DrawableLine.prototype.constructor = DrawableLine;
-
-DrawableLine.prototype.draw = function()
-{
-    ctx.beginPath();
-    ctx.moveTo(this._point1.getX(), this._point1.getY());
-    ctx.lineTo(this._point2.getX(), this._point2.getY());
-    ctx.closePath();
-    ctx.stroke();
 };
 
 
