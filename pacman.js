@@ -568,7 +568,7 @@ var checkConfiguration = function()
 
 /******************************************************************************/
 /* -> classes for geometric elements/shapes data :                            */
-/*     -> Point, Circle, CircleArc, Rectangle, Line                           */
+/*     -> Point, Circle, Rectangle, Line                                      */
 /*     -> translate(x, y), setPosition(x, y)                                  */
 /*                                                                            */
 /* -> corresponding "Drawable" classes, that extend the base classes          */
@@ -780,120 +780,6 @@ DrawableCircle.prototype.drawInPath = function()
                 this._radius,
                 0,
                 2 * Math.PI);
-};
-
-/******************************************************************************/
-/******************************* CircleArc class ******************************/
-/******************************************************************************/
-
-var CircleArc = function(x, y, radius, startangle, endangle)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    assert((typeof radius === "number"), "radius is not a number");
-    assert((typeof startangle === "number"), "startangle is not a number");
-    assert((typeof endangle === "number"), "endangle is not a number");
-    
-    this._position = new Point(x, y);
-    this._radius = radius;
-    this._startangle = startangle;
-    this._endangle = endangle;
-};
-
-CircleArc.prototype.getPosition = function()
-{
-    return this._position;
-};
-
-CircleArc.prototype.setPosition = function(x, y)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    
-    this._position.set(x, y);
-};
-
-CircleArc.prototype.getRadius = function()
-{
-    return this._radius;
-};
-
-CircleArc.prototype.setRadius = function(radius)
-{
-    assert((typeof radius === "number"), "radius is not a number");
-    
-    this._radius = radius;
-};
-
-CircleArc.prototype.getStartangle = function()
-{
-    return this._startangle;
-};
-
-CircleArc.prototype.setStartangle = function(startangle)
-{
-    assert((typeof startangle === "number"), "startangle is not a number");
-    
-    this._startangle = startangle;
-};
-
-CircleArc.prototype.getEndangle = function()
-{
-    return this._endangle;
-};
-
-CircleArc.prototype.setEndangle = function(endangle)
-{
-    assert((typeof endangle === "number"), "endangle is not a number");
-    
-    this._endangle = endangle;
-};
-
-CircleArc.prototype.translate = function(x, y)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    
-    this._position.translate(x, y);
-};
-
-
-/************************* DrawableCircleArc class ****************************/
-
-
-var DrawableCircleArc = function(x, y, radius, startangle, endangle)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    assert((typeof radius === "number"), "radius is not a number");
-    assert((typeof startangle === "number"), "startangle is not a number");
-    assert((typeof endangle === "number"), "endangle is not a number");
-    
-    CircleArc.call(this, x, y, radius, startangle, endangle);
-};
-
-DrawableCircleArc.prototype = Object.create(CircleArc.prototype);
-DrawableCircleArc.prototype.constructor = DrawableCircleArc;
-
-DrawableCircleArc.prototype.draw = function()
-{
-    context.beginPath();
-    context.arc(this._position.getX(),
-                this._position.getY(),
-                this._radius,
-                this._startangle,
-                this._endangle);
-    context.stroke();
-    context.closePath();
-};
-
-DrawableCircleArc.prototype.drawInPath = function()
-{
-    context.arc(this._position.getX(),
-                this._position.getY(),
-                this._radius,
-                this._startangle,
-                this._endangle);
 };
 
 /******************************************************************************/
