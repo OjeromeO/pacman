@@ -1993,6 +1993,7 @@ PauseState.prototype.update = function()
         } while(pressedkeys.length > 0 && state === nextstate);
     }
     
+    // reset for the next time we will be in PauseState
     if (nextstate != state)
     {
         this._firstdraw = true;
@@ -2809,6 +2810,8 @@ Maze.prototype.isIntersection = function(point)
     return (typeof vl !== "undefined" && typeof hl !== "undefined");
 };
 
+//TODO if the 3 are OK in allowedcorridors, then in if (allowedcorridors.withCorridors()) we also have to check (after the withLinks()) if it overlap with a ghosthouse line
+//     same thing for the if (allowedcorridors.withGhosthouse())
 Maze.prototype.currentLine = function(point, direction, allowedcorridors)
 {
     assert((point instanceof Point), "point is not a Point");
@@ -2930,7 +2933,6 @@ Maze.prototype.currentLine = function(point, direction, allowedcorridors)
     }
 };
 
-//Maze.prototype.remainingLine = function(point, direction, withcorridors, withghosthouse, withlinks)
 Maze.prototype.remainingLine = function(point, direction, allowedcorridors)
 {
     var current = this.currentLine(point, direction, allowedcorridors);
@@ -3365,7 +3367,10 @@ Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
 
 Movable.prototype.moveEndRemaining = function()
 {
-    this._moderemainingtime = (this._remainingtime > this._moderemainingtime) ? 0 : this._moderemainingtime - this._remainingtime ;
+    if (this._moderemainingtime != -1)
+    {
+        this._moderemainingtime = (this._remainingtime > this._moderemainingtime) ? 0 : this._moderemainingtime - this._remainingtime ;
+    }
     
     this._remainingtime = 0;
     this._remainingmovement = 0;
@@ -3819,6 +3824,7 @@ Pacman.prototype.animate = function(elapsed)
     this._mouthendangle = baseangle - mouthhalfangle;
 };
 
+// from p1 included to p2 included
 Pacman.prototype.eatBetweenPoints = function(p1, p2, maze, status)
 {
     var line = new Line(p1, p2);
@@ -3875,9 +3881,6 @@ Pacman.prototype.eatBetweenPoints = function(p1, p2, maze, status)
     
     ===> faire les todo de moveInsideRemainingLine()
     
-    ===> ptit bug, quand on met le pacman contre un mur et qu'on ne bouge plus, on reste rouge, donc a priori on est toujours en mode PP_EATEN
-
-
 
 -------------------------------------------------
 pour ghost :
@@ -3913,15 +3916,10 @@ Ghost.prototype.justCameHomeEaten = function(maze)
 */
 
 /**
-/* de la position courante exclue à l'extrémité inclue
+/* de la position courante inclue à l'extrémité inclue (position courante si on est en extremite de notre ligne)
  */
 Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
 {
-    if (remaining.isPoint())
-    {
-        return null;
-    }
-    
     var updatepoint = null;
     
     /* going into mode PacmanMode.PP_EATEN */
@@ -3936,8 +3934,10 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
         {
             var pellet = maze.getPellet(i).getPosition();
             
-            if (remaining.containsPoint(pellet)
-             && !pellet.equalsPoint(this._position))
+            /*if (remaining.containsPoint(pellet)
+             && !pellet.equalsPoint(this._position))*/
+             //XXX car comme ca on inclut la position courante (cool si ispoint())
+            if (remaining.containsPoint(pellet))
             {
                 pellets.push(pellet);
             }
@@ -3965,29 +3965,42 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
     
     if (this._mode === PacmanMode.PP_EATEN)
     {
-        // find the point where the PP_EATEN mode stops
-        
-        var distance = Math.round(this._speed * this._moderemainingtime/1000);
-        var normalpoint = remaining.pointAtDistance(distance, this._direction);
-        
-        if (!normalpoint.equalsPoint(this._position)
-         && distance <= this._remainingmovement
-         && (updatepoint == null
-          || (updatepoint != null && this._position.distanceToPoint(updatepoint) > distance)))
+        if (remaining.isPoint())
         {
-            updatepoint = new ModeUpdate(normalpoint.getX(), normalpoint.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
+            // find when the PP_EATEN mode will stop
+            
+            return (this._moderemainingtime > this._remainingtime) ? null : new ModeUpdate(this._position.getX(), this._position.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
+        }
+        else
+        {
+            // find the point where the PP_EATEN mode stops
+            
+            var distance = Math.round(this._speed * this._moderemainingtime/1000);
+            var normalpoint = remaining.pointAtDistance(distance, this._direction);
+            
+            if (!normalpoint.equalsPoint(this._position)
+             && distance <= this._remainingmovement
+             && (updatepoint == null
+              || (updatepoint != null && this._position.distanceToPoint(updatepoint) > distance)))
+            {
+                updatepoint = new ModeUpdate(normalpoint.getX(), normalpoint.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
+            }
         }
     }
     
     return updatepoint;
 };
 
+/* TODO 
+    a plein d'endroits j'ai des if() sur le remainingmovement, mais faudrait pas plutot prendre en compte le remainingtime ???
+*/
+// even if position.ispoint()
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
-     || this._remainingmovement <= 0
-     || remaining.isPoint())
+     || this._remainingmovement <= 0)
     {
+        this.moveEndRemaining();
         return;
     }
 
@@ -4018,6 +4031,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
         else
         {
             this.goToPointInsideRemainingLine(currentline, modeupdate.getPoint(), maze, status);
+            //TODO on pourrait etre un ispoint(), faudrait pas du coup que mode inclue non seulement sa position sur le labyrinthe mais aussi dans le temps (date de declenchement) ?
             this.updateMode(modeupdate.getMode(), modeupdate.getModeDuration());
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
@@ -4029,6 +4043,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
                 return;
             }
             
+            //TODO et ce truc-là faudrait plutôt continuer à boucler (ou mettre un while imbriqué) pour le cas où des états doivent s'enchainer dans le temps, sans avoir à passer sur un bonus ou autre
             if (remaining.isExtremity(this.getPosition()))
             {
                 this.moveEndRemaining();
@@ -4036,14 +4051,24 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
                 return;
             }
             
-            if (this._remainingmovement <= 0)
+            if (this._remainingmovement > 0)
+            {
+                remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
+                modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
+            }
+            else
             {
                 return;
             }
-            
-            remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
-            modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
         }
+    }
+    
+    if (remaining.isPoint())
+    {
+        this.moveEndRemaining();
+        return;
+        
+        //TODO tester aussi si on est pas sur un portail, et donc alors teleport, puis test apres le teleport si modechange
     }
 
     // if we will reach a next turn during our movement
@@ -4056,7 +4081,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
         this._direction = this._nextdirection;
         this.resetNextTurn();
     }
-    else if (this._remainingmovement > remaining.size())
+    else if (this._remainingmovement >= remaining.size())
     {
         var extremity = remaining.extremity(this._direction);
         
@@ -4122,33 +4147,15 @@ Pacman.prototype.move = function(elapsed, maze, status)
         return;
     }
     
-    var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
-    
-    while (remaining.isPoint())
-    {
-        // it could happen if, when leaving a portal at the previous move(), we immediately pushed the key for the opposite direction : at the next
-        // turn, we would still be on the portal, in need of the opposite teleport, but with a remainingling.ispoint() == true at the beginning
-        // it could also happen if the pacman was, for any reason, placed on a portal
-        // this also moves the Pacman through possible "chained" portals
-        //FIXME the moveInsideRemainingLine() only has to do one portal, not the chain : so the move() has to handle this case ; moreover this while is a problem, if move() is called when we are on a portal, we will loop endlessly on 2 portals
-        if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
-        {
-            this.teleportToAssociatedPortal(maze, status);
-            remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
-        }
-        else
-        {
-            return;
-        }
-    }
-    
     this.moveBeginRemainingFromTime(elapsed);
     
-    // if we can move and we are not in a dead-end
+    var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
+    
+    //TODO verifier si y'a pas des moveend() qui manquent dans moveinsideremainingline()
+    
     // (we can't be on a portal and in need to be teleported, nor we can be at an intersection in need to turn,
     //  as the move() would have teleported us or make us turn at the previous step)
-    while (this._remainingmovement > 0
-        && !remaining.isPoint())
+    while (this._remainingmovement > 0)
     {
         this.moveInsideRemainingLine(remaining, maze, status);
         remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
