@@ -3316,9 +3316,8 @@ var Movable = function(x, y, state, mode, moderemainingtime, direction, speed)
     
     this._speed = speed;
     
-    //TODO rename into nextturndirection and nextturnposition
-    this._nextdirection = null;     // direction requested
-    this._nextturn = null;          // intersection that allows movement in the requested direction
+    this._nextturndirection = null;         // direction requested
+    this._nextturnposition = null;          // intersection that allows movement in the requested direction
     
     this._movablestate = state;
     
@@ -3389,8 +3388,8 @@ Movable.prototype.reinit = function(x, y, state, mode, moderemainingtime, direct
     
     this._speed = speed;
     
-    this._nextdirection = null;
-    this._nextturn = null;
+    this._nextturndirection = null;
+    this._nextturnposition = null;
     
     this._movablestate = state;
     
@@ -3434,24 +3433,24 @@ Movable.prototype.setDirection = function(direction)
 
 Movable.prototype.getNextTurnDirection = function()
 {
-    return this._nextdirection;
+    return this._nextturndirection;
 };
 Movable.prototype.setNextTurnDirection = function(direction)
 {
     assert((isDirection(direction) || direction === null), "nextdirection value is not valid");
 
-    this._nextdirection = direction;
+    this._nextturndirection = direction;
 };
 
 Movable.prototype.getNextTurnPosition = function()
 {
-    return this._nextturn;
+    return this._nextturnposition;
 };
 Movable.prototype.setNextTurnPosition = function(position)
 {
     assert((position instanceof Point || position === null), "position value is not valid");
 
-    this._nextturn = position;
+    this._nextturnposition = position;
 };
 
 Movable.prototype.isMoving = function()
@@ -3485,25 +3484,25 @@ Movable.prototype.setImmobile = function()
 {
     this._movablestate = MovableState.IMMOBILE;
     this._direction = null;
-    this._nextturn = null;
-    this._nextdirection = null;
+    this._nextturnposition = null;
+    this._nextturndirection = null;
 };
 
 Movable.prototype.setNextTurn = function(position, direction)
 {
-    this._nextturn = position;
-    this._nextdirection = direction;
+    this._nextturnposition = position;
+    this._nextturndirection = direction;
 };
 
 Movable.prototype.resetNextTurn = function()
 {
-    this._nextturn = null;
-    this._nextdirection = null;
+    this._nextturnposition = null;
+    this._nextturndirection = null;
 };
 
 Movable.prototype.hasNextTurn = function()
 {
-    return (this._nextturn !== null && this._nextdirection !== null);
+    return (this._nextturnposition !== null && this._nextturndirection !== null);
 };
 
 Movable.prototype.updateMode = function(mode, moderemainingtime)
@@ -3777,8 +3776,8 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
             }
             else
             {
-                this._nextdirection = newdirection;
-                this._nextturn = turnpoint;
+                this._nextturndirection = newdirection;
+                this._nextturnposition = turnpoint;
                 
                 if (this._movablestate === MovableState.PAUSED)
                 {
@@ -4014,16 +4013,16 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
         
         // if we will reach a next turn point
         if (this.hasNextTurn()
-         && currentline.containsPoint(this._nextturn))
+         && currentline.containsPoint(this._nextturnposition))
         {
-            this.goToPointInsideRemainingLine(currentline, this._nextturn, maze, status);
+            this.goToPointInsideRemainingLine(currentline, this._nextturnposition, maze, status);
             
-            if (this._nextturn.equalsPoint(modeupdate.getPoint()))
+            if (this._nextturnposition.equalsPoint(modeupdate.getPoint()))
             {
                 this.updateMode(modeupdate.getMode(), modeupdate.getModeDuration());
             }
             
-            this._direction = this._nextdirection;
+            this._direction = this._nextturndirection;
             this.resetNextTurn();
             
             return;
@@ -4073,12 +4072,12 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 
     // if we will reach a next turn during our movement
     if (this.hasNextTurn()
-     && remaining.containsPoint(this._nextturn)
-     && this._remainingmovement >= this._position.distanceToPoint(this._nextturn))
+     && remaining.containsPoint(this._nextturnposition)
+     && this._remainingmovement >= this._position.distanceToPoint(this._nextturnposition))
     {
-        this.goToPointInsideRemainingLine(remaining, this._nextturn, maze, status);
+        this.goToPointInsideRemainingLine(remaining, this._nextturnposition, maze, status);
         
-        this._direction = this._nextdirection;
+        this._direction = this._nextturndirection;
         this.resetNextTurn();
     }
     else if (this._remainingmovement >= remaining.size())
@@ -4474,7 +4473,7 @@ Ghost.prototype.move = function(elapsed, maze)
     
     if (this.hasNextTurn())
     {
-        turndistance = this._nextturn.distanceToPoint(this._position);
+        turndistance = this._nextturnposition.distanceToPoint(this._position);
     }
     
     /* if we will have to turn */
@@ -4483,8 +4482,8 @@ Ghost.prototype.move = function(elapsed, maze)
     {
         /* move towards the intersection point */
         
-        this.setPosition(this._nextturn.getX(), this._nextturn.getY());
-        this._direction = this._nextdirection;
+        this.setPosition(this._nextturnposition.getX(), this._nextturnposition.getY());
+        this._direction = this._nextturndirection;
         this.resetNextTurn();
         
         movement -= turndistance;
@@ -4553,10 +4552,10 @@ Ghost.prototype.move = function(elapsed, maze)
         
         /* search if we can now turn after the teleportation */
         
-        if (this._nextdirection !== null
-         && this._nextturn === null)
+        if (this._nextturndirection !== null
+         && this._nextturnposition === null)
         {
-            var nt = maze.nextTurn(this._position, this._direction, this._nextdirection, this.allowedCorridors());
+            var nt = maze.nextTurn(this._position, this._direction, this._nextturndirection, this.allowedCorridors());
             
             this.setNextTurnPosition(nt);
         }
@@ -4620,8 +4619,8 @@ Ghost.prototype.movementAIToTargetFromPoint = function(maze, target, point)
     }
     else
     {
-        this._nextdirection = bestdirection;
-        this._nextturn = new Point(point.getX(), point.getY());
+        this._nextturndirection = bestdirection;
+        this._nextturnposition = new Point(point.getX(), point.getY());
     }
 };
 
@@ -4678,8 +4677,8 @@ Ghost.prototype.movementAIRandom = function(maze)
     }
     else
     {
-        this._nextdirection = bestdirection;
-        this._nextturn = new Point(point.getX(), point.getY());
+        this._nextturndirection = bestdirection;
+        this._nextturnposition = new Point(point.getX(), point.getY());
     }
 };
 
@@ -4690,9 +4689,9 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     if (this._id === GhostType.BLINKY)
     {
         //if (maze.isIntersection(this._position)) {console.log("intersec");}
-        //console.log("====avant========== " + this._direction + " / " + this._nextdirection);
+        //console.log("====avant========== " + this._direction + " / " + this._nextturndirection);
         this.movementAIToTarget(maze, pacman.getPosition());
-        //console.log("====apres========== " + this._direction + " / " + this._nextdirection);
+        //console.log("====apres========== " + this._direction + " / " + this._nextturndirection);
         /*XXX etrange...
         
 "====apres========== 1 / 3" pacman.js:4652
