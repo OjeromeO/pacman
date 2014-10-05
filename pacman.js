@@ -3418,11 +3418,17 @@ Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
     }
 };
 
+/*
+    "cleaning" function at the end of the "movement"
+*/
 Movable.prototype.moveEndRemaining = function()
 {
     if (this._mode.getRemainingTime() != -1)
     {
-        var remaining = (this._remainingtime > this._mode.getRemainingTime()) ? 0 : this._mode.getRemainingTime() - this._remainingtime ;
+        /* NOTE:
+            (this._remainingtime >= this._mode.getRemainingTime()) should never happen, as this represents a mode timeout, a trigger for a mode update : nextmoveupdateinsideremainingline() would have foreseen that, and the mode update would have already been processed before the call to moveEndRemaining()
+        */
+        var remaining = (this._remainingtime >= this._mode.getRemainingTime()) ? 0 : this._mode.getRemainingTime() - this._remainingtime ;
         this._mode.setRemainingTime(remaining);
     }
     
@@ -4015,7 +4021,8 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
     
     /* updates from events */
     
-    if (this._mode.getID() === PacmanMode.NORMAL)           /* going into mode PacmanMode.PP_EATEN */
+    if (this._mode.getID() === PacmanMode.NORMAL            /* going into mode PacmanMode.PP_EATEN */
+     || this._mode.getID() === PacmanMode.PP_EATEN)         /* extend mode PacmanMode.PP_EATEN */
     {
         // find the nearest power pellet
         
@@ -4057,12 +4064,9 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
 };
 
 // TODO 
-//    - a des endroits j'ai des if() sur le remainingmovement, mais faudrait pas plutot remplacer par (ou ajouter) le remainingtime ???
-//        (=> reste a verifier moveInsideRemainingLine())
-//    - bug: apparemment quand on est deja rouge, et qu'on reprend un pellet, ça a aucun effet, ca rajoute meme pas de temps...
-//    ----- de maniere generale, verifier l'utilisation des moveendremaining() ; au fait, dans moveEndRemaining, on met this._moderemainingtime à 0 si (this._remainingtime > this._moderemainingtime), or il se pourrait que on repasse dans un autre mode ayant aussi une durée limitée, et qu'il faille prendre ça en compte et lui décompter la différence entre this._remainingtime et this._moderemainingtime (et ainsi de suite si y'en a plusieurs d'affilée et suffisamment de temps) ; a moins qu'on appelle en fait le moveendremaining() toujours au bon moment en fait ?
-//              => euh en fait normalement, le nextmodeupdate...() a deja pris en compte les possibilités de timeout du mode courant... donc le moveendremaining() devrait ptetre pas avoir a s'en preoccuper
-
+//  - verifier moveInsideRemainingLine(), déjà son algo, et aussi :
+//      - a des endroits j'ai des if() sur le remainingmovement, mais faudrait pas plutot remplacer par (ou ajouter) le remainingtime ???
+//      - verifier l'utilisation des moveendremaining() (car le endmove...() est vraiment là pour terminer le truc, il est pas sensé surveiller quoi que ce soit)
 
 // even if position.ispoint()
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
