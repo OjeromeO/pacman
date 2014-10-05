@@ -3302,12 +3302,47 @@ AllowedCorridors.prototype.withLinks = function()
 /******************************************************************************/
 
 
+/******************************************************************************/
+/********************************* Mode class *********************************/
+/******************************************************************************/
+
+var Mode = function(id, remainingtime)
+{
+    this._id = id;
+    this._remainingtime = remainingtime;
+};
+
+Mode.prototype.getID = function()
+{
+    return this._id;
+};
+
+Mode.prototype.getRemainingTime = function()
+{
+    return this._remainingtime;
+};
+
+Mode.prototype.setID = function(id)
+{
+    this._id = id;
+};
+
+Mode.prototype.setRemainingTime = function(remainingtime)
+{
+    this._remainingtime = remainingtime;
+};
+
+Mode.prototype.set = function(id, remainingtime)
+{
+    this._id = id;
+    this._remainingtime = remainingtime;
+};
 
 /******************************************************************************/
 /******************************** Movable class *******************************/
 /******************************************************************************/
 
-var Movable = function(x, y, state, mode, moderemainingtime, direction, speed)
+var Movable = function(x, y, state, modeid, moderemainingtime, direction, speed)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -3327,8 +3362,9 @@ var Movable = function(x, y, state, mode, moderemainingtime, direction, speed)
     
     this._movablestate = state;
     
-    this._mode = mode;
-    this._moderemainingtime = moderemainingtime;
+    /*this._mode = mode;
+    this._moderemainingtime = moderemainingtime;*/
+    this._mode = new Mode(modeid, moderemainingtime);
     
     this._remainingtime = 0;
     this._remainingmovement = 0;
@@ -3361,10 +3397,11 @@ Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
     this._remainingtime += deltatime;
     this._remainingmovement += Math.round(this._speed * deltatime/1000);
     
-    if (this._moderemainingtime != -1)
+    if (this._mode.getRemainingTime() != -1)
     {
         //XXX this._moderemainingtime should not be = 0, since mode updates and duration limits are handled in nextmodeupdate...()
-        this._moderemainingtime = (-1 * deltatime > this._moderemainingtime) ? 0 : this._moderemainingtime + deltatime ;
+        var remaining = (-1 * deltatime > this._mode.getRemainingTime()) ? 0 : this._mode.getRemainingTime() + deltatime ;
+        this._mode.setRemainingTime(remaining);
     }
 };
 
@@ -3373,25 +3410,27 @@ Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
     this._remainingtime += Math.round(1000 * deltamovement/this._speed);
     this._remainingmovement += deltamovement;
     
-    if (this._moderemainingtime != -1)
+    if (this._mode.getRemainingTime() != -1)
     {
         var deltatime = Math.round(1000 * deltamovement/this._speed)
-        this._moderemainingtime = (-1 * deltatime > this._moderemainingtime) ? 0 : this._moderemainingtime + deltatime ;
+        var remaining = (-1 * deltatime > this._mode.getRemainingTime()) ? 0 : this._mode.getRemainingTime() + deltatime ;
+        this._mode.setRemainingTime(remaining);
     }
 };
 
 Movable.prototype.moveEndRemaining = function()
 {
-    if (this._moderemainingtime != -1)
+    if (this._mode.getRemainingTime() != -1)
     {
-        this._moderemainingtime = (this._remainingtime > this._moderemainingtime) ? 0 : this._moderemainingtime - this._remainingtime ;
+        var remaining = (this._remainingtime > this._mode.getRemainingTime()) ? 0 : this._mode.getRemainingTime() - this._remainingtime ;
+        this._mode.setRemainingTime(remaining);
     }
     
     this._remainingtime = 0;
     this._remainingmovement = 0;
 };
 
-Movable.prototype.reinit = function(x, y, state, mode, moderemainingtime, direction, speed)
+Movable.prototype.reinit = function(x, y, state, modeid, moderemainingtime, direction, speed)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -3409,8 +3448,9 @@ Movable.prototype.reinit = function(x, y, state, mode, moderemainingtime, direct
     
     this._movablestate = state;
     
-    this._mode = mode;
-    this._moderemainingtime = moderemainingtime;
+    /*this._mode = modeid;
+    this._moderemainingtime = moderemainingtime;*/
+    this._mode.set(modeid, moderemainingtime);
     
     this._remainingtime = 0;
     this._remainingmovement = 0;
@@ -3521,10 +3561,9 @@ Movable.prototype.hasNextTurn = function()
     return (this._nextturnposition !== null && this._nextturndirection !== null);
 };
 
-Movable.prototype.updateMode = function(mode, moderemainingtime)
+Movable.prototype.updateMode = function(modeid, moderemainingtime)
 {
-    this._mode = mode;
-    this._moderemainingtime = moderemainingtime;
+    this._mode.set(modeid, moderemainingtime);
 };
 
 
@@ -3533,14 +3572,13 @@ Movable.prototype.updateMode = function(mode, moderemainingtime)
 /****************************** ModeUpdate class ******************************/
 /******************************************************************************/
 
-var ModeUpdate = function(x, y, mode, modeduration)
+var ModeUpdate = function(x, y, modeid, modeduration)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
     
     this._point = new Point(x, y);
-    this._mode = mode;
-    this._modeduration = modeduration;
+    this._mode = new Mode(modeid, modeduration);
 };
 
 ModeUpdate.prototype.getPoint = function()
@@ -3548,14 +3586,14 @@ ModeUpdate.prototype.getPoint = function()
     return this._point;
 };
 
-ModeUpdate.prototype.getMode = function()
+ModeUpdate.prototype.getModeID = function()
 {
-    return this._mode;
+    return this._mode.getID();
 };
 
-ModeUpdate.prototype.getModeDuration = function()
+ModeUpdate.prototype.getModeRemainingTime = function()
 {
-    return this._modeduration;
+    return this._mode.getRemainingTime();
 };
 
 
@@ -3623,7 +3661,7 @@ Pacman.prototype.draw = function()
 {
     context.fillStyle = "yellow";
     
-    if (this._mode == PacmanMode.PP_EATEN)
+    if (this._mode.getID() == PacmanMode.PP_EATEN)
     {
         context.fillStyle = "red";
     }
@@ -3640,13 +3678,13 @@ Pacman.prototype.draw = function()
 
 Pacman.prototype.getState = function()
 {
-    return this._mode;
+    return this._mode.getID();
 };
 Pacman.prototype.setState = function(state)
 {
     assert((isPacmanMode(state)), "state value is not valid");
 
-    this._mode = state;
+    this._mode.setID(state);
 };
 
 Pacman.prototype.getMouthstartangle = function()
@@ -3940,13 +3978,13 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
     
     /* updates from current mode timeout */
     
-    if (this._mode === PacmanMode.PP_EATEN)         /* going into mode PacmanMode.NORMAL */
+    if (this._mode.getID() === PacmanMode.PP_EATEN)         /* going into mode PacmanMode.NORMAL */
     {
         if (remaining.isPoint())
         {
             // find when the PP_EATEN mode will stop
             
-            if (this._moderemainingtime <= this._remainingtime)
+            if (this._mode.getRemainingTime() <= this._remainingtime)
             {
                 if (updatepoint == null
                  || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance))
@@ -3959,7 +3997,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
         {
             // find the point where the PP_EATEN mode stops
             
-            var distance = Math.round(this._speed * this._moderemainingtime/1000);
+            var distance = Math.round(this._speed * this._mode.getRemainingTime()/1000);
             
             if (distance <= remaining.size()
              && distance <= this._remainingmovement)
@@ -3977,7 +4015,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
     
     /* updates from events */
     
-    if (this._mode === PacmanMode.NORMAL)           /* going into mode PacmanMode.PP_EATEN */
+    if (this._mode.getID() === PacmanMode.NORMAL)           /* going into mode PacmanMode.PP_EATEN */
     {
         // find the nearest power pellet
         
@@ -4053,7 +4091,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             
             if (this._nextturnposition.equalsPoint(modeupdate.getPoint()))
             {
-                this.updateMode(modeupdate.getMode(), modeupdate.getModeDuration());
+                this.updateMode(modeupdate.getModeID(), modeupdate.getModeRemainingTime());
             }
             
             this._direction = this._nextturndirection;
@@ -4065,7 +4103,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
         {
             this.goToPointInsideRemainingLine(currentline, modeupdate.getPoint(), maze, status);
             //TODO on pourrait etre un ispoint(), faudrait pas du coup que mode inclue non seulement sa position sur le labyrinthe mais aussi dans le temps (date de declenchement) ?
-            this.updateMode(modeupdate.getMode(), modeupdate.getModeDuration());
+            this.updateMode(modeupdate.getModeID(), modeupdate.getModeRemainingTime());
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
             {
@@ -4224,8 +4262,6 @@ var Ghost = function(id, x, y, movablestate, direction)
     
     this._animtime = 0;
     this._normalwave = true;
-    
-    this._mode = mode;
 };
 
 Ghost.prototype = Object.create(Movable.prototype);
@@ -4261,8 +4297,6 @@ Ghost.prototype.reinit = function(id, x, y, movablestate, direction)
     
     this._animtime = 0;
     this._normalwave = true;
-    
-    this._mode = mode;
 };
 
 Ghost.prototype.getID = function()
@@ -4428,12 +4462,12 @@ Ghost.prototype.animate = function(elapsed)
 
 Ghost.prototype.justLeavedHome = function(maze)
 {
-    return (this._mode === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)));
+    return (this._mode.getID() === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)));
 };
 
 Ghost.prototype.justCameHomeEaten = function(maze)
 {
-    return (this._mode === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)));
+    return (this._mode.getID() === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)));
 };
 
 
@@ -4473,18 +4507,18 @@ Ghost.prototype.allowedCorridors = function()
     var withghosthouse = false;
     var withlinks = false;
 
-    if (this._mode === GhostMode.NORMAL || this._mode === GhostMode.FRIGHTENED)
+    if (this._mode.getID() === GhostMode.NORMAL || this._mode.getID() === GhostMode.FRIGHTENED)
     {
         withcorridors = true;
     }
     
-    if (this._mode === GhostMode.ATHOME)
+    if (this._mode.getID() === GhostMode.ATHOME)
     {
         withghosthouse = true;
         withlinks = true;
     }
     
-    if (this._mode === GhostMode.EATEN || this._mode === GhostMode.LEAVINGHOME)
+    if (this._mode.getID() === GhostMode.EATEN || this._mode.getID() === GhostMode.LEAVINGHOME)
     {
         withcorridors = true;
         withghosthouse = true;
@@ -4525,15 +4559,15 @@ Ghost.prototype.move = function(elapsed, maze)
         movement -= turndistance;
         
         /* if we were inside the ghosthouse, and now we leaved it */
-        if (this._mode === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)))
+        if (this._mode.getID() === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)))
         {
-            this._mode = GhostMode.NORMAL;
+            this._mode.setID(GhostMode.NORMAL);
         }
         
         /* if we were outside the ghosthouse and needed to go inside, and now we went inside */
-        if (this._mode === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)))
+        if (this._mode.getID() === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)))
         {
-            this._mode = GhostMode.ATHOME;
+            this._mode.setID(GhostMode.ATHOME);
         }
     }
     
@@ -4571,12 +4605,12 @@ Ghost.prototype.move = function(elapsed, maze)
     
     if (this.justLeavedHome(maze))
     {
-        this._mode = GhostMode.NORMAL;
+        this._mode.setID(GhostMode.NORMAL);
     }
     
     if (this.justCameHomeEaten(maze))
     {
-        this._mode = GhostMode.ATHOME;
+        this._mode.setID(GhostMode.ATHOME);
     }
     
     /* if we enter a teleportation tunnel */
@@ -4761,12 +4795,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     
     if (this._id === GhostType.PINKY)
     {
-        if (this._mode === GhostMode.ATHOME)
+        if (this._mode.getID() === GhostMode.ATHOME)
         {
-            this._mode = GhostMode.LEAVINGHOME;
+            this._mode.setID(GhostMode.LEAVINGHOME);
         }
         
-        if (this._mode === GhostMode.LEAVINGHOME)
+        if (this._mode.getID() === GhostMode.LEAVINGHOME)
         {
             // go to the link extremity which is not inside the ghost house
             
@@ -4786,7 +4820,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
             this.movementAIToTarget(maze, target);
         }
         
-        if (this._mode === GhostMode.NORMAL)
+        if (this._mode.getID() === GhostMode.NORMAL)
         {
             this.movementAIToTarget(maze, pacman.getPosition());
         }
@@ -4798,7 +4832,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     {
         if (maze.getEatenPacdots() < 30)
         {
-            if (this._mode === GhostMode.ATHOME)
+            if (this._mode.getID() === GhostMode.ATHOME)
             {
                 var current = null;
                 
@@ -4844,12 +4878,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         }
         else
         {
-            if (this._mode === GhostMode.ATHOME)
+            if (this._mode.getID() === GhostMode.ATHOME)
             {
-                this._mode = GhostMode.LEAVINGHOME;
+                this._mode.setID(GhostMode.LEAVINGHOME);
             }
             
-            if (this._mode === GhostMode.LEAVINGHOME)
+            if (this._mode.getID() === GhostMode.LEAVINGHOME)
             {
                 // go to the link extremity which is not inside the ghost house
                 
@@ -4869,7 +4903,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 this.movementAIToTarget(maze, target);
             }
             
-            if (this._mode === GhostMode.NORMAL)
+            if (this._mode.getID() === GhostMode.NORMAL)
             {
                 this.movementAIToTarget(maze, pacman.getPosition());
             }
@@ -4882,7 +4916,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     {
         if (maze.getEatenPacdots() < (maze.getTotalPacdots())/3)
         {
-            if (this._mode === GhostMode.ATHOME)
+            if (this._mode.getID() === GhostMode.ATHOME)
             {
                 var current = null;
                 
@@ -4928,12 +4962,12 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         }
         else
         {
-            if (this._mode === GhostMode.ATHOME)
+            if (this._mode.getID() === GhostMode.ATHOME)
             {
-                this._mode = GhostMode.LEAVINGHOME;
+                this._mode.setID(GhostMode.LEAVINGHOME);
             }
             
-            if (this._mode === GhostMode.LEAVINGHOME)
+            if (this._mode.getID() === GhostMode.LEAVINGHOME)
             {
                 // go to the link extremity which is not inside the ghost house
                 
@@ -4953,7 +4987,7 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
                 this.movementAIToTarget(maze, target);
             }
             
-            if (this._mode === GhostMode.NORMAL)
+            if (this._mode.getID() === GhostMode.NORMAL)
             {
                 this.movementAIToTarget(maze, pacman.getPosition());
             }
