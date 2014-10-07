@@ -3567,9 +3567,9 @@ Movable.prototype.hasNextTurn = function()
     return (this._nextturnposition !== null && this._nextturndirection !== null);
 };
 
-Movable.prototype.updateMode = function(modeid, moderemainingtime)
+Movable.prototype.updateMode = function(mode)
 {
-    this._mode.set(modeid, moderemainingtime);
+    this._mode.set(mode.getID(), mode.getRemainingTime());
 };
 
 
@@ -3578,18 +3578,14 @@ Movable.prototype.updateMode = function(modeid, moderemainingtime)
 /****************************** ModeUpdate class ******************************/
 /******************************************************************************/
 
-var ModeUpdate = function(x, y, modeid, modeduration)
+var ModeUpdate = function(modeid, modeduration)
 {
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    
-    this._point = new Point(x, y);
     this._mode = new Mode(modeid, modeduration);
 };
 
-ModeUpdate.prototype.getPoint = function()
+ModeUpdate.prototype.getMode = function()
 {
-    return this._point;
+    return this._mode;
 };
 
 ModeUpdate.prototype.getModeID = function()
@@ -3602,7 +3598,45 @@ ModeUpdate.prototype.getModeRemainingTime = function()
     return this._mode.getRemainingTime();
 };
 
+/*************************** ModeUpdateAtPoint class **************************/
 
+var ModeUpdateAtPoint = function(x, y, modeid, modeduration)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    ModeUpdate.call(this, modeid, modeduration);
+    
+    this._point = new Point(x, y);
+};
+
+ModeUpdateAtPoint.prototype = Object.create(ModeUpdate.prototype);
+ModeUpdateAtPoint.prototype.constructor = ModeUpdateAtPoint;
+
+ModeUpdateAtPoint.prototype.getPoint = function()
+{
+    return this._point;
+};
+
+/************************* ModeUpdateAfterDelay class *************************/
+
+var ModeUpdateAfterDelay = function(delay, modeid, modeduration)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    ModeUpdate.call(this, modeid, modeduration);
+    
+    this._delay = delay;
+};
+
+ModeUpdateAfterDelay.prototype = Object.create(ModeUpdate.prototype);
+ModeUpdateAfterDelay.prototype.constructor = ModeUpdateAfterDelay;
+
+ModeUpdateAfterDelay.prototype.getDelay = function()
+{
+    return this._delay;
+};
 
 /******************************************************************************/
 /******************************** Pacman class ********************************/
@@ -3995,7 +4029,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                 if (updatepoint == null
                  || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance))
                 {
-                    updatepoint = new ModeUpdate(this._position.getX(), this._position.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
+                    updatepoint = new ModeUpdateAtPoint(this._position.getX(), this._position.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
                 }
             }
         }
@@ -4013,7 +4047,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                 if (updatepoint == null
                  || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance))
                 {
-                    updatepoint = new ModeUpdate(timeoutpoint.getX(), timeoutpoint.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
+                    updatepoint = new ModeUpdateAtPoint(timeoutpoint.getX(), timeoutpoint.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
                 }
             }
         }
@@ -4055,7 +4089,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
             if (updatepoint == null
              || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance))
             {
-                updatepoint = new ModeUpdate(nearest.getX(), nearest.getY(), PacmanMode.PP_EATEN, PacmanModeDuration.PP_EATEN);
+                updatepoint = new ModeUpdateAtPoint(nearest.getX(), nearest.getY(), PacmanMode.PP_EATEN, PacmanModeDuration.PP_EATEN);
             }
         }
     }
@@ -4080,22 +4114,22 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     }
 
     var modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
-    var currentline = null;
+    var linebeforeupdate = null;
 
     // while we will reach a mode update point
     while (modeupdate != null && this._remainingmovement >= this._position.distanceToPoint(modeupdate.getPoint()))
     {
-        currentline = new Line(new Point(this._position.getX(), this._position.getY()), new Point(modeupdate.getPoint().getX(), modeupdate.getPoint().getY()));
+        linebeforeupdate = new Line(new Point(this._position.getX(), this._position.getY()), new Point(modeupdate.getPoint().getX(), modeupdate.getPoint().getY()));
         
         // if we will reach a next turn point
         if (this.hasNextTurn()
-         && currentline.containsPoint(this._nextturnposition))
+         && linebeforeupdate.containsPoint(this._nextturnposition))
         {
-            this.goToPointInsideRemainingLine(currentline, this._nextturnposition, maze, status);
+            this.goToPointInsideRemainingLine(linebeforeupdate, this._nextturnposition, maze, status);
             
             if (this._nextturnposition.equalsPoint(modeupdate.getPoint()))
             {
-                this.updateMode(modeupdate.getModeID(), modeupdate.getModeRemainingTime());
+                this.updateMode(modeupdate.getMode());
             }
             
             this._direction = this._nextturndirection;
@@ -4105,9 +4139,10 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
         }
         else
         {
-            this.goToPointInsideRemainingLine(currentline, modeupdate.getPoint(), maze, status);
+            this.goToPointInsideRemainingLine(linebeforeupdate, modeupdate.getPoint(), maze, status);
             //TODO on pourrait etre un ispoint(), faudrait pas du coup que mode inclue non seulement sa position sur le labyrinthe mais aussi dans le temps (date de declenchement) ?
-            this.updateMode(modeupdate.getModeID(), modeupdate.getModeRemainingTime());
+                // => et ouais, en fait faudrait que le modeupdate aie soit le point soit le délai dans lequel l'update doit se faire
+            this.updateMode(modeupdate.getMode());
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
             {
