@@ -3578,7 +3578,7 @@ Movable.prototype.updateMode = function(mode)
 /****************************** ModeUpdate class ******************************/
 /******************************************************************************/
 
-var ModeUpdate = function(modeid, modeduration)
+/*var ModeUpdate = function(modeid, modeduration)
 {
     this._mode = new Mode(modeid, modeduration);
 };
@@ -3596,11 +3596,45 @@ ModeUpdate.prototype.getModeID = function()
 ModeUpdate.prototype.getModeRemainingTime = function()
 {
     return this._mode.getRemainingTime();
+};*/
+var ModeUpdate = function(modeid, modeduration, x, y, delay)
+{
+    assert((typeof x === "number"), "x is not a number");
+    assert((typeof y === "number"), "y is not a number");
+    
+    this._mode = new Mode(modeid, modeduration);
+    this._point = new Point(x, y);
+    this._delayatpoint = delay;
+};
+
+ModeUpdate.prototype.getMode = function()
+{
+    return this._mode;
+};
+
+ModeUpdate.prototype.getModeID = function()
+{
+    return this._mode.getID();
+};
+
+ModeUpdate.prototype.getModeRemainingTime = function()
+{
+    return this._mode.getRemainingTime();
+};
+
+ModeUpdate.prototype.getPoint = function()
+{
+    return this._point;
+};
+
+ModeUpdate.prototype.getDelayAtPoint = function()
+{
+    return this._delay;
 };
 
 /*************************** ModeUpdateAtPoint class **************************/
 
-var ModeUpdateAtPoint = function(x, y, modeid, modeduration)
+/*var ModeUpdateAtPoint = function(x, y, modeid, modeduration)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -3616,11 +3650,11 @@ ModeUpdateAtPoint.prototype.constructor = ModeUpdateAtPoint;
 ModeUpdateAtPoint.prototype.getPoint = function()
 {
     return this._point;
-};
+};*/
 
 /************************* ModeUpdateAfterDelay class *************************/
 
-var ModeUpdateAfterDelay = function(delay, modeid, modeduration)
+/*var ModeUpdateAfterDelay = function(delay, modeid, modeduration)
 {
     assert((typeof x === "number"), "x is not a number");
     assert((typeof y === "number"), "y is not a number");
@@ -3636,7 +3670,7 @@ ModeUpdateAfterDelay.prototype.constructor = ModeUpdateAfterDelay;
 ModeUpdateAfterDelay.prototype.getDelay = function()
 {
     return this._delay;
-};
+};*/
 
 /******************************************************************************/
 /******************************** Pacman class ********************************/
@@ -4010,44 +4044,71 @@ Ghost.prototype.justCameHomeEaten = function(maze)
 */
 
 /**
-/* de la position courante inclue à l'extrémité inclue (position courante si on est en extremite de notre ligne)
+/* de la position courante inclue à l'extrémité inclue (position courante si on est en extremite de notre ligne), même si l'extremite est le nextturn ou un portal
  */
 Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
 {
+    if (this._movablestate !== MovableState.MOVING
+     || !this.hasRemainingTime()
+     || this._mode.getRemainingTime() === 0)
+    {
+        return null;
+    }
+    
     var updatepoint = null;
     
     /* updates from current mode timeout */
     
-    if (this._mode.getID() === PacmanMode.PP_EATEN)         /* going into mode PacmanMode.NORMAL */
+    if (this._mode.getID() === PacmanMode.PP_EATEN              /* going into mode PacmanMode.NORMAL */
+     && this._mode.getRemainingTime() <= this._remainingtime)
     {
         if (remaining.isPoint())
         {
-            // find when the PP_EATEN mode will stop
+            var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
+            var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
             
-            if (this._mode.getRemainingTime() <= this._remainingtime)
+            if ((!willturn && !willbeteleported))
             {
+                var delay = this._mode.getRemainingTime();
+                
                 if (updatepoint == null
-                 || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance))
+                 || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance)) //TODO nearestdistance existe pas... faire différemment ici
                 {
-                    updatepoint = new ModeUpdateAtPoint(this._position.getX(), this._position.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
+                    updatepoint = new ModeUpdate(PacmanMode.NORMAL, PacmanModeDuration.NORMAL, this._position.getX(), this._position.getY(), delay);
                 }
             }
         }
         else
         {
-            // find the point where the PP_EATEN mode stops
+            var timeoutdistance = Math.round(this._speed * this._mode.getRemainingTime()/1000);
             
-            var distance = Math.round(this._speed * this._mode.getRemainingTime()/1000);
-            
-            if (distance <= remaining.size()
-             && distance <= this._remainingmovement)
+            if (timeoutdistance <= remaining.size())
             {
-                var timeoutpoint = remaining.pointAtDistance(distance, this._direction);
+                var timeoutpoint = remaining.pointAtDistance(timeoutdistance, this._direction);
                 
                 if (updatepoint == null
                  || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance))
                 {
-                    updatepoint = new ModeUpdateAtPoint(timeoutpoint.getX(), timeoutpoint.getY(), PacmanMode.NORMAL, PacmanModeDuration.NORMAL);
+                    updatepoint = new ModeUpdate(PacmanMode.NORMAL, PacmanModeDuration.NORMAL, timeoutpoint.getX(), timeoutpoint.getY(), 0);
+                }
+            }
+            else
+            {
+                var destpoint = remaining.extremity(this._direction);
+                
+                var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
+                var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
+                
+                if ((!willturn && !willbeteleported))
+                {
+                    var traveldelay = Math.round(1000 * remaining.size()/this._speed);
+                    var delay = this._mode.getRemainingTime() - traveldelay;
+                    
+                    if (updatepoint == null
+                     || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance)) //TODO nearestdistance existe pas... faire différemment ici
+                    {
+                        updatepoint = new ModeUpdate(PacmanMode.NORMAL, PacmanModeDuration.NORMAL, destpoint.getX(), destpoint.getY(), delay);
+                    }
                 }
             }
         }
@@ -4089,7 +4150,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
             if (updatepoint == null
              || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance))
             {
-                updatepoint = new ModeUpdateAtPoint(nearest.getX(), nearest.getY(), PacmanMode.PP_EATEN, PacmanModeDuration.PP_EATEN);
+                updatepoint = new ModeUpdate(PacmanMode.PP_EATEN, PacmanModeDuration.PP_EATEN, nearest.getX(), nearest.getY(), 0);
             }
         }
     }
@@ -4142,6 +4203,9 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             this.goToPointInsideRemainingLine(linebeforeupdate, modeupdate.getPoint(), maze, status);
             //TODO on pourrait etre un ispoint(), faudrait pas du coup que mode inclue non seulement sa position sur le labyrinthe mais aussi dans le temps (date de declenchement) ?
                 // => et ouais, en fait faudrait que le modeupdate aie soit le point soit le délai dans lequel l'update doit se faire
+                //      => sauf qu'a priori c'est pas super utile comme j'ai fait avec les 2 sous-classes de modeupdate, vu que au final dans le moveinsideremainingline() il nous faut quand meme un point pour savoir où l'update se produit !!! donc ifaut juste avoir une unique classe modeUpdate, mais avec un dernier argument optionnel "delay" qui indique dans combien de temps l'update a lieu (ce qui sera donc utile dans les cas où on fait du sur-place et où il faut pouvoir dire quand c'est passé quellle update pour pouvoir calculer le temps passé dans chaque mode ; l'update pourrait en effet nous faire passer dans un autre mode à temps limité et faudrait pouvoir lui diminuer son moderemainingtime du remaining actuel après l'update)
+                //      => et donc ensutie ici, faudrait faire un: if(modeupdate.delay != -1) {decreaseremaining(modeupdate.delay)}
+                // =====> au final: (supprimer les 2 nouvelles classes etc) faut juste une propriété en plus: _delayatpoint ; elle sera en argument supplementaire du constructeur modeupdate ; et elle sera utilisée par this.updatemode() auquel on ajoute un argument de plus pour le delay a attendre (du coup this.updatemode() mettra à jour le this._remainingtime)
             this.updateMode(modeupdate.getMode());
             
             if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
@@ -4149,7 +4213,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
                 this.teleportToAssociatedPortal(maze, status);
                 
                 //TODO ajouter test apres le teleport pour voir si y'a pas un modechange juste sur le point où il a été téléporté (ismodupdate...())
-                //          => quoique, puisque en fait cette fonction ne fait que, au maximum, s'occuper de la ligne courante, voire le teleport ; le move() appellera a nouveau moveInsideRemainingLine() s'il y a lieu, et a ce moment-là seulement y'aura un nextModeUpdateInsideRemainingLine() (celui a la ligne 4004)
+                //          => quoique non, puisque en fait cette fonction ne fait que, au maximum, s'occuper de la ligne courante, + le teleport "brut" ; le move() appellera a nouveau moveInsideRemainingLine() s'il y a lieu, et a ce moment-là seulement y'aura un nextModeUpdateInsideRemainingLine() (celui a la ligne 4004)
                 
                 return;
             }
