@@ -101,7 +101,7 @@ var PACDOTS_RADIUS = 2;
 var PELLETS_RADIUS = 5;
 
 var PACMAN_SPEED = 300;
-var PACMAN_PP_SPEED = PACMAN_SPEED;
+var PACMAN_PP_SPEED = 450;
 
 var GHOST_SPEED = 100;
 var GHOST_ATHOME_SPEED = GHOST_SPEED;
@@ -3388,7 +3388,7 @@ Movable.prototype.moveBeginRemainingFromTime = function(remainingtime)
 
 Movable.prototype.moveBeginRemainingFromMovement = function(remainingmovement)
 {
-    this._remainingtime = Math.round(1000 * remainingmovement/this._speed);
+    this._remainingtime = 1000 * remainingmovement/this._speed;
     this._remainingmovement = remainingmovement;
 };
 
@@ -3407,12 +3407,12 @@ Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
 
 Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
 {
-    this._remainingtime += Math.round(1000 * deltamovement/this._speed);
+    this._remainingtime += 1000 * deltamovement/this._speed;
     this._remainingmovement += deltamovement;
     
     if (this._mode.getRemainingTime() != -1)
     {
-        var deltatime = Math.round(1000 * deltamovement/this._speed)
+        var deltatime = 1000 * deltamovement/this._speed;
         var remaining = (-1 * deltatime > this._mode.getRemainingTime()) ? 0 : this._mode.getRemainingTime() + deltatime ;
         this._mode.setRemainingTime(remaining);
     }
@@ -3454,8 +3454,6 @@ Movable.prototype.reinit = function(x, y, state, modeid, moderemainingtime, dire
     
     this._movablestate = state;
     
-    /*this._mode = modeid;
-    this._moderemainingtime = moderemainingtime;*/
     this._mode.set(modeid, moderemainingtime);
     
     this._remainingtime = 0;
@@ -3570,6 +3568,16 @@ Movable.prototype.hasNextTurn = function()
 Movable.prototype.updateMode = function(mode)
 {
     this._mode.set(mode.getID(), mode.getRemainingTime());
+    
+    if (mode.getID() === PacmanMode.NORMAL)             {this._speed = PACMAN_SPEED;}
+    else if (mode.getID() === PacmanMode.PP_EATEN)      {this._speed = PACMAN_PP_SPEED;}
+    else if (mode.getID() === GhostMode.ATHOME)         {this._speed = GHOST_ATHOME_SPEED;}
+    else if (mode.getID() === GhostMode.LEAVINGHOME)    {this._speed = GHOST_LEAVINGHOME_SPEED;}
+    else if (mode.getID() === GhostMode.NORMAL)         {this._speed = GHOST_SPEED;}
+    else if (mode.getID() === GhostMode.FRIGHTENED)     {this._speed = GHOST_FRIGHTENED_SPEED;}
+    else if (mode.getID() === GhostMode.EATEN)          {this._speed = GHOST_EATEN_SPEED;}
+    
+    this._remainingmovement = Math.round(this._speed * this._remainingtime/1000);
 };
 
 
@@ -3578,25 +3586,6 @@ Movable.prototype.updateMode = function(mode)
 /****************************** ModeUpdate class ******************************/
 /******************************************************************************/
 
-/*var ModeUpdate = function(modeid, modeduration)
-{
-    this._mode = new Mode(modeid, modeduration);
-};
-
-ModeUpdate.prototype.getMode = function()
-{
-    return this._mode;
-};
-
-ModeUpdate.prototype.getModeID = function()
-{
-    return this._mode.getID();
-};
-
-ModeUpdate.prototype.getModeRemainingTime = function()
-{
-    return this._mode.getRemainingTime();
-};*/
 var ModeUpdate = function(modeid, modeduration, x, y, delay)
 {
     assert((typeof x === "number"), "x is not a number");
@@ -3631,46 +3620,6 @@ ModeUpdate.prototype.getDelayAtPoint = function()
 {
     return this._delay;
 };
-
-/*************************** ModeUpdateAtPoint class **************************/
-
-/*var ModeUpdateAtPoint = function(x, y, modeid, modeduration)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    
-    ModeUpdate.call(this, modeid, modeduration);
-    
-    this._point = new Point(x, y);
-};
-
-ModeUpdateAtPoint.prototype = Object.create(ModeUpdate.prototype);
-ModeUpdateAtPoint.prototype.constructor = ModeUpdateAtPoint;
-
-ModeUpdateAtPoint.prototype.getPoint = function()
-{
-    return this._point;
-};*/
-
-/************************* ModeUpdateAfterDelay class *************************/
-
-/*var ModeUpdateAfterDelay = function(delay, modeid, modeduration)
-{
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
-    
-    ModeUpdate.call(this, modeid, modeduration);
-    
-    this._delay = delay;
-};
-
-ModeUpdateAfterDelay.prototype = Object.create(ModeUpdate.prototype);
-ModeUpdateAfterDelay.prototype.constructor = ModeUpdateAfterDelay;
-
-ModeUpdateAfterDelay.prototype.getDelay = function()
-{
-    return this._delay;
-};*/
 
 /******************************************************************************/
 /******************************** Pacman class ********************************/
@@ -4072,7 +4021,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                 var delay = this._mode.getRemainingTime();
                 
                 if (updatepoint == null
-                 || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance)) //TODO nearestdistance existe pas... faire différemment ici
+                 || (updatepoint != null && this._position.distanceToPoint(updatepoint.getPoint()) > nearestdistance)) //TODO nearestdistance existe pas... faire différemment ici
                 {
                     updatepoint = new ModeUpdate(PacmanMode.NORMAL, PacmanModeDuration.NORMAL, this._position.getX(), this._position.getY(), delay);
                 }
@@ -4087,7 +4036,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                 var timeoutpoint = remaining.pointAtDistance(timeoutdistance, this._direction);
                 
                 if (updatepoint == null
-                 || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance))
+                 || (updatepoint != null && this._position.distanceToPoint(updatepoint.getPoint()) > nearestdistance))
                 {
                     updatepoint = new ModeUpdate(PacmanMode.NORMAL, PacmanModeDuration.NORMAL, timeoutpoint.getX(), timeoutpoint.getY(), 0);
                 }
@@ -4105,7 +4054,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                     var delay = this._mode.getRemainingTime() - traveldelay;
                     
                     if (updatepoint == null
-                     || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance)) //TODO nearestdistance existe pas... faire différemment ici
+                     || (updatepoint != null && this._position.distanceToPoint(updatepoint.getPoint()) > nearestdistance)) //TODO nearestdistance existe pas... faire différemment ici
                     {
                         updatepoint = new ModeUpdate(PacmanMode.NORMAL, PacmanModeDuration.NORMAL, destpoint.getX(), destpoint.getY(), delay);
                     }
@@ -4148,11 +4097,16 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
             }
             
             if (updatepoint == null
-             || (updatepoint != null && this._position.distanceToPoint(updatepoint) > nearestdistance))
+             || (updatepoint != null && this._position.distanceToPoint(updatepoint.getPoint()) > nearestdistance))
             {
                 updatepoint = new ModeUpdate(PacmanMode.PP_EATEN, PacmanModeDuration.PP_EATEN, nearest.getX(), nearest.getY(), 0);
             }
         }
+    }
+    
+    if (updatepoint != null && this._remainingmovement < this._position.distanceToPoint(updatepoint.getPoint()))
+    {
+        updatepoint = null;
     }
     
     return updatepoint;
@@ -4163,11 +4117,13 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
 //      - a des endroits j'ai des if() sur le remainingmovement, mais faudrait pas plutot remplacer par (ou ajouter) le remainingtime ???
 //      - verifier l'utilisation des moveendremaining() (car le endmove...() est vraiment là pour terminer le truc, il est pas sensé surveiller quoi que ce soit)
 
+
 // even if position.ispoint()
+//TODO le terme de move() et moveinside...() est ptetre mal choisi, faudrait plutot update et updateinside...()
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
-     || !this.hasRemainingMovement()
+     || !this.hasRemainingMovement()    //TODO si on l'enleve ca fait planter le navigateur... et pourtant pas besoin de lui ! ou alors c dans un certain cas ? ou faut faire le nextmodeupdateinside...() avant pr tester .... ???? reflechir a ce qu'il se passe quand on enleve ça et pk ça bug... a coup de console.log dans le if !
      || !this.hasRemainingTime())
     {
         this.moveEndRemaining();
@@ -4324,7 +4280,24 @@ Pacman.prototype.move = function(elapsed, maze, status)
     }
     
     this.moveBeginRemainingFromTime(elapsed);
-    
+    /*
+    if (this._remainingmovement >= 1)
+    {
+        console.log("pas de mouvement !!! elapsed: " + elapsed + " / time:" + this._remainingtime + " / mvmt: " + Math.round(this._speed * elapsed/1000) + " / " + this._speed * elapsed/1000);
+    }
+    */
+    /*
+        => en fait en général on a genre au moins elapsed=30, mais parfois cette valeur fait juste 1 ou 2 et du coup le round donne un remainingmvmt nul, pour ça que si on enleve hasremainingmvmt() de moveInsideRemainingLine() ça plante
+        => mais en meme temps, quand on enleve les round des movebeginremaining etc.., ça plante aussi (timeout) !!! pour une raison inconnue...
+        
+        => faurait donc que le moveinside prenne en compte si on a du movement restant ou pas : si y'en a pas, alors fo que le modeupdate soit sur notre position, et si pas d'update alors on peut terminer (en diminuant quand meme bien sur moderemaining comme d'hab)
+        
+        => faudrait pouvoir gérer quand on a un mvmt nul quand meme, car on pourrait avoir presque aucun mvmt mais avoir un temps normal
+        => faudrait aussi que quand on a une vitese tres petite, on avance quand meme ; car les round() nous mettront tjrs à 0... faudrait une sorte de propriete _cumulatedSlowMovement, mise a jour dans move() ou movebegintruc(), qui cumule au fur et a mesure les vraies valeurs quand le round donne 0, et des que cette valeur depasse 1 alors on applique le round au _cumulatedslow ? quoique, et le temps alors ? car on aura un temps normal mais une avancée différente...
+    */
+    /*
+        =====> en fait c'est vraiment normal d'utiliser des arrondis, puisque le mouvement est en pixels...
+    */
     var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
     
     //TODO verifier si y'a pas des moveend() qui manquent dans moveinsideremainingline()
@@ -4338,6 +4311,49 @@ Pacman.prototype.move = function(elapsed, maze, status)
     }
 };
 
+/* apres avoir commenté les math.round() des movebegin... et compagnie :
+
+Error: Script terminated by timeout at:
+Line.prototype.containsPoint@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:1069:5
+Maze.prototype.currentLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2835:1
+Maze.prototype.remainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2944:1
+Pacman.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4347:9
+PlayingState.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2229:5
+PlayingState.prototype.update@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2269:13
+logicLoop@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5221:13
+@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5383:1
+
+Error: Script terminated by timeout at:
+Line.prototype.containsPoint@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:1069:5
+Pacman.prototype.nextModeUpdateInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4133:1
+Pacman.prototype.moveInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4182:1
+Pacman.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4346:9
+PlayingState.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2229:5
+PlayingState.prototype.update@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2269:13
+logicLoop@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5232:13
+
+Error: Script terminated by timeout at:
+Line@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:881:5
+Pacman.prototype.eatBetweenPoints@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:3901:1
+Pacman.prototype.goToPointInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4243:5
+Pacman.prototype.moveInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4226:9
+Pacman.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4287:9
+PlayingState.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2229:5
+PlayingState.prototype.update@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2269:13
+logicLoop@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5183:13
+@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5345:1
+
+Error: Script terminated by timeout at:
+Pacdot.prototype.getPosition@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:1297:5
+Pacman.prototype.eatBetweenPoints@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:3907:1
+Pacman.prototype.goToPointInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4243:5
+Pacman.prototype.moveInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4226:9
+Pacman.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4287:9
+PlayingState.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2229:5
+PlayingState.prototype.update@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2269:13
+logicLoop@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5195:13
+
+*/
 
 
 /******************************************************************************/
