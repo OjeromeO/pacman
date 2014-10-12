@@ -3362,12 +3362,14 @@ var Movable = function(x, y, state, modeid, moderemainingtime, direction, speed)
     
     this._movablestate = state;
     
-    /*this._mode = mode;
-    this._moderemainingtime = moderemainingtime;*/
     this._mode = new Mode(modeid, moderemainingtime);
     
     this._remainingtime = 0;
     this._remainingmovement = 0;
+    
+    this._cumulatedSlowMovements = 0;       // contains and cumulates all the little movements (< 1) when the Movable has a very little speed, to make it move
+                                            // (otherwise we have mvmt=0, because rounded) ; also, rounding mvmt to 1, when for example mvmt=0.6, can be too much,
+                                            // so we also don't make it move too fast
 };
 
 Movable.prototype.hasRemainingTime = function()
@@ -3382,8 +3384,30 @@ Movable.prototype.hasRemainingMovement = function()
 
 Movable.prototype.moveBeginRemainingFromTime = function(remainingtime)
 {
+    /*this._remainingtime = remainingtime;
+    this._remainingmovement = Math.round(this._speed * remainingtime/1000);*/
+    
     this._remainingtime = remainingtime;
-    this._remainingmovement = Math.round(this._speed * remainingtime/1000);
+        
+    var mvmt = this._speed * remainingtime/1000;
+    
+    if (mvmt < 1)
+    {
+        this._cumulatedSlowMovements += mvmt;
+        
+        if (this._cumulatedSlowMovements >= 1)
+        {
+            //NOTE: flooredslow will always be = 1
+            var flooredslow = Math.floor(this._cumulatedSlowMovements);
+            
+            this._remainingmovement = flooredslow;
+            this._cumulatedSlowMovements -= flooredslow;
+        }
+    }
+    else
+    {
+        this._remainingmovement = Math.round(mvmt);
+    }
 };
 
 Movable.prototype.moveBeginRemainingFromMovement = function(remainingmovement)
@@ -3392,10 +3416,13 @@ Movable.prototype.moveBeginRemainingFromMovement = function(remainingmovement)
     this._remainingmovement = remainingmovement;
 };
 
+/* precondition: deltatime, if negative, must be <= remainingtime */
 Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
 {
     this._remainingtime += deltatime;
-    this._remainingmovement += Math.round(this._speed * deltatime/1000);
+    var roundedmvmt = Math.round(this._speed * deltatime/1000);
+    this._remainingmovement = (roundedmvmt < 0 && this._remainingmovement <= (-1 * roundedmvmt)) ? 0 : this._remainingmovement + roundedmvmt;
+    /*this._remainingmovement += Math.round(this._speed * deltatime/1000);*/
     
     if (this._mode.getRemainingTime() != -1)
     {
@@ -3405,10 +3432,13 @@ Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
     }
 };
 
+/* precondition: deltamovement, if negative, must be <= remainingmovement */
 Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
 {
-    this._remainingtime += 1000 * deltamovement/this._speed;
     this._remainingmovement += deltamovement;
+    var time = 1000 * deltamovement/this._speed;
+    this._remainingtime = (time < 0 && this._remainingtime <= (-1 * time)) ? 0 : this._remainingtime + time;
+    /*this._remainingtime += 1000 * deltamovement/this._speed;*/
     
     if (this._mode.getRemainingTime() != -1)
     {
@@ -3458,6 +3488,8 @@ Movable.prototype.reinit = function(x, y, state, modeid, moderemainingtime, dire
     
     this._remainingtime = 0;
     this._remainingmovement = 0;
+    
+    this._cumulatedSlowMovements = 0;
 };
 
 Movable.prototype.getPosition = function()
@@ -4050,7 +4082,8 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                 
                 if ((!willturn && !willbeteleported))
                 {
-                    var traveldelay = Math.round(1000 * remaining.size()/this._speed);
+                    /*var traveldelay = Math.round(1000 * remaining.size()/this._speed);*/
+                    var traveldelay = 1000 * remaining.size()/this._speed;
                     var delay = this._mode.getRemainingTime() - traveldelay;
                     
                     if (updatepoint == null
@@ -4133,8 +4166,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     var modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
     var linebeforeupdate = null;
 
-    // while we will reach a mode update point
-    while (modeupdate != null && this._remainingmovement >= this._position.distanceToPoint(modeupdate.getPoint()))
+    while (modeupdate != null)
     {
         linebeforeupdate = new Line(new Point(this._position.getX(), this._position.getY()), new Point(modeupdate.getPoint().getX(), modeupdate.getPoint().getY()));
         
@@ -4281,19 +4313,10 @@ Pacman.prototype.move = function(elapsed, maze, status)
     
     this.moveBeginRemainingFromTime(elapsed);
     /*
-    if (this._remainingmovement >= 1)
-    {
-        console.log("pas de mouvement !!! elapsed: " + elapsed + " / time:" + this._remainingtime + " / mvmt: " + Math.round(this._speed * elapsed/1000) + " / " + this._speed * elapsed/1000);
-    }
-    */
-    /*
-        => en fait en général on a genre au moins elapsed=30, mais parfois cette valeur fait juste 1 ou 2 et du coup le round donne un remainingmvmt nul, pour ça que si on enleve hasremainingmvmt() de moveInsideRemainingLine() ça plante
-        => mais en meme temps, quand on enleve les round des movebeginremaining etc.., ça plante aussi (timeout) !!! pour une raison inconnue...
+        => INFO: en fait en général on a genre au moins elapsed=30, mais parfois cette valeur fait juste 1 ou 2 et du coup le round donne un remainingmvmt nul, pour ça que si on enleve hasremainingmvmt() de moveInsideRemainingLine() ça plante
         
-        => faurait donc que le moveinside prenne en compte si on a du movement restant ou pas : si y'en a pas, alors fo que le modeupdate soit sur notre position, et si pas d'update alors on peut terminer (en diminuant quand meme bien sur moderemaining comme d'hab)
+        => faudrait pouvoir gérer quand on a un mvmt nul quand meme, car on pourrait avoir presque aucun mvmt mais avoir un temps normal ; faurait donc que le moveinside prenne en compte si on a du movement restant ou pas : si y'en a pas, alors fo que le modeupdate soit sur notre position, et si pas d'update alors on peut terminer (en diminuant quand meme bien sur moderemaining comme d'hab) => faire donc en debut de la fonction un if...else selon si movement ou pas
         
-        => faudrait pouvoir gérer quand on a un mvmt nul quand meme, car on pourrait avoir presque aucun mvmt mais avoir un temps normal
-        => faudrait aussi que quand on a une vitese tres petite, on avance quand meme ; car les round() nous mettront tjrs à 0... faudrait une sorte de propriete _cumulatedSlowMovement, mise a jour dans move() ou movebegintruc(), qui cumule au fur et a mesure les vraies valeurs quand le round donne 0, et des que cette valeur depasse 1 alors on applique le round au _cumulatedslow ? quoique, et le temps alors ? car on aura un temps normal mais une avancée différente...
     */
     /*
         =====> en fait c'est vraiment normal d'utiliser des arrondis, puisque le mouvement est en pixels...
