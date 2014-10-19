@@ -3362,6 +3362,8 @@ var Movable = function(x, y, state, modeid, moderemainingtime, direction, speed)
     
     this._mode = new Mode(modeid, moderemainingtime);
     
+    this._delayedmodeupdate = null;
+    
     this._remainingtime = 0;
     this._remainingmovement = 0;
     
@@ -3422,6 +3424,11 @@ Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
         deltatime = -1 * this._remainingtime;
     }
     
+    if (this._delayedmodeupdate !== null)
+    {
+        this._delayedmodeupdate._delayatpoint += deltatime;
+    }
+    
     if (deltatime === this._remainingtime)
     {
         this._remainingtime = 0;
@@ -3432,7 +3439,6 @@ Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
         this._remainingtime += deltatime;
         var roundedmvmt = Math.round(this._speed * deltatime/1000);
         this._remainingmovement = (roundedmvmt < 0 && this._remainingmovement <= (-1 * roundedmvmt)) ? 0 : this._remainingmovement + roundedmvmt;
-        /*this._remainingmovement += Math.round(this._speed * deltatime/1000);*/
     }
     
     if (this._mode.getRemainingTime() != -1)
@@ -3449,6 +3455,12 @@ Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
     if (deltamovement < 0 && Math.abs(deltamovement) >= this._remainingmovement)
     {
         deltamovement = -1 * this._remainingmovement;
+    }
+    
+    var deltatime = 1000 * deltamovement/this._speed;
+    if (this._delayedmodeupdate !== null)
+    {
+        this._delayedmodeupdate._delayatpoint += deltatime;
     }
     
     if (deltamovement === this._remainingmovement)
@@ -3519,6 +3531,8 @@ Movable.prototype.reinit = function(x, y, state, modeid, moderemainingtime, dire
     this._movablestate = state;
     
     this._mode.set(modeid, moderemainingtime);
+    
+    this._delayedmodeupdate = null;
     
     this._remainingtime = 0;
     this._remainingmovement = 0;
@@ -3631,14 +3645,34 @@ Movable.prototype.hasNextTurn = function()
     return (this._nextturnposition !== null && this._nextturndirection !== null);
 };
 
+/* preconditions: the mode update occurs either at the current position (delayed or not), or is delayed to a later unknown point */
 Movable.prototype.updateMode = function(modeupdate)
 {
     var mode = modeupdate.getMode();
-    var modeid = mode.getID();
+    var modeid = modeupdate.getModeID();
+    var moderemaining = modeupdate.getModeRemainingTime();
+    var modedelay = modeupdate.getDelayAtPoint();
     
-    this._mode.set(modeid, mode.getRemainingTime());
-    this._speed = speedFromMode(modeid);
-    this._remainingmovement = Math.round(this._speed * this._remainingtime/1000);
+    if (modedelay > 0)
+    {
+        if (modeupdate.getPoint() === null)     /* update delayed to a later point */
+        {
+            this._delayedmodeupdate = new modeUpdate(modeid, moderemaining, modeupdate.getPoint().getX(), modeupdate.getPoint().getY(), modedelay);
+        }
+        else    /* we are certain that the update has to occur at the current position */
+        {
+            this.moveUpdateRemainingFromTime(-1 * modedelay);
+            this._mode.set(modeid, moderemaining);
+            this._speed = speedFromMode(modeid);
+            this._remainingmovement = Math.round(this._speed * this._remainingtime/1000);
+        }
+    }
+    else
+    {
+        this._mode.set(modeid, moderemaining);
+        this._speed = speedFromMode(modeid);
+        this._remainingmovement = Math.round(this._speed * this._remainingtime/1000);
+    }
 };
 
 
@@ -3654,7 +3688,7 @@ var ModeUpdate = function(modeid, modeduration, x, y, delay)
     
     this._mode = new Mode(modeid, modeduration);
     this._point = new Point(x, y);
-    this._delayatpoint = delay;             /* indicates how much time we have to wait at the update point before doing the update*/
+    this._delayatpoint = delay;             /* indicates how much time we have to wait (at the update point... or not) before doing the update*/
 };
 
 ModeUpdate.prototype.getMode = function()
@@ -4054,9 +4088,14 @@ Ghost.prototype.justCameHomeEaten = function(maze)
 */
 /* TODO ameliorer pour que un modeupdate permette en fait d'integrer plusieurs modeupdate a la suite dans le meme objet */
 /**
-/* en prenant compte de la position courante inclue à l'extrémité inclue (position courante si on est en extremite de notre ligne), même si l'extremite est le nextturn ou un portal,
- * renvoie la prochaine update de mode qu'on atteindra (remainingmovmt suffisant, pas de nextturn entre-temps, et pas de nextturn/teleportation intempestive à la fin si on risque d'avoir un delay)
+/* en prenant compte de la position courante inclue à l'extrémité inclue (position courante si on est en extremite de notre ligne),
+ * même si l'extremite est le nextturn ou un portal,
+ * renvoie la prochaine update de mode qu'on atteindra
+ * (remainingmovmt suffisant, pas de nextturn entre-temps, et pas de nextturn/teleportation intempestive à la fin si on risque d'avoir un delay),
+ * cette update étant GÉNÉRÉE mais pas forcément effectuée
+ * (la plupart du temps elle sera effectuée / l'autre cas, où elle est générée mais pas effectuée, concernerait par exemple un mode avec délai à attendre au fur et à mesure des déplacements avant l'update à un point inconnu (genre un bonus nous rendra invincible dans 3 secondes) ; si on avait un délai mais qu'on était en fin de ligne par exemple, on connaitrait ce point, et l'update serait effectuée)
  */
+//TODO penser a ce que le nextModeUpdateInsideRemainingLine() regarde aussi le this._delayedmodeupdate pr connaitre le prochain update (et si c dans la ligne, alors il met la propriete a null et retourne ce modeupdate - en admettant que l'update soit bien avant les autres updates potentielles)
 Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
 {
     if (this._movablestate !== MovableState.MOVING
