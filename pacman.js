@@ -3419,10 +3419,23 @@ Movable.prototype.moveBeginRemainingFromMovement = function(remainingmovement)
 /* precondition: deltatime, if negative, must be <= remainingtime */
 Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
 {
-    this._remainingtime += deltatime;
-    var roundedmvmt = Math.round(this._speed * deltatime/1000);
-    this._remainingmovement = (roundedmvmt < 0 && this._remainingmovement <= (-1 * roundedmvmt)) ? 0 : this._remainingmovement + roundedmvmt;
-    /*this._remainingmovement += Math.round(this._speed * deltatime/1000);*/
+    if (deltatime < 0 && Math.abs(deltatime) >= this._remainingtime)
+    {
+        deltatime = -1 * this._remainingtime;
+    }
+    
+    if (deltatime === this._remainingtime)
+    {
+        this._remainingtime = 0;
+        this._remainingmovement = 0;
+    }
+    else
+    {
+        this._remainingtime += deltatime;
+        var roundedmvmt = Math.round(this._speed * deltatime/1000);
+        this._remainingmovement = (roundedmvmt < 0 && this._remainingmovement <= (-1 * roundedmvmt)) ? 0 : this._remainingmovement + roundedmvmt;
+        /*this._remainingmovement += Math.round(this._speed * deltatime/1000);*/
+    }
     
     if (this._mode.getRemainingTime() != -1)
     {
@@ -3435,14 +3448,37 @@ Movable.prototype.moveUpdateRemainingFromTime = function(deltatime)
 /* precondition: deltamovement, if negative, must be <= remainingmovement */
 Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
 {
-    this._remainingmovement += deltamovement;
-    var time = 1000 * deltamovement/this._speed;
-    this._remainingtime = (time < 0 && this._remainingtime <= (-1 * time)) ? 0 : this._remainingtime + time;
-    /*this._remainingtime += 1000 * deltamovement/this._speed;*/
+    if (deltamovement < 0 && Math.abs(deltamovement) >= this._remainingmovement)
+    {
+        deltamovement = -1 * this._remainingmovement;
+    }
+    
+    if (deltamovement === this._remainingmovement)
+    {
+        this._remainingtime = 0;
+        this._remainingmovement = 0;
+    }
+    else
+    {
+        this._remainingmovement += deltamovement;
+        var time = 1000 * deltamovement/this._speed;
+        this._remainingtime = (time < 0 && this._remainingtime <= (-1 * time)) ? 0 : this._remainingtime + time;
+        /*this._remainingtime += 1000 * deltamovement/this._speed;*/
+    }
     
     if (this._mode.getRemainingTime() != -1)
     {
-        var deltatime = 1000 * deltamovement/this._speed;
+        var deltatime = null;
+        
+        if (deltamovement === this._remainingmovement)
+        {
+            deltatime = -1 * this._remainingtime;
+        }
+        else
+        {
+            deltatime = 1000 * deltamovement/this._speed;
+        }
+        
         var remaining = (-1 * deltatime > this._mode.getRemainingTime()) ? 0 : this._mode.getRemainingTime() + deltatime ;
         this._mode.setRemainingTime(remaining);
     }
@@ -3625,7 +3661,7 @@ var ModeUpdate = function(modeid, modeduration, x, y, delay)
     
     this._mode = new Mode(modeid, modeduration);
     this._point = new Point(x, y);
-    this._delayatpoint = delay;
+    this._delayatpoint = delay;             /* indicates how much time we have to wait at the update point before doing the update*/
 };
 
 ModeUpdate.prototype.getMode = function()
@@ -4023,9 +4059,10 @@ Ghost.prototype.justCameHomeEaten = function(maze)
 
 -------------------------------------------------
 */
-
+/* TODO ameliorer pour que un modeupdate permette en fait d'integrer plusieurs modeupdate a la suite dans le meme objet */
 /**
-/* de la position courante inclue à l'extrémité inclue (position courante si on est en extremite de notre ligne), même si l'extremite est le nextturn ou un portal
+/* en prenant compte de la position courante inclue à l'extrémité inclue (position courante si on est en extremite de notre ligne), même si l'extremite est le nextturn ou un portal,
+ * renvoie la prochaine update de mode qu'on atteindra (remainingmovmt suffisant, pas de nextturn entre-temps, et pas de nextturn/teleportation intempestive à la fin si on risque d'avoir un delay)
  */
 Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
 {
@@ -4048,6 +4085,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
             var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
             var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
             
+            /* as we can't have this._mode.getRemainingTime() = 0, we need to be "stuck" on our line to apply this delay, otherwise the delay would have to be applied on the next remaining (after turn/teleport) */
             if ((!willturn && !willbeteleported))
             {
                 var delay = this._mode.getRemainingTime();
@@ -4066,21 +4104,29 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
             if (timeoutdistance <= remaining.size())
             {
                 var timeoutpoint = remaining.pointAtDistance(timeoutdistance, this._direction);
+                var linebeforeupdate = new Line(new Point(this._position.getX(), this._position.getY()), new Point(timeoutpoint.getX(), timeoutpoint.getY()));
                 
-                if (updatepoint == null
-                 || (updatepoint != null && this._position.distanceToPoint(updatepoint.getPoint()) > nearestdistance))
+                var willreachpoint = (this._remainingmovement >= timeoutdistance);
+                var willturnbeforepoint = this.hasNextTurn() && linebeforeupdate.containsPoint(this._nextturnposition) && !this._nextturnposition.equalsPoint(timeoutpoint);
+                
+                if (willreachpoint && !willturnbeforepoint)
                 {
-                    updatepoint = new ModeUpdate(PacmanMode.NORMAL, PacmanModeDuration.NORMAL, timeoutpoint.getX(), timeoutpoint.getY(), 0);
+                    if (updatepoint == null
+                     || (updatepoint != null && this._position.distanceToPoint(updatepoint.getPoint()) > nearestdistance))
+                    {
+                        updatepoint = new ModeUpdate(PacmanMode.NORMAL, PacmanModeDuration.NORMAL, timeoutpoint.getX(), timeoutpoint.getY(), 0);
+                    }
                 }
             }
             else
             {
                 var destpoint = remaining.extremity(this._direction);
                 
-                var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
-                var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
+                var willreachpoint = (this._remainingmovement >= remaining.size());
+                var willturn = this.hasNextTurn() && remaining.containsPoint(this._nextturnposition);
+                var willbeteleported = maze.isPortal(destpoint.getX(), destpoint.getY()) && (this._direction === maze.goingToPortalDirection(destpoint));
                 
-                if ((!willturn && !willbeteleported))
+                if (willreachpoint && !willturn && !willbeteleported)   /* as we will have a delay, we must be "stuck" on our current line */
                 {
                     /*var traveldelay = Math.round(1000 * remaining.size()/this._speed);*/
                     var traveldelay = 1000 * remaining.size()/this._speed;
@@ -4129,144 +4175,294 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                 }
             }
             
-            if (updatepoint == null
-             || (updatepoint != null && this._position.distanceToPoint(updatepoint.getPoint()) > nearestdistance))
+            var linebeforeupdate = new Line(new Point(this._position.getX(), this._position.getY()), new Point(nearest.getX(), nearest.getY()));
+            
+            var willreachpoint = (this._remainingmovement >= nearestdistance);
+            var willturnbeforepoint = this.hasNextTurn() && linebeforeupdate.containsPoint(this._nextturnposition) && !this._nextturnposition.equalsPoint(nearest);
+            
+            if (willreachpoint && !willturnbeforepoint)
             {
-                updatepoint = new ModeUpdate(PacmanMode.PP_EATEN, PacmanModeDuration.PP_EATEN, nearest.getX(), nearest.getY(), 0);
+                if (updatepoint == null
+                 || (updatepoint != null && this._position.distanceToPoint(updatepoint.getPoint()) > nearestdistance))
+                {
+                    updatepoint = new ModeUpdate(PacmanMode.PP_EATEN, PacmanModeDuration.PP_EATEN, nearest.getX(), nearest.getY(), 0);
+                }
             }
         }
-    }
-    
-    if (updatepoint != null && this._remainingmovement < this._position.distanceToPoint(updatepoint.getPoint()))
-    {
-        updatepoint = null;
     }
     
     return updatepoint;
 };
 
 // TODO 
-//  - verifier moveInsideRemainingLine(), déjà son algo, et aussi :
-//      - a des endroits j'ai des if() sur le remainingmovement, mais faudrait pas plutot remplacer par (ou ajouter) le remainingtime ???
-//      - verifier l'utilisation des moveendremaining() (car le endmove...() est vraiment là pour terminer le truc, il est pas sensé surveiller quoi que ce soit)
+//  => le terme de move() et moveinside...() est ptetre mal choisi, faudrait plutot update et updateinside...() ; idem pour movebeginremaining -> updatebeginremaining etc...
 
-
-// even if position.ispoint()
-//TODO le terme de move() et moveinside...() est ptetre mal choisi, faudrait plutot update et updateinside...()
+/* do all the move and mode updates, on the current remaining line only, from the current point included */
 Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
 {
     if (this._movablestate !== MovableState.MOVING
-     || !this.hasRemainingMovement()    //TODO si on l'enleve ca fait planter le navigateur... et pourtant pas besoin de lui ! ou alors c dans un certain cas ? ou faut faire le nextmodeupdateinside...() avant pr tester .... ???? reflechir a ce qu'il se passe quand on enleve ça et pk ça bug... a coup de console.log dans le if !
      || !this.hasRemainingTime())
     {
         this.moveEndRemaining();
         return;
     }
-
+    
+    //XXX si jamais a un moment ou un autre, on venait a avoir besoin de pouvoir faire des updates alors que on n'a pas de remainingtime, faudrait juste ici, avant ce while, faire un autre while, mais a l'interieur d'un if pour ce cas où on a pas de remainingtime, avec un return avant de terminer le if() ; et pr nextmoveupdate...() ce serait pas compliqué, y'a bien un if !hasremainingtime() au debut mais en fait il est pas tt a fait necessaire : il est utile pr les update dues au timeout, mais dans les autres cas, pas vraiment
+    
+    
     var modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
-    var linebeforeupdate = null;
-
+    
     while (modeupdate != null)
     {
-        linebeforeupdate = new Line(new Point(this._position.getX(), this._position.getY()), new Point(modeupdate.getPoint().getX(), modeupdate.getPoint().getY()));
-        
-        // if we will reach a next turn point
-        if (this.hasNextTurn()
-         && linebeforeupdate.containsPoint(this._nextturnposition))
+        if (!this.hasRemainingMovement()
+         || remaining.isPoint())   // this._position must then be equal to modeupdate.getpoint(), as nextModeUpdateInsideRemainingLine() returns a point we will reach
         {
-            this.goToPointInsideRemainingLine(linebeforeupdate, this._nextturnposition, maze, status);
+            var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
+            var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
             
-            if (this._nextturnposition.equalsPoint(modeupdate.getPoint()))
+            this.updateMode(modeupdate.getMode());
+            
+            if (willturn)
             {
-                this.updateMode(modeupdate.getMode());
+                this._direction = this._nextturndirection;
+                this.resetNextTurn();
+                // we return, as we leave the current remaining line
+                return;
             }
             
-            this._direction = this._nextturndirection;
-            this.resetNextTurn();
-            
-            return;
+            if (willbeteleported)
+            {
+                this.teleportToAssociatedPortal(maze, status);
+                return;
+            }
         }
         else
         {
-            this.goToPointInsideRemainingLine(linebeforeupdate, modeupdate.getPoint(), maze, status);
-            //TODO on pourrait etre un ispoint(), faudrait pas du coup que mode inclue non seulement sa position sur le labyrinthe mais aussi dans le temps (date de declenchement) ?
-                // => et ouais, en fait faudrait que le modeupdate aie soit le point soit le délai dans lequel l'update doit se faire
-                //      => sauf qu'a priori c'est pas super utile comme j'ai fait avec les 2 sous-classes de modeupdate, vu que au final dans le moveinsideremainingline() il nous faut quand meme un point pour savoir où l'update se produit !!! donc ifaut juste avoir une unique classe modeUpdate, mais avec un dernier argument optionnel "delay" qui indique dans combien de temps l'update a lieu (ce qui sera donc utile dans les cas où on fait du sur-place et où il faut pouvoir dire quand c'est passé quellle update pour pouvoir calculer le temps passé dans chaque mode ; l'update pourrait en effet nous faire passer dans un autre mode à temps limité et faudrait pouvoir lui diminuer son moderemainingtime du remaining actuel après l'update)
-                //      => et donc ensutie ici, faudrait faire un: if(modeupdate.delay != -1) {decreaseremaining(modeupdate.delay)}
-                // =====> au final: (supprimer les 2 nouvelles classes etc) faut juste une propriété en plus: _delayatpoint ; elle sera en argument supplementaire du constructeur modeupdate ; et elle sera utilisée par this.updatemode() auquel on ajoute un argument de plus pour le delay a attendre (du coup this.updatemode() mettra à jour le this._remainingtime)
+            var linebeforeupdate = new Line(new Point(this._position.getX(), this._position.getY()), new Point(modeupdate.getPoint().getX(), modeupdate.getPoint().getY()));
+            
+            //var willturn = this.hasNextTurn() && linebeforeupdate.containsPoint(this._nextturnposition);
+            var willturn = this.hasNextTurn() && this._nextturnposition.equalsPoint(modeupdate.getPoint());     // as we know we WILL reach the mode update point
+            
+            // a portal can only be at the extremity of a line (so it could only be at the modeupdate point)
+            //var willbeteleported = maze.isPortal(modeupdate.getPoint().getX(), modeupdate.getPoint().getY()) && (this._direction === maze.goingToPortalDirection(extremity));
+            var willbeteleported = maze.isPortal(modeupdate.getPoint().getX(), modeupdate.getPoint().getY());   // as we know we WILL reach the mode update point
+            
+            // as we know we WILL reach mode update point
+            this.goToPointInsideRemainingLine(remaining, modeupdate.getPoint(), maze, status);
             this.updateMode(modeupdate.getMode());
             
-            if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+            if (willturn)
+            {
+                this._direction = this._nextturndirection;
+                this.resetNextTurn();
+                return;
+            }
+            
+            if (willbeteleported)
             {
                 this.teleportToAssociatedPortal(maze, status);
-                
-                //TODO ajouter test apres le teleport pour voir si y'a pas un modechange juste sur le point où il a été téléporté (ismodupdate...())
-                //          => quoique non, puisque en fait cette fonction ne fait que, au maximum, s'occuper de la ligne courante, + le teleport "brut" ; le move() appellera a nouveau moveInsideRemainingLine() s'il y a lieu, et a ce moment-là seulement y'aura un nextModeUpdateInsideRemainingLine() (celui a la ligne 4004)
-                
-                return;
-            }
-            
-            //TODO et ce truc-là faudrait plutôt continuer à boucler (ou mettre un while imbriqué) pour le cas où des états doivent s'enchainer dans le temps, sans avoir à passer sur un bonus ou autre
-            if (remaining.isExtremity(this.getPosition()))
-            {
-                this.moveEndRemaining();
-                
-                return;
-            }
-            
-            if (this.hasRemainingMovement())
-            {
-                remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
-                modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
-            }
-            else
-            {
                 return;
             }
         }
-    }
-    
-    if (remaining.isPoint())
-    {
-        this.moveEndRemaining();
-        return;
         
-        //TODO tester aussi si on est pas sur un portail, et donc alors teleport, puis test apres le teleport si modechange
-    }
-
-    // if we will reach a next turn during our movement
-    if (this.hasNextTurn()
-     && remaining.containsPoint(this._nextturnposition)
-     && this._remainingmovement >= this._position.distanceToPoint(this._nextturnposition))
-    {
-        this.goToPointInsideRemainingLine(remaining, this._nextturnposition, maze, status);
-        
-        this._direction = this._nextturndirection;
-        this.resetNextTurn();
-    }
-    else if (this._remainingmovement >= remaining.size())
-    {
-        var extremity = remaining.extremity(this._direction);
-        
-        this.goToPointInsideRemainingLine(remaining, extremity, maze, status);
-        
-        if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+        if (this.hasRemainingTime())
         {
-            this.teleportToAssociatedPortal(maze, status);
-            
-            //TODO ajouter test apres le teleport pour voir si y'a pas un modechange juste sur le point où il a été téléporté (ismodupdate...())
+            remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
+            modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
         }
         else
         {
             this.moveEndRemaining();
+            return;
         }
+    }
+    
+    // if we reach this place, that means we still have some time remaining
+    
+    if (!this.hasRemainingMovement()
+     || remaining.isPoint())
+    {
+        var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
+        var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
+        
+        if (willturn)
+        {
+            this._direction = this._nextturndirection;
+            this.resetNextTurn();
+            return;
+        }
+        
+        if (willbeteleported)
+        {
+            this.teleportToAssociatedPortal(maze, status);
+            return;
+        }
+        
+        this.moveEndRemaining();
     }
     else
     {
-        var destination = remaining.pointAtDistance(this._remainingmovement, this._direction);
-        
-        this.goToPointInsideRemainingLine(remaining, destination, maze, status);
+        if (this._remainingmovement <= remaining.size())
+        {
+            var destination = remaining.pointAtDistance(this._remainingmovement, this._direction);
+            var linebeforedest = new Line(new Point(this._position.getX(), this._position.getY()), new Point(destination.getX(), destination.getY()));
+            
+            var willturn = this.hasNextTurn() && linebeforedest.containsPoint(this._nextturnposition);
+            var willturnbeforedest = willturn && !this._nextturnposition.equalsPoint(destination);
+            // a portal can only be at the extremity of a line
+            var willbeteleported = maze.isPortal(destination.getX(), destination.getY()) && (this._direction === maze.goingToPortalDirection(destination)) && (this._remainingmovement >= this._position.distanceToPoint(destination));
+            
+            if (willturnbeforedest)
+            {
+                this.goToPointInsideRemainingLine(remaining, this._nextturnposition, maze, status);
+                this._direction = this._nextturndirection;
+                this.resetNextTurn();
+                return;
+            }
+            
+            this.goToPointInsideRemainingLine(remaining, destination, maze, status);
+            if (willturn)
+            {
+                this._direction = this._nextturndirection;
+                this.resetNextTurn();
+            }
+            if (willbeteleported)
+            {
+                this.teleportToAssociatedPortal(maze, status);
+            }
+            this.moveEndRemaining();
+        }
+        else
+        {
+            var destination = remaining.extremity(this._direction);
+            
+            var willturn = this.hasNextTurn() && remaining.containsPoint(this._nextturnposition);
+            // a portal can only be at the extremity of a line
+            var willbeteleported = maze.isPortal(destination.getX(), destination.getY()) && (this._direction === maze.goingToPortalDirection(destination));
+            
+            if (willturn)
+            {
+                this.goToPointInsideRemainingLine(remaining, this._nextturnposition, maze, status);
+                this._direction = this._nextturndirection;
+                this.resetNextTurn();
+                return;
+            }
+            
+            this.goToPointInsideRemainingLine(remaining, destination, maze, status);
+            if (willbeteleported)
+            {
+                this.teleportToAssociatedPortal(maze, status);
+                return;
+            }
+            this.moveEndRemaining();
+        }
     }
+    //TODO 
+    // => propriété _delayatpoint : utilisée par this.updatemode() auquel on ajoute un argument de plus pour le delay a attendre avant d'effectuer l'update (du coup this.updatemode() mettra à jour le this._remainingtime)
+    
+    
+    /*
+    // that could happen for example if our speed is so little that we don't move for now
+    if (!this.hasRemainingMovement())
+    {
+        this.moveEndRemaining();
+        return;
+    }
+    else
+    {
+        var modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
+        var linebeforeupdate = null;
+
+        while (modeupdate != null)
+        {
+            linebeforeupdate = new Line(new Point(this._position.getX(), this._position.getY()), new Point(modeupdate.getPoint().getX(), modeupdate.getPoint().getY()));
+            
+            // if we will reach a next turn point
+            if (this.hasNextTurn()
+             && linebeforeupdate.containsPoint(this._nextturnposition))
+            {
+                this.goToPointInsideRemainingLine(linebeforeupdate, this._nextturnposition, maze, status);
+                
+                if (this._nextturnposition.equalsPoint(modeupdate.getPoint()))
+                {
+                    this.updateMode(modeupdate.getMode());
+                }
+                
+                this._direction = this._nextturndirection;
+                this.resetNextTurn();
+                
+                return;
+            }
+            else
+            {
+                this.goToPointInsideRemainingLine(linebeforeupdate, modeupdate.getPoint(), maze, status);
+                
+                this.updateMode(modeupdate.getMode());
+                
+                if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+                {
+                    this.teleportToAssociatedPortal(maze, status);
+                    
+                    return;
+                }
+                
+                if (remaining.isExtremity(this.getPosition()))
+                {
+                    this.moveEndRemaining();
+                    
+                    return;
+                }
+                
+                if (this.hasRemainingMovement())
+                {
+                    remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
+                    modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
+                }
+                else
+                {
+                    return;
+                }
+            }
+        }
+        
+        if (remaining.isPoint())
+        {
+            this.moveEndRemaining();
+            return;
+        }
+
+        // if we will reach a next turn during our movement
+        if (this.hasNextTurn()
+         && remaining.containsPoint(this._nextturnposition)
+         && this._remainingmovement >= this._position.distanceToPoint(this._nextturnposition))
+        {
+            this.goToPointInsideRemainingLine(remaining, this._nextturnposition, maze, status);
+            
+            this._direction = this._nextturndirection;
+            this.resetNextTurn();
+        }
+        else if (this._remainingmovement >= remaining.size())
+        {
+            var extremity = remaining.extremity(this._direction);
+            
+            this.goToPointInsideRemainingLine(remaining, extremity, maze, status);
+            
+            if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+            {
+                this.teleportToAssociatedPortal(maze, status);
+            }
+            else
+            {
+                this.moveEndRemaining();
+            }
+        }
+        else
+        {
+            var destination = remaining.pointAtDistance(this._remainingmovement, this._direction);
+            
+            this.goToPointInsideRemainingLine(remaining, destination, maze, status);
+        }
+    }*/
 };
 
 Pacman.prototype.goToPointInsideRemainingLine = function(remaining, point, maze, status)
@@ -4315,10 +4511,6 @@ Pacman.prototype.move = function(elapsed, maze, status)
     /*
         => INFO: en fait en général on a genre au moins elapsed=30, mais parfois cette valeur fait juste 1 ou 2 et du coup le round donne un remainingmvmt nul, pour ça que si on enleve hasremainingmvmt() de moveInsideRemainingLine() ça plante
         
-        => faudrait pouvoir gérer quand on a un mvmt nul quand meme, car on pourrait avoir presque aucun mvmt mais avoir un temps normal ; faurait donc que le moveinside prenne en compte si on a du movement restant ou pas : si y'en a pas, alors fo que le modeupdate soit sur notre position, et si pas d'update alors on peut terminer (en diminuant quand meme bien sur moderemaining comme d'hab) => faire donc en debut de la fonction un if...else selon si movement ou pas
-        
-    */
-    /*
         =====> en fait c'est vraiment normal d'utiliser des arrondis, puisque le mouvement est en pixels...
     */
     var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
