@@ -3633,17 +3633,20 @@ Movable.prototype.hasNextTurn = function()
     return (this._nextturnposition !== null && this._nextturndirection !== null);
 };
 
-Movable.prototype.updateMode = function(mode)
+Movable.prototype.updateMode = function(modeupdate)
 {
-    this._mode.set(mode.getID(), mode.getRemainingTime());
+    var mode = modeupdate.getMode();
+    var modeid = mode.getID();
     
-    if (mode.getID() === PacmanMode.NORMAL)             {this._speed = PACMAN_SPEED;}
-    else if (mode.getID() === PacmanMode.PP_EATEN)      {this._speed = PACMAN_PP_SPEED;}
-    else if (mode.getID() === GhostMode.ATHOME)         {this._speed = GHOST_ATHOME_SPEED;}
-    else if (mode.getID() === GhostMode.LEAVINGHOME)    {this._speed = GHOST_LEAVINGHOME_SPEED;}
-    else if (mode.getID() === GhostMode.NORMAL)         {this._speed = GHOST_SPEED;}
-    else if (mode.getID() === GhostMode.FRIGHTENED)     {this._speed = GHOST_FRIGHTENED_SPEED;}
-    else if (mode.getID() === GhostMode.EATEN)          {this._speed = GHOST_EATEN_SPEED;}
+    this._mode.set(modeid, mode.getRemainingTime());
+    
+    if (modeid === PacmanMode.NORMAL)           {this._speed = PACMAN_SPEED;}
+    else if (modeid === PacmanMode.PP_EATEN)    {this._speed = PACMAN_PP_SPEED;}
+    else if (modeid === GhostMode.ATHOME)       {this._speed = GHOST_ATHOME_SPEED;}
+    else if (modeid === GhostMode.LEAVINGHOME)  {this._speed = GHOST_LEAVINGHOME_SPEED;}
+    else if (modeid === GhostMode.NORMAL)       {this._speed = GHOST_SPEED;}
+    else if (modeid === GhostMode.FRIGHTENED)   {this._speed = GHOST_FRIGHTENED_SPEED;}
+    else if (modeid === GhostMode.EATEN)        {this._speed = GHOST_EATEN_SPEED;}
     
     this._remainingmovement = Math.round(this._speed * this._remainingtime/1000);
 };
@@ -4209,7 +4212,6 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
     
     //XXX si jamais a un moment ou un autre, on venait a avoir besoin de pouvoir faire des updates alors que on n'a pas de remainingtime, faudrait juste ici, avant ce while, faire un autre while, mais a l'interieur d'un if pour ce cas où on a pas de remainingtime, avec un return avant de terminer le if() ; et pr nextmoveupdate...() ce serait pas compliqué, y'a bien un if !hasremainingtime() au debut mais en fait il est pas tt a fait necessaire : il est utile pr les update dues au timeout, mais dans les autres cas, pas vraiment
     
-    
     var modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
     
     while (modeupdate != null)
@@ -4220,7 +4222,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
             var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
             
-            this.updateMode(modeupdate.getMode());
+            this.updateMode(modeupdate);
             
             if (willturn)
             {
@@ -4249,7 +4251,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             
             // as we know we WILL reach mode update point
             this.goToPointInsideRemainingLine(remaining, modeupdate.getPoint(), maze, status);
-            this.updateMode(modeupdate.getMode());
+            this.updateMode(modeupdate);
             
             if (willturn)
             {
@@ -4514,8 +4516,6 @@ Pacman.prototype.move = function(elapsed, maze, status)
         =====> en fait c'est vraiment normal d'utiliser des arrondis, puisque le mouvement est en pixels...
     */
     var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
-    
-    //TODO verifier si y'a pas des moveend() qui manquent dans moveinsideremainingline()
     
     // (we can't be on a portal and in need to be teleported, nor we can be at an intersection in need to turn,
     //  as the move() would have teleported us or make us turn at the previous step)
