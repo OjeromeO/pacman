@@ -2580,14 +2580,14 @@ Maze.prototype.getPortals = function()
     return this._portals;
 };
 
-Maze.prototype.isPortal = function(x, y)
+Maze.prototype.isPortal = function(point)
 {
-    assert((typeof x === "number"), "x is not a number");
-    assert((typeof y === "number"), "y is not a number");
+    assert((typeof point.getX() === "number"), "x is not a number");
+    assert((typeof point.getY() === "number"), "y is not a number");
     
     for(var i=0; i<this._portals.length; i++)
     {
-        if (this._portals[i].getPosition().equals(x,y))
+        if (this._portals[i].getPosition().equals(point.getX(),point.getY()))
         {
             return true;
         }
@@ -3898,7 +3898,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
                 else if (this._direction === Direction.DOWN)    {endpoint = remaining.getPoint2();}
                 else if (this._direction === Direction.LEFT)    {endpoint = remaining.getPoint1();}
                 
-                if (maze.isPortal(endpoint.getX(), endpoint.getY()))
+                if (maze.isPortal(endpoint))
                 {
                     associated = maze.associatedPortal(endpoint.getX(), endpoint.getY());
                     
@@ -4115,7 +4115,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
         if (remaining.isPoint())
         {
             var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
-            var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
+            var willbeteleported = maze.isPortal(this.getPosition()) && (this._direction === maze.goingToPortalDirection(this._position));
             
             /* as we can't have this._mode.getRemainingTime() = 0, we need to be "stuck" on our line to apply this delay, otherwise the delay would have to be applied on the next remaining (after turn/teleport) */
             if ((!willturn && !willbeteleported))
@@ -4156,7 +4156,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                 
                 var willreachpoint = (this._remainingmovement >= remaining.size());
                 var willturn = this.hasNextTurn() && remaining.containsPoint(this._nextturnposition);
-                var willbeteleported = maze.isPortal(destpoint.getX(), destpoint.getY()) && (this._direction === maze.goingToPortalDirection(destpoint));
+                var willbeteleported = maze.isPortal(destpoint) && (this._direction === maze.goingToPortalDirection(destpoint));
                 
                 if (willreachpoint && !willturn && !willbeteleported)   /* as we will have a delay, we must be "stuck" on our current line */
                 {
@@ -4249,7 +4249,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
          || remaining.isPoint())   // this._position must then be equal to modeupdate.getpoint(), as nextModeUpdateInsideRemainingLine() returns a point we will reach
         {
             var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
-            var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
+            var willbeteleported = maze.isPortal(this.getPosition()) && (this._direction === maze.goingToPortalDirection(this._position));
             
             this.updateMode(modeupdate);
             
@@ -4275,8 +4275,8 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             var willturn = this.hasNextTurn() && this._nextturnposition.equalsPoint(modeupdate.getPoint());     // as we know we WILL reach the mode update point
             
             // a portal can only be at the extremity of a line (so it could only be at the modeupdate point)
-            //var willbeteleported = maze.isPortal(modeupdate.getPoint().getX(), modeupdate.getPoint().getY()) && (this._direction === maze.goingToPortalDirection(extremity));
-            var willbeteleported = maze.isPortal(modeupdate.getPoint().getX(), modeupdate.getPoint().getY());   // as we know we WILL reach the mode update point
+            //var willbeteleported = maze.isPortal(modeupdate.getPoint()) && (this._direction === maze.goingToPortalDirection(extremity));
+            var willbeteleported = maze.isPortal(modeupdate.getPoint());   // as we know we WILL reach the mode update point
             
             // as we know we WILL reach mode update point
             this.goToPointInsideRemainingLine(remaining, modeupdate.getPoint(), maze, status);
@@ -4314,7 +4314,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
      || remaining.isPoint())
     {
         var willturn = this.hasNextTurn() && this._position.equalsPoint(this._nextturnposition);
-        var willbeteleported = maze.isPortal(this.getPosition().getX(), this.getPosition().getY()) && (this._direction === maze.goingToPortalDirection(this._position));
+        var willbeteleported = maze.isPortal(this.getPosition()) && (this._direction === maze.goingToPortalDirection(this._position));
         
         if (willturn)
         {
@@ -4341,7 +4341,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             var willturn = this.hasNextTurn() && linebeforedest.containsPoint(this._nextturnposition);
             var willturnbeforedest = willturn && !this._nextturnposition.equalsPoint(destination);
             // a portal can only be at the extremity of a line
-            var willbeteleported = maze.isPortal(destination.getX(), destination.getY()) && (this._direction === maze.goingToPortalDirection(destination)) && (this._remainingmovement >= this._position.distanceToPoint(destination));
+            var willbeteleported = maze.isPortal(destination) && (this._direction === maze.goingToPortalDirection(destination)) && (this._remainingmovement >= this._position.distanceToPoint(destination));
             
             if (willturnbeforedest)
             {
@@ -4369,7 +4369,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             
             var willturn = this.hasNextTurn() && remaining.containsPoint(this._nextturnposition);
             // a portal can only be at the extremity of a line
-            var willbeteleported = maze.isPortal(destination.getX(), destination.getY()) && (this._direction === maze.goingToPortalDirection(destination));
+            var willbeteleported = maze.isPortal(destination) && (this._direction === maze.goingToPortalDirection(destination));
             
             if (willturn)
             {
@@ -4430,7 +4430,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
                 
                 this.updateMode(modeupdate.getMode());
                 
-                if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+                if (maze.isPortal(this.getPosition()))
                 {
                     this.teleportToAssociatedPortal(maze, status);
                     
@@ -4478,7 +4478,7 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             
             this.goToPointInsideRemainingLine(remaining, extremity, maze, status);
             
-            if (maze.isPortal(this.getPosition().getX(), this.getPosition().getY()))
+            if (maze.isPortal(this.getPosition()))
             {
                 this.teleportToAssociatedPortal(maze, status);
             }
@@ -4540,9 +4540,7 @@ Pacman.prototype.move = function(elapsed, maze, status)
     
     this.moveBeginRemainingFromTime(elapsed);
     /*
-        => INFO: en fait en général on a genre au moins elapsed=30, mais parfois cette valeur fait juste 1 ou 2 et du coup le round donne un remainingmvmt nul, pour ça que si on enleve hasremainingmvmt() de moveInsideRemainingLine() ça plante
-        
-        =====> en fait c'est vraiment normal d'utiliser des arrondis, puisque le mouvement est en pixels...
+        INFO: en fait en général on a genre au moins elapsed=30, mais parfois cette valeur fait juste 1 ou 2 et du coup le Math.round donne un remainingmvmt nul (puisqu'on peut pas utiliser un nombre de pixels non entier...)
     */
     var remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
     
@@ -4555,49 +4553,6 @@ Pacman.prototype.move = function(elapsed, maze, status)
     }
 };
 
-/* apres avoir commenté les math.round() des movebegin... et compagnie :
-
-Error: Script terminated by timeout at:
-Line.prototype.containsPoint@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:1069:5
-Maze.prototype.currentLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2835:1
-Maze.prototype.remainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2944:1
-Pacman.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4347:9
-PlayingState.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2229:5
-PlayingState.prototype.update@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2269:13
-logicLoop@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5221:13
-@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5383:1
-
-Error: Script terminated by timeout at:
-Line.prototype.containsPoint@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:1069:5
-Pacman.prototype.nextModeUpdateInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4133:1
-Pacman.prototype.moveInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4182:1
-Pacman.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4346:9
-PlayingState.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2229:5
-PlayingState.prototype.update@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2269:13
-logicLoop@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5232:13
-
-Error: Script terminated by timeout at:
-Line@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:881:5
-Pacman.prototype.eatBetweenPoints@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:3901:1
-Pacman.prototype.goToPointInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4243:5
-Pacman.prototype.moveInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4226:9
-Pacman.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4287:9
-PlayingState.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2229:5
-PlayingState.prototype.update@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2269:13
-logicLoop@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5183:13
-@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5345:1
-
-Error: Script terminated by timeout at:
-Pacdot.prototype.getPosition@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:1297:5
-Pacman.prototype.eatBetweenPoints@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:3907:1
-Pacman.prototype.goToPointInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4243:5
-Pacman.prototype.moveInsideRemainingLine@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4226:9
-Pacman.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:4287:9
-PlayingState.prototype.move@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2229:5
-PlayingState.prototype.update@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:2269:13
-logicLoop@file:///home/jerome/Blacki/Programmes/JS_jeu-pacman/pacman.js:5195:13
-
-*/
 
 
 /******************************************************************************/
@@ -4977,7 +4932,7 @@ Ghost.prototype.move = function(elapsed, maze)
     }
     
     /* if we enter a teleportation tunnel */
-    if (maze.isPortal(this._position.getX(), this._position.getY()))
+    if (maze.isPortal(this._position))
     {
         var p = maze.associatedPortal(this._position.getX(), this._position.getY());
         
