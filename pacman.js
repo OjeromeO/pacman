@@ -440,19 +440,17 @@ var isHorizontal = function(arg)
     }
 };
 
-/*
 var speedFromMode = function(mode)
 {
     if (mode === PacmanMode.NORMAL)             {return PACMAN_SPEED;}
     else if (mode === PacmanMode.PP_EATEN)      {return PACMAN_PP_SPEED;}
-    
     else if (mode === GhostMode.ATHOME)         {return GHOST_ATHOME_SPEED;}
     else if (mode === GhostMode.LEAVINGHOME)    {return GHOST_LEAVINGHOME_SPEED;}
     else if (mode === GhostMode.NORMAL)         {return GHOST_SPEED;}
     else if (mode === GhostMode.FRIGHTENED)     {return GHOST_FRIGHTENED_SPEED;}
     else if (mode === GhostMode.EATEN)          {return GHOST_EATEN_SPEED;}
+    else                                        {return 0;}
 };
-*/
 
 var concatenateLines = function(line1, line2)
 {
@@ -3639,15 +3637,7 @@ Movable.prototype.updateMode = function(modeupdate)
     var modeid = mode.getID();
     
     this._mode.set(modeid, mode.getRemainingTime());
-    
-    if (modeid === PacmanMode.NORMAL)           {this._speed = PACMAN_SPEED;}
-    else if (modeid === PacmanMode.PP_EATEN)    {this._speed = PACMAN_PP_SPEED;}
-    else if (modeid === GhostMode.ATHOME)       {this._speed = GHOST_ATHOME_SPEED;}
-    else if (modeid === GhostMode.LEAVINGHOME)  {this._speed = GHOST_LEAVINGHOME_SPEED;}
-    else if (modeid === GhostMode.NORMAL)       {this._speed = GHOST_SPEED;}
-    else if (modeid === GhostMode.FRIGHTENED)   {this._speed = GHOST_FRIGHTENED_SPEED;}
-    else if (modeid === GhostMode.EATEN)        {this._speed = GHOST_EATEN_SPEED;}
-    
+    this._speed = speedFromMode(modeid);
     this._remainingmovement = Math.round(this._speed * this._remainingtime/1000);
 };
 
