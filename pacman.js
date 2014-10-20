@@ -4095,7 +4095,7 @@ Ghost.prototype.justCameHomeEaten = function(maze)
  * cette update étant GÉNÉRÉE mais pas forcément effectuée
  * (la plupart du temps elle sera effectuée / l'autre cas, où elle est générée mais pas effectuée, concernerait par exemple un mode avec délai à attendre au fur et à mesure des déplacements avant l'update à un point inconnu (genre un bonus nous rendra invincible dans 3 secondes) ; si on avait un délai mais qu'on était en fin de ligne par exemple, on connaitrait ce point, et l'update serait effectuée)
  */
-//TODO penser a ce que le nextModeUpdateInsideRemainingLine() regarde aussi le this._delayedmodeupdate pr connaitre le prochain update (et si c dans la ligne, alors il met la propriete a null et retourne ce modeupdate - en admettant que l'update soit bien avant les autres updates potentielles)
+//TODO penser a ce que le nextModeUpdateInsideRemainingLine() regarde aussi le this._delayedmodeupdate pr connaitre le prochain mode update (et si c dans la ligne, alors il met la propriete a null et retourne ce modeupdate - en admettant que l'update soit bien avant les autres updates potentielles)
 Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
 {
     if (this._movablestate !== MovableState.MOVING
@@ -4107,9 +4107,11 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
     
     var updatepoint = null;
     
-    /* updates from current mode timeout */
+    /******************* updates from current mode timeout *******************/
     
-    if (this._mode.getID() === PacmanMode.PP_EATEN              /* going into mode PacmanMode.NORMAL */
+    /* going from mode PacmanMode.PP_EATEN to mode PacmanMode.NORMAL */
+    
+    if (this._mode.getID() === PacmanMode.PP_EATEN
      && this._mode.getRemainingTime() <= this._remainingtime)
     {
         if (remaining.isPoint())
@@ -4160,7 +4162,6 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
                 
                 if (willreachpoint && !willturn && !willbeteleported)   /* as we will have a delay, we must be "stuck" on our current line */
                 {
-                    /*var traveldelay = Math.round(1000 * remaining.size()/this._speed);*/
                     var traveldelay = 1000 * remaining.size()/this._speed;
                     var delay = this._mode.getRemainingTime() - traveldelay;
                     
@@ -4174,10 +4175,12 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
         }
     }
     
-    /* updates from events */
+    /************************** updates from events **************************/
     
-    if (this._mode.getID() === PacmanMode.NORMAL            /* going into mode PacmanMode.PP_EATEN */
-     || this._mode.getID() === PacmanMode.PP_EATEN)         /* extend mode PacmanMode.PP_EATEN */
+    /* going into, or extending, mode PacmanMode.PP_EATEN */
+    
+    if (this._mode.getID() === PacmanMode.NORMAL
+     || this._mode.getID() === PacmanMode.PP_EATEN)
     {
         // find the nearest power pellet
         
@@ -4388,9 +4391,6 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             this.moveEndRemaining();
         }
     }
-    //TODO 
-    // => propriété _delayatpoint : utilisée par this.updatemode() auquel on ajoute un argument de plus pour le delay a attendre avant d'effectuer l'update (du coup this.updatemode() mettra à jour le this._remainingtime)
-    
     
     /*
     // that could happen for example if our speed is so little that we don't move for now
