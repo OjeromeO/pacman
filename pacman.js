@@ -257,17 +257,6 @@ var MAP_1 =
 
 maps.push(MAP_1);
 
-/*
-var count1 = 0;
-var count2 = 0;
-var firstupdate = 0;
-*/
-
-//var tmp1 = 0;
-//var tmp2 = 0;
-
-
-
 /******************************************************************************/
 /*                             utilities functions                            */
 /******************************************************************************/
@@ -1843,7 +1832,7 @@ Menu.prototype.deleteItem = function(id)
 
 /*TODO faire que pausemenu aura aussi des graphics ?
 
-pour les menu principaux, faire un genre de classe abstraite qui herite de emnu et qui a juste un draw() en plus, histoire d'harmoniser le dessin entre par exemple le menu d'options, celui d'aide, celui d'accueil, ...
+pour les menu principaux, faire un genre de classe abstraite qui herite de menu et qui a juste un draw() en plus, histoire d'harmoniser le dessin entre par exemple le menu d'options, celui d'aide, celui d'accueil, ...
 du coup on aura des optionsmenu, helpmenu, .. qui heriteront de cette classe abstraite et qui auront donc juste en plus les _items
 */
 
@@ -2133,12 +2122,10 @@ PlayingState.prototype.loadMap = function(litteral)
         create game elements
     */
     
-    //TODO TODO TODO
-    
-
-        /*
+    /* TODO
     - Status devrait etre composé de lives (classe LifeStatus composée de nblives de type entier + 1 graphics DrawableString du texte + 1 array de graphics DrawableCircle) et score (classe ScoreStatus composée de score + 1 DrawableString du texte + 1 DrawableStringText du score) ; un drawableString possède une position et un String (en fait, le faire heriter de String, tt comme les autres Drawable heritent de leur truc)
     */
+    
     /*
     - on a besoin de la map pr ses getwidth(), utilisé notamment dans le getmappadding()... ou mettre direct dans Maze... ??!?
     */
@@ -3255,6 +3242,9 @@ Maze.prototype.drawPortals = function()
     for(var i=0; i<this._portals.length; i++)       {this._portals[i].draw();}
 };
 
+/* TODO
+    => y'a probablement d'autres fonctions de Maze qui devraient utiliser les AllowedCorridors non ?
+*/
 
 
 /******************************************************************************/
@@ -3300,6 +3290,8 @@ var Mode = function(id, remainingtime)
 {
     this._id = id;
     this._remainingtime = remainingtime;
+    
+    //XXX mettre plutôt à null, et pas à -1, le remainingtime quand le mode n'est pas limité dans le temps ?
 };
 
 Mode.prototype.getID = function()
@@ -3376,9 +3368,6 @@ Movable.prototype.hasRemainingMovement = function()
 
 Movable.prototype.moveBeginRemainingFromTime = function(remainingtime)
 {
-    /*this._remainingtime = remainingtime;
-    this._remainingmovement = Math.round(this._speed * remainingtime/1000);*/
-    
     this._remainingtime = remainingtime;
         
     var mvmt = this._speed * remainingtime/1000;
@@ -3465,7 +3454,6 @@ Movable.prototype.moveUpdateRemainingFromMovement = function(deltamovement)
         this._remainingmovement += deltamovement;
         var time = 1000 * deltamovement/this._speed;
         this._remainingtime = (time < 0 && this._remainingtime <= (-1 * time)) ? 0 : this._remainingtime + time;
-        /*this._remainingtime += 1000 * deltamovement/this._speed;*/
     }
     
     if (this._mode.getRemainingTime() != -1)
@@ -3672,8 +3660,6 @@ Movable.prototype.updateMode = function(modeupdate, status)
     }
 };
 
-
-
 /******************************************************************************/
 /****************************** ModeUpdate class ******************************/
 /******************************************************************************/
@@ -3727,10 +3713,7 @@ var Pacman = function(x, y, movablestate, direction)
     
     var mode = PacmanMode.NORMAL;
     
-    //XXX mettre plutôt à null le moderemainingtime ?
     Movable.call(this, x, y, movablestate, mode, -1, direction, this.speedFromMode(mode));
-    //Movable.call(this, x, y, MovableState.IMMOBILE, direction);
-    //Movable.call(this, x, y, MovableState.PAUSED, direction);
     
     this._animtime = 0;
     this._mouthstartangle = 6/10;
@@ -3824,21 +3807,6 @@ Pacman.prototype.setMouthendangle = function(angle)
     
     this._mouthendangle = angle;
 };
-
-
-
-
-
-
-
-/* TODO
-- on aura des pacman.move(maze) et ghost.move(maze, pacman) et des .handle_collision(maze, ghosts), ...
-- tte facon soit on a des move(maze, ...) soit on a dans playingstate un gros move() qui utilisera le maze et le pacman et les ghosts en propriétés
-- mais pr les collisions, comment faire ? et meme pr les deplacements ? enregistrer le trajet effectué pr chacun (chacun ayant un array de lignes representatn ce chemin) pendant le move() (sans tenir compte des collisions durant le move()), puis appeler pr chacun un handle_collisions() ? mais quand même, faut trouver comment detecter a quel endroit/moment a eu lieu la collision et tt, et agir en consequence... ; ou plutot un handle_collisions() global dans playingstate (sachant que pas de collision entre les fantomes) ; penser a d'abord deplacer le pacman puis les fantomes ensuite, puisqu'ils le suivent ; quoique en fait chacun pourrait avoir son propre handle_collisions() du moment que en parametre on envoie les elements avec lesquels faut checker ça (meme si y'aura des tests redondants ; quoique ici non, y'a que les collision pacman-ghost et pas ghost-ghost)
-*/
-
-
-
 
 /**
  * If possible, make the pacman immediately move to this direction,
@@ -3958,9 +3926,7 @@ Pacman.prototype.makeMovementToDirection = function(newdirection, maze)
     }
 };
 
-/* TODO
-    - y'a probablement des fonctions de maze qui devraient avoir les 3 parametres withXXX : car là le pacman risque d'aller à des endroits où il a pas le droit non ?
-*/
+
 
 Pacman.prototype.animate = function(elapsed)
 {
@@ -4040,48 +4006,44 @@ Pacman.prototype.eatBetweenPoints = function(p1, p2, maze, status)
 };
 
 /* TODO
+- on aura des pacman.move(maze) et ghost.move(maze, pacman) et des .handle_collision(maze, ghosts), ...
+- tte facon soit on a des move(maze, ...) soit on a dans playingstate un gros move() qui utilisera le maze et le pacman et les ghosts en propriétés
+- mais pr les collisions, comment faire ? et meme pr les deplacements ? enregistrer le trajet effectué pr chacun (chacun ayant un array de lignes representatn ce chemin) pendant le move() (sans tenir compte des collisions durant le move()), puis appeler pr chacun un handle_collisions() ? mais quand même, faut trouver comment detecter a quel endroit/moment a eu lieu la collision et tt, et agir en consequence... ; ou plutot un handle_collisions() global dans playingstate (sachant que pas de collision entre les fantomes) ; penser a d'abord deplacer le pacman puis les fantomes ensuite, puisqu'ils le suivent ; quoique en fait chacun pourrait avoir son propre handle_collisions() du moment que en parametre on envoie les elements avec lesquels faut checker ça (meme si y'aura des tests redondants ; quoique ici non, y'a que les collision pacman-ghost et pas ghost-ghost)
+*/
 
-    => penser que move() doit rester le meme alors que les movexxx() sont sensés etre redefinis par pacman et ghost (voir si chacun devra ou non reecrire ce moveInsideRemainingLine(), c'est ptetre un peu chiant, surtout que la majorité sera identique ; ptetre pas a redefinir vu que y'aura les willtruc() dedans normalement)
+/* TODO
+    => penser que Pacman et Ghost devraient utiliser le même move()/nextmodeupdate()/moveinsideremainingline()/... , et si quelques trucs diffèrent alors simplement utiliser une fonction que chacun d'eux redéfinit
     
-    ===> pour que ghost soit au courant que pacman a mangé un power pellet : utiliser Status (mais du coup pour pacman aussi, si ghost prend/fait un truc special : et du coup, en supposant qu'on enregistre la date a laquelle ca a été fait, faut que le nextmodeupdate() soit adapté à ces modifs)
-        => les updatemode() (appelés dans moveInsideRemainingLine()) prendront Status en argument, et comme c'est une methode de Movable, suffit de regarder le mode actuel, à comparer avec le nouveau mode passé en argument ! et on saura du coup si on vient de manger un pellet, ou si on repasse en NORMAL peu apres avoir mangé un pellet
-                    => ou plutot (car c'est embetant de devoir a nouveau refaire les tests pour verifier, qu'on fait deja dans nextmodeupdateinside...()) mettre des arguments supplementaires pelleteaten_mode_on / pelleteaten_mode_off à l'objet ModeUpdate, que updatemode() traitera automatiquement avec le Status en argument ?
+    ===> pour que ghost/pacman soit au courant que pacman/ghost a fait un truc particulier, on peut utiliser Status (en supposant qu'on enregistre la date a laquelle ca a été fait, faut que le nextmodeupdate() soit adapté à ces modifs)
+            ===> faut pouvoir utiliser la meme fonction updatemode() entre ghost et pacman ; or on utilise les modes dedans (et leurs valeurs d'id se recoupent...), donc faut soit des fonctions ispacman et isghost, définies dans chacune des 2 classes, qui renverront ce qu'il faut afin de pouvoir séparer les tests sur les modes, soit utiliser une méthode du style updatestatusfrommode() que chacun (re)définit
             ===> faudrait enregsitrer dans status le temps apres lequel on est passé en pp_eaten, et le temps apres lequel on est repassé en normal (comme ghost et pacman auront a chaque fois le meme elapsed au tout debut), car si jamais pour une raison ou une autre on a des durées super courtes, faut que les ghost sachent entre quand et quand ils sont "vulnérables"
     
-    ===> creer des fonctions willturn(), willturnatpoint(), willturnbeforepoint(), willbeteleported(), willbeteleportedat()
+    ===> creer des fonctions :
+        - willturn(), willturnatpoint(), willturnbeforepoint()
+        - willbeteleported(), willbeteleportedat()
     
+            Movable.prototype.willTurnAtPoint = function(point)
+            {
+                return this.hasNextTurn() && point.equalsPoint(this._nextturnposition);
+            };
+
+            Movable.prototype.willTurnInsideRemainingLine = function(line)
+            {
+                return this.hasNextTurn() && line.containsPoint(this._nextturnposition);
+            };
+
+            Movable.prototype.willTurnInsideRemainingLineBeforePoint = function(line, point)
+            ou bien:
+            Movable.prototype.willTurnInsideLineBeforeExtremity = function(line, direction)
+            {
+                return this.willTurnInsideLine(line) && !this._nextturnposition.equalsPoint(pointextremitedutruc);
+                 => ou verifier a quelle extremite on est, et deduire quelle est notre destination du coup ?
+            };
     
-
--------------------------------------------------
-pour ghost :
-    if (this.justLeavedHome(maze))
-    {
-        this._mode = GhostMode.NORMAL;
-    }
-
-    // if we were outside the ghosthouse and needed to go inside, and now we went inside 
-    if (this.justCameHomeEaten(maze))
-    {
-        this._mode = GhostMode.ATHOME;
-    }
-    
-
-
-Ghost.prototype.justLeavedHome = function(maze)
-{
-    return (this._mode === GhostMode.LEAVINGHOME && maze.containsPoint(this._position, new AllowedCorridors(true, false, false)));
-};
-
-Ghost.prototype.justCameHomeEaten = function(maze)
-{
-    return (this._mode === GhostMode.EATEN && maze.containsPoint(this._position, new AllowedCorridors(false, true, false)));
-};
-
-
 -------------------------------------------------
 */
 
-/**
+/** nextModeUpdateInsideRemainingLine :
 /* en prenant compte de la position courante inclue à l'extrémité inclue (position courante si on est en extremite de notre ligne),
  * même si l'extremite est le nextturn ou un portal,
  * renvoie la prochaine update de mode qu'on atteindra
@@ -4229,7 +4191,7 @@ Pacman.prototype.nextModeUpdateInsideRemainingLine = function(remaining, maze)
 };
 
 // TODO 
-//  => le terme de move() et moveinside...() est ptetre mal choisi, faudrait plutot update et updateinside...() ; idem pour movebeginremaining -> updatebeginremaining etc...
+//  => le terme de move() et moveInsideRemainingLine() est ptetre mal choisi, faudrait plutot update et updateinside...() ; idem pour movebeginremaining -> updatebeginremaining etc...
 
 /*
     do all the move and mode updates, on the current remaining line only, from the current point included
@@ -4392,109 +4354,6 @@ Pacman.prototype.moveInsideRemainingLine = function(remaining, maze, status)
             this.moveEndRemaining();
         }
     }
-    
-    /*
-    // that could happen for example if our speed is so little that we don't move for now
-    if (!this.hasRemainingMovement())
-    {
-        this.moveEndRemaining();
-        return;
-    }
-    else
-    {
-        var modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
-        var linebeforeupdate = null;
-
-        while (modeupdate != null)
-        {
-            linebeforeupdate = new Line(new Point(this._position.getX(), this._position.getY()), new Point(modeupdate.getPoint().getX(), modeupdate.getPoint().getY()));
-            
-            // if we will reach a next turn point
-            if (this.hasNextTurn()
-             && linebeforeupdate.containsPoint(this._nextturnposition))
-            {
-                this.goToPointInsideRemainingLine(linebeforeupdate, this._nextturnposition, maze, status);
-                
-                if (this._nextturnposition.equalsPoint(modeupdate.getPoint()))
-                {
-                    this.updateMode(modeupdate.getMode());
-                }
-                
-                this._direction = this._nextturndirection;
-                this.resetNextTurn();
-                
-                return;
-            }
-            else
-            {
-                this.goToPointInsideRemainingLine(linebeforeupdate, modeupdate.getPoint(), maze, status);
-                
-                this.updateMode(modeupdate.getMode());
-                
-                if (maze.isPortal(this.getPosition()))
-                {
-                    this.teleportToAssociatedPortal(maze, status);
-                    
-                    return;
-                }
-                
-                if (remaining.isExtremity(this.getPosition()))
-                {
-                    this.moveEndRemaining();
-                    
-                    return;
-                }
-                
-                if (this.hasRemainingMovement())
-                {
-                    remaining = maze.remainingLine(this._position, this._direction, this.allowedCorridors());
-                    modeupdate = this.nextModeUpdateInsideRemainingLine(remaining, maze);
-                }
-                else
-                {
-                    return;
-                }
-            }
-        }
-        
-        if (remaining.isPoint())
-        {
-            this.moveEndRemaining();
-            return;
-        }
-
-        // if we will reach a next turn during our movement
-        if (this.hasNextTurn()
-         && remaining.containsPoint(this._nextturnposition)
-         && this._remainingmovement >= this._position.distanceToPoint(this._nextturnposition))
-        {
-            this.goToPointInsideRemainingLine(remaining, this._nextturnposition, maze, status);
-            
-            this._direction = this._nextturndirection;
-            this.resetNextTurn();
-        }
-        else if (this._remainingmovement >= remaining.size())
-        {
-            var extremity = remaining.extremity(this._direction);
-            
-            this.goToPointInsideRemainingLine(remaining, extremity, maze, status);
-            
-            if (maze.isPortal(this.getPosition()))
-            {
-                this.teleportToAssociatedPortal(maze, status);
-            }
-            else
-            {
-                this.moveEndRemaining();
-            }
-        }
-        else
-        {
-            var destination = remaining.pointAtDistance(this._remainingmovement, this._direction);
-            
-            this.goToPointInsideRemainingLine(remaining, destination, maze, status);
-        }
-    }*/
 };
 
 Pacman.prototype.goToPointInsideRemainingLine = function(remaining, point, maze, status)
@@ -4554,7 +4413,9 @@ Pacman.prototype.move = function(elapsed, maze, status)
     }
 };
 
-
+/* TODO
+    => revoir toute la classe Ghost, histoire qu'elle ressemble bien à Pacman, et qu'elle tire bien parti des trucs en commun, genre avec move() et compagnie
+*/
 
 /******************************************************************************/
 /******************************** Ghost class *********************************/
@@ -4794,10 +4655,8 @@ Ghost.prototype.justCameHomeEaten = function(maze)
 
 
 
-
 /* TODO
-    ===> en plus, faudrait ptetre avoir les methodes de movexxx() dans Movable, et Pacman (il le faut, a cause des 3 parametres) et Ghost redefinissent celles-ci si necessaire => du coup on modifie les movexxx() mais le move() principal reste le même ? et du coup faudrait remplacer les appels direct a des setposition() ou autre pour que ce soit fait par un moveToPoint() par exemple, et que ce soit redefinissable...
-    
+    ===> faudrait ptetre avoir les methodes de movexxx() dans Movable, et Pacman (il le faut, a cause des 3 parametres) et Ghost redefinissent celles-ci si necessaire => du coup on modifie les movexxx() mais le move() principal reste le même ? et du coup faudrait remplacer les appels direct a des setposition() ou autre pour que ce soit fait par un moveToPoint() par exemple, et que ce soit redefinissable...
 
         ===> EN FAIT, le updatestate(maze) ne fera rien sur les parametres et trucs du genre, il s'occupera bien uniquement de l'etat comme GhostMode et de le modifier selon si on vient juste de quitter la maison, etc.... (if justleaving() etc...) , puisque le allowedCorridors() checke lui-meme ce qui est autorisé ou pas
         
@@ -4806,20 +4665,11 @@ Ghost.prototype.justCameHomeEaten = function(maze)
 
 
     => dans certains tests, degager les === true et === false ; mais pour certaines fonctions (notamment de Line, jcrois que y'a une ambiguite sur les ispoint ou isintersection ou autre...) verifier qu'on a bien seulement ces 2 possibilités
-
-
-===> plus tard faudra mettre en place le changement de vitesse pour certains modes (creer 2-3 macros supplementaire du coup) ; et du coup lors du move() si on se rend compte que a partir de tel point on change de vitesse, ou qu'on passe dans un mode avec une vitesse differente, ben faudra faire un "return move()" avec des arguments mis à jour pour que la trajectoire parte du point où la vitesse change
-        ===> A MOINS QUE on mette en propriété (genre dans un this._remainingtime) du pacman/ghost le elapsed qu'on nous fournit en argument du move() ; du coup vu qu'on connaitra la vitesse courante, ainsi que la distance jusqu'au point qui déclenche un changement de vitesse, on déduit le temps que ça prend pour aller jusqu'à ce point, et on peut le soustraire du this._remainingtime
-            => du coup pour pacman : meme depuis eatBetweenPoints()
-            => et pour ghost : 
-            => en fait pour les 2, (depuis eatBetweenPoints() pour l'un, depuis movexxx() pour l'autre) comment faire ensuite pour se mettre au bon endroit en fonction de la nouvelle vitesse ??? faudrait recalculer quasiment tt le temps le mouvement restant et tt...
-            ====> AU FINAL : mettre en propriete un this._remainingtime et un this._remainingmovement ; creer dans movable un modeWillChange(remaining, ...) retournant un booléen, constitué des if du updatestate prevu (en fait c'est la même chose que le updatestate(), sauf que au lieu de faire if ... this._mode=truc, on fait if ... return true/false => pacman: if remaining.containsPowerPellet() return true ; ghost: if remaining.containsLinksCorridorsLimit/containsLinksGhosthouseLimit/containsCorridorsGhosthouseLimit() return true, ou juste les if justleaved() ... return true ou les if this._mode...&& maze.containsPoint()... return true ???)
-                => pacman : dans les movexxx(), faudra utiliser des if remaining.containsPowerPellet() 
-                => ghost : dans les movexxx(), faudra utiliser des if remaining.containsLinksCorridorsLimit/containsLinksGhosthouseLimit/containsCorridorsGhosthouseLimit()
-            ===============> OU ALORS EN FAIT, faut juste que chacun modifie les movexxx(), mais le move() principal reste le même pour les 2 ! ce qui serait ptetre plus logique en fait, vu que chacun a ses propres trucs et evenements a prendre en compte dans les movexxx(), mais que le move principal n'a pas à changer ! et donc chacun dans ses movexxx() pourra faire ses petites verif si le mode va changer et dans ce cas il s'occupera du temps/distance restante comme il faut (et d'ailleurs, vu que les movexxx() sont des fonctions simples, genre se deplacer sur un ligne, en fait on pourra ptetre au final quand meme mutualiser les detections de chagement de mode et les update de mode ?)
-
-    
 */
+
+
+
+
 
 Ghost.prototype.allowedCorridors = function()
 {
@@ -5314,10 +5164,6 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
         }
     }
 
-
-
-
-
 //console.log("fin: " + this._id + " / " + this._direction + " / " + withcorridors + ", " + withghosthouse + ", " + withlinks);
 };
 
@@ -5331,12 +5177,8 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     
     - faire que les fantomes aillent dans leur coin aussi au debut
     - specifier les etats dans le litteral
-    - terminer le TODO de movementAIRandom()
     - implementer les etats CHASE et SCATTER (qui remplaceront NORMAL)
-    - comme fait avec Pacman, revoir le move(), et voir si on fait bien les changements d'etat dans le move() et pas dans le movementAI(), et penser que si c'est dans le move(), si y'a eu un long "elapsed" alors faudra que le move() fasse ptetre un movementAI() pour connaitre la prochaine direction a prendre, vu que la ghost pourrait atteindre une intersection ou autre =====> le move() ne fera pas de movementAI(), sinon ce serait pas juste par rapport au joueur, faut qu'ils disposent des memes possibilites de "décision", faut pas que les ghosts puissent decider pendant le mouvement, meme si le elpased est long, car il est long aussi pour le joueur
-    - revoir aussi les movementAI() et movementAIXXX()
     - integrer les movablestate pour les ghosts
-    - utiliser 1 seul parametre via des macros plutot que 3 parametres via des booléens ? genre MazeTruc.CORRIDORS, MazeTruc.CORRIDORS_LINKS, ... ou même via des flags avec les bits : CORRIDORS|LINKS, ...
     - dans le movementAI() separer le code pr chaque fantome vers différentes fonctions (MovementAIClyde(), MovementAIInky(), ...)
     
     - ameliorer et tester mon assert() avec :
@@ -5345,17 +5187,11 @@ Ghost.prototype.movementAI = function(elapsed, maze, pacman)
     
     => le code de nextintersection() reste a mettre a jour pr les 3 parametres, mais en fait faudrait l'upadter tout court, en s'inspirant fortement de nextturn()
         => l'erreur rencontrée vient du fait que Pinky est arrivé tout en haut du link, et est donc sur l'intersection, avec direction=UP ; or il appelle movementaitotarget(), qui cherche la prochaine intersection avec nextintersection() pour prendre la decision de la direction a suivre... or notre remainingline est un point/intersection ; faut que movementaitotarget() gère ce genre de cas, puisque nextintersection fait bien son boulot (meme si comme dit ci-dessus, faut ameliorer ça)
-        
-===> au final : d'une part s'occuper des move(), d'autre part s'occuper des movementAI()
 */
-
-
 
 /******************************************************************************/
 /*                            game events listeners                           */
 /******************************************************************************/
-
-
 
 /*
     we also save when the key was pressed, to be able, if there is some system
@@ -5506,8 +5342,6 @@ chaque etat peut avoir des sous-etats ?
 dans logicloop, faut a un moment un truc pr changer l'etat si necessaire ; chaque etat pouvant dans une de ses fonctions modifier une variable nextstate ?
 */
 
-
-
 canvas = document.getElementById("gamecanvas");
 
 context = canvas.getContext("2d");
@@ -5549,7 +5383,7 @@ var height = mainmap_h + LINE_WIDTH + 10 + status_h;*/
 
 //console.log(width + ", " + height);
 
-/* TODO TODO TODO
+/* TODO 
 => en fait, avant de commencer le jeu, faut creer 1 tempmainmenustate, 1 tempplayingstate, et 1 temppausestate ; et avec leur propriete maincontentframe, on prend les dimensions les plus grandes, et on les assigne au canvas, ce qui donne la taille de base ^^ faut le refaire a chaque fois au cas ou on modif des ...
 
 ===> ou alors faudrait appeler des truc static : PlayingState.maxDimensions(map_X), et MainMenuState.maxDimensions(), et PauseMenuState.maxDimensions()
@@ -5562,9 +5396,6 @@ var height = mainmap_h + LINE_WIDTH + 10 + status_h;*/
 */
 
 changeCanvasDimensions(800, 700);
-
-
-
 
 /*
     init the game
